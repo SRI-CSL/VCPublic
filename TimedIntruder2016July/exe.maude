@@ -1,0 +1,464 @@
+fmod CONFIG is
+ inc PROTOCOL .
+ inc CONSTRAINTS .
+ inc CONVERSION .
+
+ var sb : Subst .
+ var nevtl : NeEvtList .
+ var pv : nameVar .
+ vars rid uid : String .
+ var i j : Nat .
+ var vl : VarL .
+ var iid : Iid .
+ var iname : name .
+ var hid : Hid .
+ vars ks ks' : TS .
+ vars tt1 tt2 tt3 : TimedT . 
+ var tts : TimedTS .
+ var ssb : SSubst .
+ var t : T .
+
+  sort Pid  .  --- player/process identifier
+  sort Hid . subsort Hid < Pid .    --- honest identifier
+  op h : Nat -> Hid [ctor] .        --- Honest
+  sort Iid . subsort Iid < Pid . --- Intruder .
+  op I : Nat -> Iid [ctor]  .      --- Intruder -- possibly many intruders
+
+***(
+  op n : Hid Nat -> nonceC .
+  op k : Hid Nat -> keyC .
+  eq sb[n(hid,i)] = n(hid,i) .
+  eq sb[k(hid,i)] = k(hid,i) .
+)
+
+  sorts TimedT TimedTS .
+  subsort TimedT < TimedTS .
+  op _@_ : T TSymReal -> TimedT .
+  op none : -> TimedTS [ctor] .
+  op __ : TimedTS TimedTS -> TimedTS [ctor assoc comm id: none] .
+
+  op _[[[_]]] : SSubst TimedTS -> TimedTS .
+  eq ssb[[[(t @ tr:TSymReal) tts]]] = 
+      (ssb[[[t]]] @ tr:TSymReal) ssb[[[tts]]] .
+  eq ssb[[[(none).TimedTS]]] = (none).TimedTS .
+
+  op tt : Nat -> TimeSym .
+
+
+  sorts Player Honest Intruder .
+  subsort Honest Intruder < Player .
+
+  op [_,_|_|_] : Hid Nat evtList TS -> Honest 
+                [ctor format (d d d d d d d d d n)] .  --- TS is keys
+  op [_,_|_|_] : Iid Nat TS TimedTS -> Intruder 
+                 [ctor format (d d d d d d d d d n)] . --- Iid is I
+
+  op mkHonest : Nat role Subst -> Honest .
+  eq mkHonest(i,r(rid,pv,vl,nevtl),sb) =
+         [ h(i), 0 | sb[[nevtl]] | sk(sb[pv]) ] 
+         [ I(i), 0 | sk(p("I:" + string(i,10))) | none ] .       
+
+
+  op mkHonestKnow : Nat role Subst TS -> Honest .
+  eq mkHonestKnow(i,r(rid,pv,vl,nevtl),sb,ks) =
+         [ h(i), 0 | sb[[nevtl]] | sk(sb[pv]) ks ]
+         [ I(i), 0 | sk(p("I:" + string(i,10))) | none  ] .       
+
+  op mkHonestKnowKnow : Nat role Subst TS TS -> Honest .
+  eq mkHonestKnowKnow(i,r(rid,pv,vl,nevtl),sb,ks,ks') =
+         [ h(i), 0 | sb[[nevtl]] | sk(sb[pv]) ks ]
+         [ I(i), 0 | sk(p("I:" + string(i,10))) ks' | none  ] .       
+
+
+
+  op mkIntruder : Iid name   -> Intruder . 
+  eq mkIntruder(iid,iname)  = 
+       [ iid, 0 | sk(iname) | none ] .
+
+  sort Node .
+  op `(_`,_`) : Pid Nat -> Node [ctor] .
+
+  sort Edge  .   --- bundle cross edges -- arrival order implicit
+  op o`(_`,_`,_`) : T Node Node -> Edge 
+                    [ctor format (n d d d d d d d d)] .
+
+*** sequence of events
+  sort Execution .
+  subsort Edge < Execution .
+  op  nil : -> Execution [ctor] .
+  op _;_ : Execution Execution -> Execution [ctor assoc id: nil] .
+
+**** soup of players honest and intruder
+
+  sort PlayerConf Config .  
+  subsort Player < PlayerConf .
+  op none : -> PlayerConf [ctor] .
+  op __ : PlayerConf PlayerConf -> PlayerConf [ctor assoc comm id: none] .
+
+  op _!_!_!_!_ : PlayerConf TimeSym DSet Boolean Execution -> Config [ctor] .
+
+  op getPC : Config -> PlayerConf .
+  eq getPC(pc:PlayerConf ! tt:TimeSym ! ds:DSet ! b:Boolean ! exe:Execution) = pc:PlayerConf .
+
+  op getTime : Config -> TimeSym .
+  eq getTime(pc:PlayerConf ! tt:TimeSym ! ds:DSet ! b:Boolean ! exe:Execution) = tt:TimeSym .
+
+  op getBool : Config -> Boolean .
+  eq getBool(pc:PlayerConf ! tt:TimeSym ! ds:DSet ! b:Boolean ! exe:Execution) = b:Boolean .
+
+  op getDS : Config -> DSet .
+  eq getDS(pc:PlayerConf ! tt:TimeSym ! ds:DSet ! b:Boolean ! exe:Execution) = ds:DSet .
+
+
+
+endfm
+
+mod META-TIME is 
+  inc CONFIG .
+  inc META-LEVEL .
+ 
+ vars tr1 tr2 : TSymReal .
+ vars b1 b2 b : Boolean .
+ var i : Nat .
+ vars tr res confT tcT : Term .
+ vars res? : [ResultPair] .
+ vars res1? : [ResultTriple] .
+ var tl : TermList .
+ var md : Module .
+ vars n n1 : Nat .
+ var bl : Bool .
+ vars conf conf1 : Config .
+
+ op mkTimeSymVar : Nat -> Term .
+ eq mkTimeSymVar(i) = qid("rv" + string(i,10) + ":Real") . 
+
+ op toVarsR : TSymReal -> Term .
+ op toVarsB : Boolean -> Term .
+
+ eq toVarsR(r:Real) = upTerm(r:Real) .
+ eq toVarsR(tt(i)) = mkTimeSymVar(i) .
+ eq toVarsR(- tr1) = '-_[toVarsR(tr1)] .
+ eq toVarsR(tr1 + tr2) = '_+_[toVarsR(tr1),toVarsR(tr2)] .
+ eq toVarsR(tr1 * tr2) = '_*_[toVarsR(tr1),toVarsR(tr2)] .
+ eq toVarsR(tr1 - tr2) = '_-_[toVarsR(tr1),toVarsR(tr2)] .
+ eq toVarsR(tr1 / tr2) = '_/_[toVarsR(tr1),toVarsR(tr2)] .
+ eq toVarsR(b ? tr1 : tr2) = '_?_:_[toVarsB(b),toVarsR(tr1),toVarsR(tr2)] .
+ eq toVarsR(toReal(toInt(tr1))) = 'toReal['toInteger[toVarsR(tr1)]] .
+
+ eq toVarsB(b) = upTerm(b) [owise] .
+ eq toVarsB(tr1 <= tr2) = '_<=_[toVarsR(tr1),toVarsR(tr2)] .
+ eq toVarsB(tr1 >= tr2) = '_>=_[toVarsR(tr1),toVarsR(tr2)] .
+ eq toVarsB(tr1 < tr2) = '_<_[toVarsR(tr1),toVarsR(tr2)] .
+ eq toVarsB(tr1 > tr2) = '_>_[toVarsR(tr1),toVarsR(tr2)] .
+ eq toVarsB(tr1 === tr2) = '_===_[toVarsR(tr1),toVarsR(tr2)] .
+ eq toVarsB(tr1 =/== tr2) = '_=/==_[toVarsR(tr1),toVarsR(tr2)] .
+ eq toVarsB(b1 and b2) = '_and_[toVarsB(b1),toVarsB(b2)] .
+ eq toVarsB(b1 or b2) = '_or_[toVarsB(b1),toVarsB(b2)] .
+ eq toVarsB(b1 xor b2) = '_xor_[toVarsB(b1),toVarsB(b2)] .
+ eq toVarsB(b1 implies b2) = '_implies_[toVarsB(b1),toVarsB(b2)] .
+ eq toVarsB(b1 === b2) = '_===_[toVarsB(b1),toVarsB(b2)] .
+ eq toVarsB(b1 =/== b2) = '_=/==_[toVarsB(b1),toVarsB(b2)] .
+ eq toVarsB(b ? b1 : b2) = '_?_:_[toVarsB(b),toVarsB(b1),toVarsB(b2)] .
+ eq toVarsB(not b1) = 'not_[toVarsB(b1)] .
+
+endm
+
+mod EXE is
+  inc CONFIG .
+  inc META-TIME .
+  
+  var hid : Hid . var iid : Iid .
+  vars i j j' i1 j1 n m : Nat .
+  var t t' : T . var evtl evtl2 evtl3 evtl4 : evtList .
+  var cd' : condition .
+  var tl : TL .
+  var k : key .
+  vars ks ts ts' ts0 ts1 ts2 : TS .
+  var cs cs' : Constraint .
+  var ds ds0 : DSet .
+  var ssb ssb0 : SSubst .
+  var ssbs : SSubstSet .
+  var css : CSet .
+  var sb sb0 : Subst .
+  var exe : Execution .
+  vars pc pc' : PlayerConf .
+  vars T T1 tsym : TimeSym .
+  vars TR1 TR2 : TSymReal .
+  vars b b' b1 b2 : Boolean .
+  --- vars tt : TimedT .
+  vars tts : TimedTS .
+  vars tacb tacb0 : TAssBool .
+
+  op hasKey : T TS -> Bool .
+  eq hasKey(k,k ks) = true .
+  eq hasKey(pk(nm:name),ks) = true .
+  eq hasKey(k,ks) = false [owise] .
+
+
+  op eval : condition DSet -> CSet .
+  ceq eval(t ~ t' # tacb, ds) = css
+  if ssbs := resolutions(t,t',mtSSS) 
+  /\ css := resCheck(ssbs,mtSS,ds,none) . 
+
+  ceq eval(t ~ t', ds) = css
+  if ssbs := resolutions(t,t',mtSSS) 
+  /\ css := resCheck(ssbs,mtSS,ds,none) . 
+
+**** can the substitued term be parsed using given knowledge ks
+  op receivable : T Subst TS -> Bool .
+  eq receivable(v:Var,sb,ks) = true .
+  eq receivable(c:baseC,sb,ks) = true .
+  eq receivable(s:Sym,sb,ks) = true .
+
+  eq receivable(e(t,k),sb,ks) = hasKey(inv(sb[k]),ks) .
+  eq receivable({nil},sb,ks) = true .
+  eq receivable({t,tl},sb,ks) = 
+      receivable(t,sb,ks) and receivable({tl},sb,ks) .
+
+**** collecting new keys when a substituted term is received
+  op addKeys : T Subst TS -> TS .
+  eq addKeys(k,sb,ks) = setAdd(sb[k],ks) .
+  eq addKeys({nil},sb,ks) = ks .
+  eq addKeys({t,tl},sb,ks) = addKeys({tl},sb,addKeys(t,sb,ks)) .
+  eq addKeys(e(t,k),sb,ks) =
+       (if inv(sb[k]) in ks then addKeys(t,sb,ks) else ks fi) .
+  eq addKeys(t,sb,ks) = ks [owise] .
+
+  op ikAdd : T TS -> TS .
+  eq ikAdd(s:Sym, ts) = ts .
+  ceq ikAdd(b:base, ts) = setAdd(b:base, ts) 
+  if not(b:base :: Sym) .
+  eq ikAdd({nil}, ts) = ts .
+  eq ikAdd({t,tl}, ts) = ikAdd({tl},ikAdd(t,ts)) .
+  eq ikAdd(e(t,k), ts) = 
+      (if inv(k) in ts 
+       then ikAdd(t, setAdd(e(t,k), ts)) 
+       else setAdd(e(t,k), ts) fi) .
+
+  op ssbPC : SSubst PlayerConf -> PlayerConf .
+  eq ssbPC(ssb,none) = none .
+  eq ssbPC(ssb,pc [iid,j | ts | tts]) = 
+      ssbPC(ssb,pc ) [iid,j | ssb[[[ts]]] | ssb[[[tts]]]] .
+  eq ssbPC(ssb,pc [hid,j | evtl | ks]) = 
+      ssbPC(ssb,pc ) [hid,j | ssb[[evtl]] | ssb[[[ks]]] ] .
+  eq ssbPC(ssb,pc) = pc [owise] .      
+  op ssbExe : SSubst Execution -> Execution .
+  eq ssbExe(ssb,nil) = nil .
+  eq ssbExe(ssb,exe ; o(t,nd0:Node,nd1:Node)) =
+       ssbExe(ssb,exe) ; o(ssb[t],nd0:Node,nd1:Node) .
+
+ op d : Nat Nat -> TSymReal .
+ eq d(i,i) = 0/1 .
+
+ op bufAdds : Nat TS TimeSym PlayerConf -> PlayerConf .
+ op bufAdd : Nat T TimeSym PlayerConf -> PlayerConf .
+ eq bufAdds(n,none,tsym,pc) = pc .
+ eq bufAdds(n,t ts,tsym,pc) = bufAdds(n,ts,tsym,bufAdd(n,t,tsym,pc)) .
+ eq bufAdd (n,t,tsym,pc) = pc [owise] .
+ eq bufAdd (n,t,tsym,[I(j), i | ts | tts ] pc) = 
+      if n == j then [I(j), i | ikAdd(t,ts) | tts ] bufAdd(n,t,tsym,pc)
+      else [I(j), i | ts | (t @ (tsym + d(n,j))) tts ] 
+           bufAdd(n,t,tsym,pc) fi .
+
+op noNew : PlayerConf -> Bool .
+eq noNew ([h(n), j | new(t),evtl | ks ] pc) = false .
+eq noNew(pc) = true [owise] .
+
+op noSnd : PlayerConf -> Bool .
+eq noSnd ([h(n), j | +(t),evtl | ks ] pc) = false .
+eq noSnd ([h(n), j | +(t # T1 := TR1), evtl | ks ] pc) = false .
+eq noSnd(pc) = true [owise] .
+
+crl[snd]:
+  [h(n), j | +(t), evtl | ks] pc ! T ! ds ! b ! exe 
+  =>
+  [h(n), s j | evtl | ks] bufAdd(n,t,T,pc) ! T 
+  ! ds ! b ! exe ; o(t,(h(n),j),(I(n),j))
+ if noNew(pc) .
+
+crl[asnd]:
+  [h(n), j | +(t # T1 := TR1), evtl | ks] pc ! T ! ds ! b ! exe 
+  =>
+  [h(n), s j | tsubl(T1,TR2,evtl) | ks] bufAdd(n,t,T,pc) ! T 
+  ! ds ! b ! exe ; o(t,(h(n),j),(I(n),j))
+ if noNew(pc) 
+ /\ TR2 := tsubr(cur,T,TR1) .  
+
+crl[tsnd]:
+  [h(n), j | +(t # b'), evtl | ks] pc ! tt(m) ! ds ! b ! exe 
+  =>
+  [h(n), s j | evtl | ks] bufAdd(n,t,tt(s m),pc) ! tt(s m) 
+  ! ds ! b2 ! exe ; o(t,(h(n),j),(I(n),j))
+ if noNew(pc) 
+ /\ b1 := (tt(s m) >= 0/1) and (tt(s m) >= tt(m) and (b))
+ /\ b2 := simplify(tsubb(cur,tt(s m),b') and (b1)) 
+ /\ (metaCheck(['EXE],toVarsB(b2))) .  
+
+crl[newN]:
+  [h(i), j | new(nv:nonceVar), evtl | ks] pc ! T ! ds ! b ! exe 
+  =>
+  [h(i), s j | sb[[evtl]] | ks] pc ! T ! ds ! b ! exe 
+  if sb := nv:nonceVar := n(i,j) .
+
+crl[newK]:
+  [h(i), j | new(kv:skeyVar), evtl | ks] pc ! T ! ds ! b ! exe 
+  =>
+  [h(i), s j | sb[[evtl]] | ks] pc ! T ! ds ! b ! exe 
+ if sb := kv:skeyVar := k(i,j) .
+
+rl[secretN]:
+  [h(i), j | secret(c:baseC), evtl | ks] pc ! T ! ds ! b ! exe 
+  =>
+  [h(i), s j | evtl | ks secretT(c:baseC) ] pc ! T ! ds ! b ! exe .
+  
+rl[event]:
+  [h(i), j | event(t), evtl | ks] pc ! T ! ds ! b ! exe 
+  =>
+  [h(i), s j | evtl | ks eventT(t) ] pc ! T ! ds ! b ! exe .
+
+*** TODO: Implement the sharing of symbols created. We obtain them by looking at the domain of ds0 minus ds.
+
+crl[rcv]:
+  [h(n), j | -(t), evtl | ks] [I(n),i | ts | tts ] pc ! T ! ds ! b ! exe
+  =>
+  [h(n), s j | ssb[[sb[[evtl]]]] | addKeys(t,sb0,ssb[[[ks]]])]
+  [I(n), s i | ssb[[[ts]]] | ssb[[[tts]]] ] 
+  ssbPC(ssb,pc) ! T
+  ! ds0 ! b ! ssbExe(ssb,exe) ;  o(ssb[sb0[t]],(I(n),i),(h(n),j)) 
+ if noNew(pc)
+ /\ noSnd(pc)
+ /\ {sb,{ssb,ds0} css} := sGen(n,i,t,ts,ds) 
+ /\ sb0 := ssbRng(ssb,sb,mtS)
+ /\ receivable(t,sb0,ks) .  
+
+crl[arcv]:
+  [h(n), j | -(t # T1 := TR1), evtl | ks] [I(n),i | ts | tts ] 
+  pc ! T ! ds ! b ! exe
+  =>
+  [h(n), s j | tsubl(T1,TR2,(ssb[[sb[[evtl]]]])) | addKeys(t,sb0,ssb[[[ks]]])]
+  [I(n), s i | ssb[[[ts]]] | ssb[[[tts]]] ] 
+  ssbPC(ssb,pc) ! T ! ds0 ! b ! ssbExe(ssb,exe) ;
+    o(ssb[sb0[t]],(I(n),i),(h(n),j)) 
+ if noNew(pc)
+ /\ noSnd(pc)
+ /\ {sb,{ssb,ds0} css} := sGen(n,i,t,ts,ds) 
+ /\ sb0 := ssbRng(ssb,sb,mtS)
+ /\ receivable(t,sb0,ks) 
+ /\ TR2 := tsubr(cur,T,TR1) .   
+
+crl[trcv]:
+  [h(n), j | -(t # b'), evtl | ks] [I(n),i | ts | tts ] 
+  pc ! tt(m) ! ds ! b ! exe
+  =>
+  [h(n), s j | ssb[[sb[[evtl]]]] | addKeys(t,sb0,ssb[[[ks]]])]
+  [I(n), s i | ssb[[[ts]]] | ssb[[[tts]]] ] 
+  ssbPC(ssb,pc) ! tt(s m) ! ds0 ! b2 ! ssbExe(ssb,exe) ;
+    o(ssb[sb0[t]],(I(n),i),(h(n),j)) 
+ if noNew(pc)
+ /\ noSnd(pc)
+ /\ {sb,{ssb,ds0} css} := sGen(n,i,t,ts,ds) 
+ /\ sb0 := ssbRng(ssb,sb,mtS)
+ /\ receivable(t,sb0,ks) 
+ /\ b1 := (tt(s m) >= 0/1) and (tt(s m) >= tt(m) and (b))
+ /\ b2 := simplify(tsubb(cur,tt(s m),b') and (b1)) 
+ /\ (metaCheck(['EXE],toVarsB(b2))) .   
+
+crl[buff]:
+  [iid, i | ts | (t @ TR1) tts ] pc ! (tt(j)) ! ds !  b ! exe  
+  =>
+  pc' ! (tt(s j)) ! ds 
+  ! b' ! exe
+ if noNew(pc)
+ /\ noSnd(pc) 
+ /\ b' := simplify((tt(s j) >= 0/1) and (tt(s j) >= tt(j) and (tt(s j) >= TR1 and b))) 
+ /\ pc' := checkBuf([iid, i | ikAdd(t,ts) | tts ] pc,b',TR1) .
+
+op checkBuf : PlayerConf Boolean TimeSym -> PlayerConf .
+eq checkBuf(pc,b,TR1) = pc [owise] .
+
+--- ceq checkBuf([iid, i | ts | (t @ TR2) tts ] pc, b, TR1) 
+---   = checkBuf([iid, i | ikAdd(t,ts) | tts ] pc, b, TR1)
+---  if b2 := (TR1 >= TR2) and (not TR2 > TR1) and b 
+---  /\ (metaCheck(['EXE],toVarsB(b2))) .
+
+ceq checkBuf([iid, i | ts | (t @ TR2) tts ] pc, b, TR1) 
+  = checkBuf([iid, i | ikAdd(t,ts) | tts ] pc, b, TR1)
+ if b2 := (TR2 > TR1) and b 
+ /\ not (metaCheck(['EXE],toVarsB(b2))) .
+
+rl[condF]:
+  [h(n), j | eif t ~ t' ethen evtl2 eelse evtl3 efi | ks] pc ! T ! ds ! b ! exe
+  =>
+  [h(n), j | evtl3 | ks] pc ! T ! ds ! b ! exe .
+
+crl[acondF]:
+  [h(n), j | eif t ~ t' # T1 := TR1 
+             ethen evtl2 eelse evtl3 efi | ks] pc ! T ! ds ! b ! exe
+  =>
+  [h(n), j | tsubl(T1,TR2,evtl3) | ks] pc ! T ! ds ! b ! exe 
+ if TR2 := tsubr(cur,T,TR1) .
+
+crl[tcondF]:
+  [h(n), j | eif t ~ t' # b' ethen evtl2 eelse evtl3 efi | ks] 
+  pc ! tt(m) ! ds ! b ! exe
+  =>
+  [h(n), j | evtl3 | ks] pc ! tt(s m) ! ds ! b2 ! exe 
+ if b1 := (tt(s m) >= 0/1) and (tt(s m) >= tt(m) and (b))
+ /\ b2 := simplify(tsubb(cur,tt(s m),b') and (b1)) 
+ /\ (metaCheck(['EXE],toVarsB(b2))) .
+
+*** Need to correct this.
+crl[condT]:
+  [h(n), j | eif t ~ t' ethen evtl2 eelse evtl3 efi | ks]  pc ! T ! ds ! b ! exe
+  =>
+  [h(n), s j | ssb[[evtl2]] | ks ] pc ! T ! ds ! b ! exe
+if {ssb,ds0} css := eval(t ~ t',ds) .
+
+crl[acondT]:
+  [h(n), j | eif t ~ t' # T1 := TR1 
+            ethen evtl2 eelse evtl3 efi | ks] pc ! T ! ds ! b ! exe
+  =>
+  [h(n), j | ssb[[tsubl(T1,TR2,evtl2)]] | ks] pc ! T ! ds0 ! b ! exe 
+ if TR2 := tsubr(cur,T,TR1) 
+ /\ {ssb,ds0} css := eval(t ~ t',ds) .
+
+crl[tcondT]:
+  [h(n), j | eif t ~ t' # b' ethen evtl2 eelse evtl3 efi | ks]  
+  pc ! tt(m) ! ds ! b ! exe
+  =>
+  [h(n), s j | ssb[[evtl2]] | ks ] pc ! tt(s m) ! ds0 ! b2 ! exe
+ if b1 := (tt(s m) >= 0/1) and (tt(s m) >= tt(m) and (b))
+ /\ b2 := simplify(tsubb(cur,tt(s m),b') and (b1)) 
+ /\ (metaCheck(['EXE],toVarsB(b2))) 
+ /\ {ssb,ds0} css := eval(t ~ t',ds) .
+
+endm
+
+mod ANALYSIS is
+inc EXE .
+
+var i : Nat .
+
+op mkI : -> Intruder .
+ eq mkI = [ I(0), 0 | sk(p("I")) | none ] .       
+
+op isDone : PlayerConf -> Bool .
+ op isDoneP : Player -> Bool .
+
+ eq isDone(none) = true .
+ eq isDone(pc:PlayerConf pl:Player) = 
+      (if isDoneP(pl:Player)
+       then isDone(pc:PlayerConf)
+       else false fi).
+
+ eq isDoneP([hid:Hid,i | nevtl:NeEvtList | ks:TS]) = false .
+ eq isDoneP(pl:Player) = true [owise] .
+
+ op isDoneH : Nat PlayerConf -> Bool .
+
+ eq isDoneH(i,[h(i),ix:Nat | (nil).evtList | ks:TS] pc:PlayerConf) 
+       = true .
+ eq isDoneH(i,pc:PlayerConf) = false [owise] .
+
+endm
+ 

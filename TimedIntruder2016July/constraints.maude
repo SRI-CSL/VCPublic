@@ -1,0 +1,336 @@
+fmod CONSTRAINTS is
+  inc VAR-SUBST .
+  inc SYM-SUBST .
+
+	vars i j j'  j0 j1  : Nat .
+	vars sb sb' sb0 sb1 : Subst .
+	vars cs cs' cs0 cs1 : Constraint .
+	vars ds ds' ds0 ds1 : DSet .
+	vars ssb ssb' ssb0 : SSubst .
+  var ssbs : SSubstSet .
+  vars sbnd sbnd0 : SBnd .
+	var ts ts' ts0 ts1 ts2 : TS .
+  var tss tss0 tss1 tss2 : TSS .
+  vars t t' t0 t1 t0' t0'' : T .
+  vars k k' k0 k1 k1' k1'' : key .
+  vars tl tl0 tl1 tl'   : TL .
+  var sym : Sym .
+  var var : Var .
+
+  vars css css0 css1  : CSet .
+
+ op ssbRng : SSubst Subst Subst -> Subst .
+ eq ssbRng(ssb,mtS,sb)  = sb .
+ eq ssbRng(ssb,(v:Var := t) sb0,sb)  = 
+       ssbRng(ssb,sb0,sb (v:Var := ssb[t])) .
+
+  sorts DConstraint  Constraint DSet .
+  op dc : Sym TSS -> DConstraint [ctor] .  
+     --- sym constrained to derivable values
+     --- keySym, nonceSym -- value inAll TSS 
+     --- Tsym -- value constructable inAll TSS
+     --- nameSym --- constrains name of secret key 
+
+  subsort DConstraint < DSet .
+  op none : -> DSet .
+  op __ : DSet DSet -> DSet [ctor assoc comm id: none] .
+
+  op dom : DSet -> TS .
+  eq dom(none) = none .
+  eq dom(ds dc(t,tss)) = setAdd(t,(dom(ds))) .
+
+  op `{_`,_`} : SSubst DSet -> Constraint [ctor] .
+
+  sort CSet .
+  subsort Constraint < CSet .
+  op none : -> CSet .
+  op __ : CSet CSet -> CSet [ctor assoc comm id: none] .
+
+  op unconstrain : DSet Sym -> DSet .
+  eq unconstrain(ds dc(sym,tss),sym) = ds .
+  eq unconstrain(ds,sym) = ds [owise] .
+
+  op dboundP : DSet Sym -> Bool .
+  eq dboundP(ds dc(s:Sym,tss),s:Sym) = true .
+  eq dboundP(ds,s:Sym) = false [owise] .
+
+  op dsUpdate : DSet Sym T -> DSet .
+  op dsUpdateX : DSet SBnd DSet -> DSet .
+
+  eq dsUpdate(ds,sym, t) 
+      = dsUpdateX(unconstrain(ds,sym),(sym :~ t),none) .
+  eq dsUpdateX(dc(sym,tss) ds0,sbnd,ds) = 
+       dsUpdateX(ds0,sbnd,ds dc(sym,sbnd[* tss *])) .
+  eq dsUpdateX(none,sbnd,ds) = ds .
+
+***** assume s:Sym :~ t :: SBnd  s:Sym,dom(ssb) ^ syms(rng(ssb)) = none
+  op ssbUpdate : SSubst Sym T -> SSubst .
+  eq ssbUpdate(ssb,s:Sym,t) =
+       (s:Sym :~ t) sbRng(s:Sym :~ t,ssb,mtSS) .
+
+  op csUpdate : Constraint Sym T -> Constraint .
+  eq csUpdate({ssb,ds},s:Sym,t) =
+       {ssbUpdate(ssb,s:Sym,t),dsUpdate(ds,s:Sym,t)} .
+
+
+  op findConstraint : DSet Sym TSS -> TSS .
+  eq findConstraint(ds dc(sym,tss), sym, tss0) = tss .
+  eq findConstraint(ds,sym, tss0) = tss0 [owise] .
+
+  op refine : DSet Sym TSS -> DSet .
+  eq refine(ds dc(s:Sym,tss),s:Sym,tss0) = ds dc(s:Sym,tss0) .
+  eq refine(ds,s:Sym,tss0) = ds dc(s:Sym,tss0) [owise] .
+
+***** Auxilliary functions/predicates
+
+  op skNames : TS -> TS .
+  op skNames : TSS  -> TS .
+  op skNamesX : TSS TS -> TS .
+
+  eq skNames(sk(p:name) ts) = p:name skNames(ts) .
+  eq skNames(ts) = none [owise] .
+
+  eq skNames((none).TSS) = (none).TS .
+  eq skNames(z(ts0) tss) = skNamesX(tss, skNames(ts0)) .
+
+  eq skNamesX(none,ts) = ts .
+  eq skNamesX(z(ts0) tss,ts) = 
+        skNamesX(tss,intersect(ts,skNames(ts0))) .
+
+  op occCheck : Sym T -> Bool .   --- sym occurs in t
+  eq occCheck(s:Sym,{nil}) = false .
+  eq occCheck(s:Sym,{t,tl}) = 
+       if occCheck(s:Sym,t) 
+       then true 
+       else occCheck(s:Sym, {tl})
+       fi .
+
+  eq occCheck(s:Sym,e(t,k:key)) = 
+       if occCheck(s:Sym,t) 
+       then true 
+       else occCheck(s:Sym,k:key)
+       fi .
+
+  eq occCheck(s:Sym,pk(n:name)) = s:Sym == n:name .
+  eq occCheck(s:Sym,sk(n:name)) = s:Sym == n:name .
+  eq occCheck(s:Sym, s:Sym) = true .
+  eq occCheck(s:Sym, t) = false [owise] .
+
+sort NatSubst .
+op `{_`,_`} : Nat Subst -> NatSubst [ctor] .
+
+**** bind each variable in t to a fresh symbol.
+op genFresh : Nat Nat T Subst -> NatSubst .
+eq genFresh(i,j,var,sb) =
+   (if boundP(sb,var) 
+    then {j,sb}
+    else  genBndSym(i,j,var,sb)
+    fi) .
+eq genFresh(i,j,sk(v:nameVar),sb) =  genFresh(i,j, v:nameVar,sb) .
+eq genFresh(i,j,pk(v:nameVar),sb) =  genFresh(i,j, v:nameVar,sb) .
+
+eq genFresh(i,j,e(t,k),sb) = genFresh(i,j, {t,k},sb) .
+eq genFresh(i,j,{nil},sb) = {j,sb} .
+ceq genFresh(i,j,{t,tl},sb) = genFresh(i,j0,{tl},sb0)
+if {j0,sb0} := genFresh(i,j,t,sb) .
+
+eq genFresh(i,j,t,sb) = {j,sb}  [owise] .
+
+op genBndSym : Nat Nat Var Subst -> NatSubst .
+eq genBndSym(i,j,v:TVar,sb) =     {s j, sb (v:TVar := vs(i,j))} .
+eq genBndSym(i,j,v:nameVar,sb) =  {s j, sb (v:nameVar := ps(i,j)) } .
+eq genBndSym(i,j,v:nonceVar,sb) = {s j, sb (v:nonceVar := ns(i,j))} .
+eq genBndSym(i,j,v:textVar,sb) =  {s j, sb (v:textVar := ts(i,j)) } .
+eq genBndSym(i,j,v:skeyVar,sb) =  {s j, sb (v:skeyVar := ks(i,j))} .
+
+sort SubstCSet .
+op `{_`,_`} : Subst CSet -> SubstCSet .
+
+op sGen : Nat Nat T TS DSet -> SubstCSet .
+ceq sGen(n:Nat,i,t,ts,ds) =
+  {sb, sGen1(t0,ts,mtSS,ds)}
+if {j,sb} := genFresh(n:Nat,i,t,mtS) 
+/\ t0 := sb[t] .
+
+op sGen1 : T TS  SSubst DSet -> CSet .
+
+ceq sGen1(s:Sym,ts,ssb,ds) = {ssb,ds0} 
+if ds0 := 
+   (if dboundP(ds,s:Sym)
+    then ds
+    else (if ((s:Sym :: TSym) or (s:Sym :: nonceSym) 
+               or (s:Sym :: skeySym))
+          then ds dc(s:Sym,z(ts))
+          else ds
+          fi)  
+      fi) .
+
+eq sGen1(c:textC,ts,ssb,ds) = {ssb,ds} .
+eq sGen1(c:nameC,ts,ssb,ds) = {ssb,ds} .
+eq sGen1(c:nonceC,ts,ssb,ds) = 
+     (if (c:nonceC in ts) then {ssb,ds} else none fi) .
+eq sGen1(c:skeyC,ts,ssb,ds) = 
+     (if (c:skeyC in ts) then {ssb,ds} else none fi) .
+
+eq sGen1(pk(n:name),ts,ssb,ds) =  {ssb,ds} .
+eq sGen1(sk(c:nameC),ts,ssb,ds) =  
+     (if (sk(c:nameC) in ts) then {ssb,ds} else none fi) .
+ ***** assume sk never leaked -- need to check in exe
+ceq sGen1(sk(s:nameSym),ts,ssb,ds) =  
+     (if tss2 == z(none) 
+      then none 
+      else  {ssb, refine(ds,s:nameSym,tss2)} fi)
+ if ts0 := skNames(ts) --- name constants
+ /\ tss1 := findConstraint(ds,s:nameSym,z(ts0))  
+                           *** returns  z(ts0) if not constrained
+ /\ tss2 := z(ts0) tss1 .
+
+eq sGen1({tl},ts,ssb,ds) =  sGen1L(tl,ts,ssb,ds) .
+ceq sGen1(e(t0,k0),ts,ssb,ds) =  
+       sGen1L({t0,k0},ts,ssb,ds) css
+if ssbs := resolutions(ssb[e(t0,k0)],ssb[[[ts]]],mtSSS) 
+/\ css := resCheck(ssbs,ssb,ds,none) .
+
+
+op sGen1L : TL TS SSubst DSet  -> CSet .
+eq sGen1L(nil,ts,ssb,ds) = {ssb,ds} .
+eq sGen1L((t,tl),ts,ssb,ds) = sGen1LL(tl,ts,sGen1(t,ts,ssb,ds)) .
+
+
+op sGen1LL : TL TS CSet -> CSet .
+eq sGen1LL(nil,ts, css) =  css .
+eq sGen1LL((t,tl),ts,css) = sGen1LL(tl,ts,sGen1LLL(t,ts,css,none)) .
+
+**** assume ssb,ds well formed
+op sGen1LLL : T TS CSet CSet -> CSet .
+eq sGen1LLL(t,ts,none,css)   = css .
+eq sGen1LLL(t,ts, {ssb,ds} css0,css)   = 
+    sGen1LLL(t,ts, css0, css sGen1(ssb[t],ssb[[[ts]]],ssb,ds)) .
+
+
+
+**** constrain ssb,ds to bind s to t if consistent
+op resolutions : T TS SSubstSet -> SSubstSet .
+**** returns 
+op resolve : T T SSubst -> SSubstSet .
+
+eq resolutions(t,none,ssbs) = ssbs .
+eq resolutions(t, t1 ts,ssbs) = 
+     resolutions(t,ts,ssbs resolve(t,t1,mtSS)) . 
+
+eq resolve(s:Sym, t1,ssb) = 
+    (if s:Sym == t1
+     then z(ssb)
+     else (if not(s:Sym :~ t1 :: SBnd)
+           then mtSSS
+           else (if occCheck(s:Sym,t1)
+                 then mtSSS
+                 else (if boundP(ssb,s:Sym)
+                       then resolve(lookupd(ssb,s:Sym,s:Sym),
+                                     ssb[t1],ssb)
+                       else z(ssbUpdate(ssb,s:Sym,ssb[t1]))
+                fi) fi) fi) fi) .
+
+
+ceq resolve(t0,s:Sym,ssb) = resolve(s:Sym,t0,ssb) 
+if not(t0 :: Sym) .
+
+**** neither t0,t1 is a symbol
+
+eq resolve(c:nonceC,c:nonceC,ssb) = z(ssb) .
+eq resolve(c:skeyC,c:skeyC,ssb) =   z(ssb) .
+eq resolve(c:textC,c:textC,ssb) =   z(ssb) .
+eq resolve(c:nameC,c:nameC,ssb) =   z(ssb) .
+
+eq resolve(pk(n0:name),pk(n1:name),ssb) 
+       = resolve(n0:name,n1:name,ssb) .
+eq resolve(sk(n0:name),sk(n1:name),ssb)
+       = resolve(n0:name,n1:name,ssb) .
+
+eq resolve(e(t0,k0),e(t1,k1),ssb) = resolve({t0,k0},{t1,k1},ssb) .
+
+eq resolve({nil},{nil},ssb) = z(ssb) .
+
+ceq resolve({t0,tl0},{t1,tl1},ssb) =
+   resolve({ssb0[[tl0]]},{ssb0[[tl1]]},ssb0)
+if z(ssb0) := resolve(t0,t1,ssb) .
+
+eq resolve(t0,t1,ssb) = mtSSS [owise] .
+
+op resCheck : SSubstSet  SSubst DSet CSet -> CSet .
+eq resCheck(mtSSS,ssb,ds,css) = css .
+eq resCheck(z(ssb0) ssbs,ssb,ds,css) =
+      resCheck(ssbs,ssb,ds, css checkSubst(ssb0,ssb,ds) ) .
+
+**** all cs that make ssb0 consistent with ssb,ds
+op checkSubst : SSubst SSubst DSet  -> CSet .
+op checkBnd : SBnd SSubst DSet  -> CSet .
+***** assumes sort(s:Sym) >= sort(t)
+op checkBnd1 : Sym T SSubst DSet  -> CSet .
+*** map chechSubst(ssb0) over checkBnd(sbnd,ssb,ds,css)
+op checkSubstMap : SSubst CSet CSet -> CSet .
+
+eq checkSubst(mtSS,ssb,ds)  = {ssb,ds} .
+eq checkSubst(sbnd ssb0,ssb,ds)  =
+     checkSubstMap(ssb0,checkBnd(sbnd,ssb,ds),none) .    
+
+op checkSubstMap : SSubst CSet CSet -> CSet .
+eq checkSubstMap(ssb0,none,css) = css .
+eq checkSubstMap(ssb0,{ssb,ds} css0,css) = 
+     checkSubstMap(ssb0, css0, checkSubst(ssb0,ssb,ds)) . 
+
+**** assume ssb well formed wrt ds, s not in t, s not in dom(ssb)
+eq checkBnd(s:Sym :~ t,ssb,ds) =
+  (if t :: TSym and not(s:Sym :: TSym)
+   then checkBnd1(t,s:Sym,ssb,ds)
+   else checkBnd1(s:Sym,t,ssb,ds)
+  fi)
+.
+
+eq checkBnd1(s:Sym,t,ssb,ds) =
+  (if not(dboundP(ds,s:Sym))
+   then csUpdate({ssb,ds},s:Sym,t)
+   else checkBndC(s:Sym,t,sbRng(s:Sym :~ t,ssb, mtSS),
+                  dsUpdate(ds,s:Sym,t),
+                  findConstraint(ds,s:Sym,z(s:Sym)))
+   fi) .
+
+**** ts is constraint of s ds is s free  ssb rng is s free
+
+op checkBndC : Sym T SSubst DSet TSS -> CSet .
+eq checkBndC(s:Sym,t,ssb,ds,tss) =
+     (if (not(t :: Sym))
+      then addBnd(s:Sym,t,sGen1S(t,ssb, ds,tss),none)
+      else (if not(dboundP(ds,t))
+            then {ssbUpdate(ssb,s:Sym,t), ds dc(t,tss)}
+            else {ssbUpdate(ssb,s:Sym,t), 
+                           ds dc(t,(tss findConstraint(ds,t,z(t))))}
+            fi)
+      fi) .
+
+op sGen1S : T SSubst DSet TSS  ~> CSet .
+op sGen1SX : T TSS CSet  -> CSet .
+op sGen1SXX : T TS CSet CSet -> CSet .
+
+eq sGen1S(t,ssb,ds,z(ts) tss) =
+    sGen1SX(t,tss,sGen1(t,ts,ssb,ds)) .
+**** tss should not be non if it appears in a dc
+**** at least its z(none).
+**** rewriting should fail at some point if tss is none
+
+eq sGen1SX(t,none,css) = css .
+eq sGen1SX(t,z(ts) tss,css) =  sGen1SX(t,tss,sGen1SXX(t,ts,css,none)) .
+**** for {ssb,ds} in css let css1 be sGen1(ssb[t],ssb[[[ts]]],ssb,ds)
+**** collect these in css2 and sGen1SX on tss css2
+eq sGen1SXX(t,ts,none,css) = css .
+eq sGen1SXX(t,ts,{ssb,ds} css0,css) = 
+      sGen1SXX(t,ts,css0, css sGen1(ssb[t],ssb[[[ts]]],ssb,ds)) .
+
+
+op addBnd : Sym T CSet CSet -> CSet .
+eq addBnd(s:Sym,t,none,css) = css .
+eq addBnd(s:Sym,t,{ssb,ds} css0,css) =
+    addBnd(s:Sym,t,css0, css csUpdate({ssb,ds},s:Sym,ssb[t])) .
+
+
+endfm

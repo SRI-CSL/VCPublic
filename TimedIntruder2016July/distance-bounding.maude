@@ -1,0 +1,137 @@
+***(
+Attack in between ticks
+
+The idea of this trace is to attack between the ticks of the verifier, exploiting
+the delay between receiving a message and measuring its time.
+
+
+Article:
+    Name : Discrete vs. Dense Times in the Analysis of Cyber-Physical Security Protocols
+    Authors : Max Kanovich, Tajana Ban Kirigin, Vivek Nigam, Andre Scedrov and Carolyn Talcott
+
+)
+mod ATTACK-IN-BETWEEN-TICKS is
+  inc EXE .
+  inc ANALYSIS .
+  --- inc META-TIME .
+
+var exe : Execution .
+  var pc : PlayerConf .
+  vars T T1 tsym : TimeSym .
+  var TR1 : TSymReal .
+  vars b b' : Boolean .
+var ds ds0 : DSet .
+vars i j : Nat .
+
+var conf : Config .
+
+ops evInit0 evInit evResp0 evResp : -> NeEvtList .
+ops rInit rResp : ->  role .
+
+--- Reader
+eq evInit = ( new(nv("NR")), evInit0) .
+eq evInit0 = ( +(nv("NR") # tt(0) := toReal(toInt(cur)) + 1/1 ),
+             (event({t("sent-challenge"),nv("NR")})),
+             -(nv("NR") # toReal(toInt(cur)) + 1/1 - tt(0) <= 4/1 ) ) .
+
+***(
+  +(e({nv("A"),pv("A")},pk(pv("B")))),
+  -(e({nv("A"),nv("B")},pk(pv("A")))),
+  +(e(nv("B"),pk(pv("B"))))  .
+)
+
+eq rInit = r("reader", pv("A"), nil, evInit ) .
+
+--- Card
+eq evResp = (evResp0) .
+eq evResp0 =  (-(nv("NR")),
+              (event({t("received-challenge"),nv("NR")})),
+              +(nv("NR")) ) .
+
+eq rResp = r("card", pv("B"), nil, evResp ) .
+
+op initPC : -> PlayerConf .
+
+eq initPC =
+ mkHonest(0,rInit,(pv("A") := p("R")))
+ mkHonest(1,rResp,(pv("B") := p("C"))) .
+
+op initConf : -> Config .
+eq initConf = initPC ! tt(4) ! none ! (d(1,0) > 4/1) and (d(0,1) > 4/1) and (tt(4) >= 0/1) and true ! nil .
+
+eq toVarsR(d(i,j)) = qid("d" + string(i,10) + string(j,10) + ":Real") .
+
+op goalC : Config -> Bool .
+eq goalC(conf) =  isDone(getPC(conf)) .
+
+op getBoolean : Config -> Boolean .
+eq getBoolean(pc ! T ! ds ! b ! exe) = b .
+
+var t1 t2 : T .
+
+op checkEvents : Config -> Bool .
+eq checkEvents([hid:Hid,i:Nat | evs1:evtList | (eventT({t("sent-challenge"),t1})) ts1:TS]
+               [hid2:Hid,i2:Nat | evs2:evtList | (eventT({t("received-challenge"),t2})) ts2:TS]
+               pc ! T ! ds ! b ! exe) = not (eval(t1 ~ t2,ds) == none) .
+
+endm
+
+
+***(
+search [1] initConf =>* c:Config such that goalC(c:Config) .
+
+*** This is a terrorist attack!
+
+Solution 1 (state 11)
+states: 12  rewrites: 897 in 31ms cpu (33ms real) (28320 rewrites/second)
+c:Config --> ([h(0),(3).NzNat | (nil).evtList | sk(p("R"))]
+ [h(1),(2).NzNat | (nil).evtList | sk(p("C"))]
+ [I(0),(1).NzNat | sk(p("I:0")) n(0, 0) | ns(1, 0) @ tt(4) + d(1, 0)]
+ [I(1),(1).NzNat | sk(p("I:1")) | n(0, 0) @ tt(4) + d(0, 1)]
+) ! tt(4) ! dc(ns(1, 0), z(sk(p("I:1")))) ! toReal(toInt(tt(4))) + (1/1).Real - (toReal(
+    toInt(tt(4))) + (1/1).Real) <= (4/1).Real and (d(1, 0) > (4/1).Real and d(0, 1) > (
+    4/1).Real and tt(4) >= (0/1).Real and true) !
+o(n(0, 0),(h(0),1),(I(0),1)) ;
+o(ns(1, 0),(I(1),0),(h(1),0)) ;
+o(ns(1, 0),(h(1),1),(I(1),1)) ;
+o(n(0, 0),(I(0),0),(h(0),2))
+
+
+Solution 6 (state 37)
+states: 38  rewrites: 403 in 3ms cpu (3ms real) (109689 rewrites/second)
+c:Config --> ([h(0),(3).NzNat | (nil).evtList | sk(p("R"))]
+ [h(1),(2).NzNat | (nil).evtList | sk(p("C"))]
+ [I(0),(1).NzNat | sk(p("I:0")) n(0, 0) | ns(1, 0) @ tt(5) + d(1, 0)]
+ [I(1),(1).NzNat | sk(p("I:1")) n(0, 0) | ns(1, 0) @ tt(5) + 0/1]
+) ! tt(6) ! dc(ns(1, 0), z(sk(p("I:1")) n(0, 0))) ! toReal(toInt(tt(6))) + (1/1).Real - (toReal(
+    toInt(tt(4))) + (1/1).Real) <= (4/1).Real and (tt(6) >= (0/1).Real and (tt(6) >= tt(5) and (tt(
+    5) >= (0/1).Real and (tt(5) >= tt(4) and (tt(5) >= tt(4) + d(0, 1) and (d(1, 0) > (4/1).Real
+    and d(0, 1) > (4/1).Real and tt(4) >= (0/1).Real and true)))))) !
+o(n(0, 0),(h(0),1),(I(0),1)) ;
+o(ns(1, 0),(I(1),0),(h(1),0)) ;
+o(ns(1, 0),(h(1),1),(I(1),1)) ;
+o(n(0, 0),(I(0),0),(h(0),2))
+
+Not a terrorist attack!
+search [1] initConf =>* c:Config such that goalC(c:Config) and checkEvents(c:Config) .
+
+Solution 1 (state 69)
+states: 70  rewrites: 7147 in 55ms cpu (56ms real) (129815 rewrites/second)
+c:Config --> ([h(0),(4).NzNat | (nil).evtList | sk(p("R")) eventT({t(
+    "sent-challenge"),n(0, 0)})]
+ [h(1),(3).NzNat | (nil).evtList | sk(p("C")) eventT({t("received-challenge"),
+    ns(1, 0)})]
+ [I(0),(1).NzNat | sk(p("I:0")) n(0, 0) | ns(1, 0) @ tt(6) + d(1, 0)]
+ [I(1),(1).NzNat | sk(p("I:1")) n(0, 0) | (none).TimedTS]
+) ! tt(6) ! dc(ns(1, 0), z(sk(p("I:1")) n(0, 0))) ! tt(6) >= (0/1).Real and (
+    tt(6) >= tt(5) and (tt(6) >= tt(4) + d(0, 1) and (toReal(toInt(tt(5))) + (
+    1/1).Real - (toReal(toInt(tt(4))) + (1/1).Real) <= (4/1).Real and (tt(5)
+    >= (0/1).Real and (tt(5) >= tt(4) and (d(1, 0) > (4/1).Real and d(0, 1) >
+    (4/1).Real and tt(4) >= (0/1).Real and true)))))) !
+o(n(0, 0),(h(0),1),(I(0),1)) ;
+o(n(0, 0),(I(0),0),(h(0),3)) ;
+o(ns(1, 0),(I(1),0),(h(1),0)) ;
+o(ns(1, 0),(h(1),2),(I(1),2))
+
+
+  )

@@ -1,0 +1,127 @@
+***(
+
+Brands and Chaum
+
+V ---> P : V,P
+P ---> V : NP
+V ---> P : NV # tt(0) := cur
+P ---> V : NV xor NP # cur <= tt(0) + T
+V ---> P : SignPk(Nv,NP)
+
+
+In our example we use an approximate version, since xor isn't present.
+
+V ---> P : V,P
+P ---> V : NP
+V ---> P : NV # tt(0) := cur
+P ---> V : {NV,NP} # cur <= tt(0) + T
+V ---> P : e({Nv,NP}, private_key(V))
+
+We simulate the Sig by encrypting the nonces with the Verifier's private key,
+and substituted the xor by a simple term composition. A similar version to our
+own can be found proposed in the article Automatic Analysis of distance bounding
+protocols.
+
+
+Original protocol:
+S. Brands and D. Chaum. Distance-bounding protocols. In Advances in Cryptology - EuroCrypt
+’93, LNCS 765. Springer-Verlag, 1995.
+
+Adapted version :
+    Name : Automatic analysis of distance bounding protocols
+    Authors : Sreekanth Malladi, Bezawada Bruhadeshwar and Kishore Kothapalli
+
+)
+
+mod BRANDS is
+  inc EXE .
+  inc ANALYSIS .
+  inc META-TIME .
+
+var exe : Execution .
+var pc : PlayerConf .
+vars T T1 tsym : TimeSym .
+var TR1 : TSymReal .
+vars b b' : Boolean .
+var ds ds0 : DSet .
+
+var conf : Config .
+
+ops evProver0 evProver evVerifier0 evVerifier : -> NeEvtList .
+ops rProver rVerifier : ->  role .
+
+--- Reader
+eq evVerifier = ( new(nv("NV")), evVerifier0) .
+eq evVerifier0 = (+({pv("V"), pv("P")}),
+				-(nv("NP")),
+				+(nv("NV") # tt(0) := cur),
+				-({nv("NV"), nv("NP")} # cur <= tt(0) + 10/1),
+				+(e({nv("NV"), nv("NP")}, sk(pv("P")))) ) .
+
+
+eq rVerifier = r("verifier", pv("V"), (pv("V"),pv("P")), evVerifier ) .
+
+--- Card
+eq evProver = (new(nv("NP")), evProver0) .
+eq evProver0 = (-({pv("V"), pv("P")}),
+				+(nv("NP")),
+				-(nv("NV")),
+				+({nv("NV"), nv("NP")}),
+				+(e({nv("NV"), nv("NP")}, sk(pv("P"))))  ) .
+
+eq rProver = r("prover", pv("P"), pv("P"), evProver ) .
+
+op initPC : -> PlayerConf .
+
+eq initPC =
+ mkHonest(0,rVerifier,((pv("V") := p("V")) (pv("P") := p("P"))))
+ mkHonest(1,rProver,(pv("P") := p("P"))) .
+
+op initConf : -> Config .
+eq initConf = initPC ! tt(4) ! none ! (tt(4) >= 0/1) and true ! nil .
+
+eq d(0,1) = 8/1 .
+eq d(1,0) = 8/1 .
+
+op goalC : Config -> Bool .
+eq goalC(conf) =  isDone(getPC(conf)) .
+
+endm
+
+mod META-TEST is
+  inc META-TIME .
+  inc PAYWAVE .
+endm
+
+***(
+We, here, are searching for a configuration that finishes.
+
+search [1] in META-TEST : initConf =>* c:Config such that goalC(c:Config) = (true).Bool .
+
+Solution 1 (state 440)
+states: 441  rewrites: 89118 in 948ms cpu (946ms real) (94006 rewrites/second)
+c:Config --> ([h(0),(6).NzNat | (nil).evtList | sk(p("V"))]
+ [h(1),(6).NzNat | (nil).evtList | sk(p("P"))]
+ [I(0),(2).NzNat | p("P") p("V") sk(p("I:0")) n(0, 0) e({n(0, 0),ns(0, 0)}, sk(
+    p("P"))) | ({ns(1, 1),n(1, 0)} @ tt(4) + 8/1) (n(1, 0) @ tt(4) + 8/1) e({
+    ns(1, 1),n(1, 0)}, sk(p("P"))) @ tt(4) + 8/1]
+ [I(1),(2).NzNat | sk(p("I:1")) n(1, 0) e({ns(1, 1),n(1, 0)}, sk(p("P"))) | ({
+    p("V"),p("P")} @ tt(4) + 8/1) (n(0, 0) @ tt(4) + 8/1) e({n(0, 0),ns(0, 0)},
+    sk(p("P"))) @ tt(5) + 8/1]
+) ! tt(5) ! dc(ns(0, 0), z(p("P") p("V") sk(p("I:0")))) dc(ns(1, 1), z(sk(p(
+    "I:1")) n(1, 0))) ! tt(5) <= tt(4) + (10/1).Real and (tt(5) >= (0/1).Real
+    and (tt(5) >= tt(4) and (tt(4) >= (0/1).Real and true))) !
+o({p("V"),p("P")},(h(0),1),(I(0),1)) ;
+o(ns(0, 0),(I(0),0),(h(0),2)) ;
+o(n(0, 0),(h(0),3),(I(0),3)) ;
+o({ps(1, 0),p("P")},(I(1),0),(h(1),1)) ;
+o(n(1, 0),(h(1),2),(I(1),2)) ;
+o(ns(1, 1),(I(1),1),(h(1),3)) ;
+o({ns(1, 1),n(1, 0)},(h(1),4),(I(1),4)) ;
+o(e({ns(1, 1),n(1, 0)}, sk(p("P"))),(h(1),5),(I(1),5)) ;
+o({n(0, 0),ns(0, 0)},(I(0),1),(h(0),4)) ;
+o(e({n(0, 0),ns(0, 0)}, sk(p("P"))),(h(0),5),(I(0),5))
+
+
+
+  )
