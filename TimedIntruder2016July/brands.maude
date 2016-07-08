@@ -88,15 +88,17 @@ eq goalC(conf) =  isDone(getPC(conf)) .
 
 endm
 
+***(
 mod META-TEST is
   inc META-TIME .
   inc PAYWAVE .
 endm
+)
 
 ***(
 We, here, are searching for a configuration that finishes.
 
-search [1] in META-TEST : initConf =>* c:Config such that goalC(c:Config) = (true).Bool .
+search [1]  initConf =>* c:Config such that goalC(c:Config) = (true).Bool .
 
 Solution 1 (state 440)
 states: 441  rewrites: 89118 in 948ms cpu (946ms real) (94006 rewrites/second)
