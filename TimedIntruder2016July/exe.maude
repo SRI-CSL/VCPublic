@@ -69,6 +69,10 @@ fmod CONFIG is
          [ h(i), 0 | sb[[nevtl]] | sk(sb[pv]) ks ]
          [ I(i), 0 | sk(p("I:" + string(i,10))) ks' | none  ] .       
 
+  op IntruderKnow : PlayerConf TS -> PlayerConf [ctor] .
+  eq IntruderKnow([ iid, i | ks | tts ] pc:PlayerConf , ks') = [iid, i | ks ks' | tts] IntruderKnow(pc:PlayerConf, ks') .
+  eq IntruderKnow(h:Honest pc:PlayerConf, ks) = h:Honest IntruderKnow(pc:PlayerConf, ks) .
+  eq IntruderKnow(none, ks) = none .
 
 
   op mkIntruder : Iid name   -> Intruder . 
