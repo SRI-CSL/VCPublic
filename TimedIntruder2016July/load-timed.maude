@@ -4,10 +4,11 @@ load protocol
 load exe
 
 ***(
+load examples/attack-in-between-ticks
+load examples/brands
 load examples/paywave
 load examples/paywave-full
 load examples/passport
-load examples/attack-in-between-ticks
-load examples/brands
+
 load examples/meadows
 )
