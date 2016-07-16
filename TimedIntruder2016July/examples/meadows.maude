@@ -1,0 +1,214 @@
+***(
+Attack
+
+V ---> P : V,request
+V ---> P : NV # tt(0) := cur
+P ---> V : f(NV,P,NP) # cur <= tt(0) + d
+P ---> V : P, posP, NP, NV, MACkpv(P,posP,NP,NV)
+
+with f being a function that can be checked if f(NV,P,NP) was constructed using NV,P,NP. For f, in our
+example, we used the concatenation function.
+
+Article:
+C. Meadows, R. Poovendran, D. Pavlovic, L. Chang, and P. Syverson. Distance bounding pro-
+tocols: Authentication logic analysis and collusion attacks. In Secure Localization and Time Syn-
+chronization for Wireless Sensor and Ad Hoc Networks. Springer-Verlag, 2007.
+
+
+)
+
+mod MEADOWS is
+  inc EXE .
+  inc ANALYSIS .
+  inc META-TIME .
+
+var exe : Execution .
+var pc : PlayerConf .
+vars T T1 tsym : TimeSym .
+var TR1 : TSymReal .
+vars b b' : Boolean .
+var ds ds0 : DSet .
+
+var conf : Config .
+
+ops evProver0 evProver evVerifier0 evVerifier : -> NeEvtList .
+ops rProver rVerifier : ->  role .
+
+eq evVerifier = ( new(nv("NV")), evVerifier0) .
+eq evVerifier0 = (+({pv("V"), t("REQUEST")}),
+				+(nv("NV") # tt(0) := cur),
+				-({nv("NV"), pv("P"), nv("NP")} # cur <= tt(0) + 10/1),
+				-({pv("P"), t("posP"), nv("NP"), nv("NV"), e({pv("P"), t("posP"), nv("NP"), nv("NV")}, KV)}) ) .
+
+
+eq rVerifier = r("verifier", pv("V"), (pv("V"),pv("P")), evVerifier ) .
+
+eq evProver = ( new(nv("NP")), evProver0) .
+eq evProver0 = (-({pv("V"), t("REQUEST")}),
+        -(nv("NV") # tt(0) := cur),
+        +({nv("NV"), pv("P"), nv("NP")} # cur <= tt(0) + 10/1),
+        +({pv("P"), t("posP"), nv("NP"), nv("NV"), e({pv("P"), t("posP"), nv("NP"), nv("NV")}, KV)})) .
+
+eq rProver = r("prover", pv("P"), pv("P"), evProver ) .
+
+ops evAlternateProver0 evAlternateProver evAlternateVerifier0 evAlternateVerifier : -> NeEvtList .
+ops rAltProver rAltVerifier : -> role .
+
+eq evAlternateVerifier = ( new(nv("NV")), evAlternateVerifier0) .
+eq evAlternateVerifier0 = (+({pv("V"), t("REQUEST")}),
+        +(nv("NV") # tt(0) := cur),
+        -({nv("NV"), pv("P"), nv("NP")} # cur <= tt(0) + 10/1),
+        -({pv("P"), t("posP"), nv("NP"), nv("NV"), e({pv("P"), t("posP"), nv("NV")}, KV)}) ) .
+
+eq rAltVerifier = r("verifier", pv("V"), (pv("V"),pv("P")), evAlternateVerifier ) .
+
+eq evAlternateProver = ( new(nv("NP")), evAlternateProver0) .
+eq evAlternateProver0 = (-({pv("V"), t("REQUEST")}),
+        -(nv("NV") # tt(0) := cur),
+        +({nv("NV"), pv("P"), nv("NP")} # cur <= tt(0) + 10/1),
+        +({pv("P"), t("posP"), nv("NP"), nv("NV"), e({pv("P"), t("posP"), nv("NV")}, KV)})) .
+
+eq rAltProver = r("prover", pv("P"), pv("P"), evAlternateProver ) .
+
+
+
+op honestPC : -> PlayerConf .
+op KV : -> skeyC .
+
+--- with this configuration, we emulate a scenario where both prover and verifier are honest
+eq honestPC =
+ mkHonestKnow(0,rVerifier,((pv("V") := p("V")) (pv("P") := p("P"))), KV)
+ mkHonestKnow(1,rProver,(pv("P") := p("P")), KV) .
+
+ op dishonestPC : -> PlayerConf .
+
+ --- with this one, we emulate a scenario where the prover is colluding with a third-party that is
+ --- closer to the verifier, by making the intruders know the KV.
+
+ eq  dishonestPC = IntruderKnow(honestPC, KV) .
+
+ op alternatePC : -> PlayerConf .
+
+ --- with this PlayerConf, we tweak the original protocol like suggested by Malladi et al. in the article
+ --- Automatic Analysis of Distance Bounding Protocols. In the article, Malladi suggests to take away the
+ --- nonce NP from inside the authentication response.
+
+  eq alternatePC =
+ mkHonestKnow(0,rAltVerifier,((pv("V") := p("V")) (pv("P") := p("P"))), KV)
+ mkHonestKnow(1,rAltProver,(pv("P") := p("P")), KV) . 
+
+
+ops honestConf dishonestConf alternateConf : -> Config .
+eq honestConf = honestPC ! tt(4) ! none ! (tt(4) >= 0/1) and true ! nil .
+eq dishonestConf = dishonestPC ! tt(4) ! none ! (tt(4) >= 0/1) and true ! nil .
+eq alternateConf = alternatePC ! tt(4) ! none ! (tt(4) >= 0/1) and true ! nil .
+
+***(
+eq d(0,1) = 4/1 .
+eq d(1,0) = 4/1 .
+)
+
+eq d(0,1) = 9/1 .
+eq d(1,0) = 9/1 .
+
+
+op goalC : Config -> Bool .
+eq goalC(conf) =  isDone(getPC(conf)) .
+
+endm
+
+mod META-TEST is
+  inc META-TIME .
+  inc MEADOWS .
+endm
+
+***(
+We, here, are searching for a configuration that finishes.
+
+With distance between players equals 4 (d(0,1) = 4/1 and d(1,0) = 4/1) and honest configuration
+
+search [1] in META-TEST : honestConf =>* c:Config such that goalC(c:Config) = (true).Bool .
+
+Solution 1 (state 100)
+states: 101  rewrites: 57997 in 447ms cpu (451ms real) (129476 rewrites/second)
+c:Config --> ([h(0),(5).NzNat | (nil).evtList | KV sk(p("V"))]
+ [h(1),(5).NzNat | (nil).evtList | KV sk(p("P"))]
+ [I(0),(2).NzNat | p("P") p("V") t("REQUEST") t("posP") sk(p("I:0")) n(0, 0) n(1, 0) e({p("P"),t(
+    "posP"),n(1, 0),n(0, 0)}, KV) | (none).TimedTS]
+ [I(1),(2).NzNat | p("P") p("V") t("REQUEST") t("posP") sk(p("I:1")) n(0, 0) n(1, 0) e({p("P"),t(
+    "posP"),n(1, 0),n(0, 0)}, KV) | (none).TimedTS]
+) ! tt(8) ! none ! tt(8) <= tt(4) + (10/1).Real and (tt(8) >= (0/1).Real and (tt(8) >= tt(7) and (
+    tt(7) >= (0/1).Real and (tt(7) >= tt(6) and (tt(7) >= tt(6) + (4/1).Real and (tt(6) <= tt(5) +
+    (10/1).Real and (tt(6) >= (0/1).Real and (tt(6) >= tt(5) and (tt(5) >= (0/1).Real and (tt(5) >=
+    tt(4) and (tt(5) >= tt(4) + (4/1).Real and (tt(4) >= (0/1).Real and true)))))))))))) !
+o({p("V"),t("REQUEST")},(h(0),1),(I(0),1)) ;
+o(n(0, 0),(h(0),2),(I(0),2)) ;
+o({ps(1, 0),t("REQUEST")},(I(1),0),(h(1),1)) ;
+o(n(0, 0),(I(1),1),(h(1),2)) ;
+o({n(0, 0),p("P"),n(1, 0)},(h(1),3),(I(1),3)) ;
+o({p("P"),t("posP"),n(1, 0),n(0, 0),e({p("P"),t("posP"),n(1, 0),n(0, 0)}, KV)},(h(1),4),(I(1),4)) ;
+
+o({n(0, 0),p("P"),n(1, 0)},(I(0),0),(h(0),3)) ;
+o({p("P"),t("posP"),n(1, 0),n(0, 0),e({p("P"),t("posP"),n(1, 0),n(0, 0)}, KV)},(I(0),1),(h(0),4))
+
+
+With distance between players equals 9 (d(0,1) = 9/1 and d(1,0) = 9/1) and honest configuration
+search [1] in META-TEST : honestConf =>* c:Config such that goalC(c:Config) = (true).Bool .
+
+No solution.
+states: 98  rewrites: 59431 in 465ms cpu (470ms real) (127778 rewrites/second)
+
+With distance 9, but this time using the dishonest configuration
+search [1] in META-TEST : dishonestConf =>* c:Config such that goalC(c:Config) = (true).Bool .
+
+Solution 1 (state 99)
+states: 100  rewrites: 30837 in 206ms cpu (210ms real) (148991 rewrites/second)
+c:Config --> ([h(0),(5).NzNat | (nil).evtList | KV sk(p("V"))]
+ [h(1),(5).NzNat | (nil).evtList | KV sk(p("P"))]
+ [I(0),(2).NzNat | KV p("V") t("REQUEST") sk(p("I:0")) n(0, 0) | ({ns(1, 1),p("P"),n(1, 0)} @ tt(5)
+    + 9/1) {p("P"),t("posP"),n(1, 0),ns(1, 1),e({p("P"),t("posP"),n(1, 0),ns(1, 1)}, KV)} @ tt(5) +
+    9/1]
+ [I(1),(2).NzNat | KV p("P") t("posP") sk(p("I:1")) n(1, 0) e({p("P"),t("posP"),n(1, 0),ns(1, 1)},
+    KV) | ({p("V"),t("REQUEST")} @ tt(4) + 9/1) n(0, 0) @ tt(4) + 9/1]
+) ! tt(6) ! dc(ns(0, 0), z(KV p("V") t("REQUEST") sk(p("I:0")) n(0, 0))) dc(ns(1, 1), z(KV sk(p(
+    "I:1")))) ! tt(6) <= tt(4) + (10/1).Real and (tt(6) >= (0/1).Real and (tt(6) >= tt(5) and (tt(
+    5) <= tt(4) + (10/1).Real and (tt(5) >= (0/1).Real and (tt(5) >= tt(4) and (tt(4) >= (0/1).Real
+    and true)))))) !
+o({p("V"),t("REQUEST")},(h(0),1),(I(0),1)) ;
+o(n(0, 0),(h(0),2),(I(0),2)) ;
+o({ps(1, 0),t("REQUEST")},(I(1),0),(h(1),1)) ;
+o(ns(1, 1),(I(1),1),(h(1),2)) ;
+o({ns(1, 1),p("P"),n(1, 0)},(h(1),3),(I(1),3)) ;
+o({p("P"),t("posP"),n(1, 0),ns(1, 1),e({p("P"),t("posP"),n(1, 0),ns(1, 1)}, KV)},(h(1),4),(I(1),4))
+    ;
+o({n(0, 0),p("P"),ns(0, 0)},(I(0),0),(h(0),3)) ;
+o({p("P"),t("posP"),ns(0, 0),n(0, 0),e({p("P"),t("posP"),ns(0, 0),n(0, 0)}, KV)},(I(0),1),(h(0),4))
+
+We try, in here, with the suggested tweak by Malladi, and find an attack, with distance equals 9, just like
+the previous examples.
+
+search [1] in META-TEST : alternateConf =>* c:Config such that goalC(c:Config) = (true).Bool .
+
+Solution 1 (state 98)
+states: 99  rewrites: 52901 in 464ms cpu (470ms real) (113963 rewrites/second)
+c:Config --> ([h(0),(5).NzNat | (nil).evtList | KV sk(p("V"))]
+ [h(1),(5).NzNat | (nil).evtList | KV sk(p("P"))]
+ [I(0),(2).NzNat | p("P") p("V") t("REQUEST") t("posP") sk(p("I:0")) n(0, 0) n(1, 0) e({p("P"),t(
+    "posP"),n(0, 0)}, KV) | (none).TimedTS]
+ [I(1),(2).NzNat | p("P") p("V") t("REQUEST") t("posP") sk(p("I:1")) n(0, 0) n(1, 0) e({p("P"),t(
+    "posP"),n(0, 0)}, KV) | (none).TimedTS]
+) ! tt(8) ! dc(ns(0, 0), z(p("V") t("REQUEST") sk(p("I:0")) n(0, 0))) ! tt(8) >= (0/1).Real and (
+    tt(8) >= tt(7) and (tt(8) >= tt(7) + (9/1).Real and (tt(7) <= tt(6) + (10/1).Real and (tt(7) >=
+    (0/1).Real and (tt(7) >= tt(6) and (tt(6) >= (0/1).Real and (tt(6) >= tt(5) and (tt(6) >= tt(4)
+    + (9/1).Real and (tt(5) <= tt(4) + (10/1).Real and (tt(5) >= (0/1).Real and (tt(5) >= tt(4) and
+    (tt(4) >= (0/1).Real and true)))))))))))) !
+o({p("V"),t("REQUEST")},(h(0),1),(I(0),1)) ;
+o(n(0, 0),(h(0),2),(I(0),2)) ;
+o({ps(1, 0),t("REQUEST")},(I(1),0),(h(1),1)) ;
+o({n(0, 0),p("P"),ns(0, 0)},(I(0),0),(h(0),3)) ;
+o(n(0, 0),(I(1),1),(h(1),2)) ;
+o({n(0, 0),p("P"),n(1, 0)},(h(1),3),(I(1),3)) ;
+o({p("P"),t("posP"),n(1, 0),n(0, 0),e({p("P"),t("posP"),n(0, 0)}, KV)},(h(1),4),(I(1),4)) ;
+o({p("P"),t("posP"),ns(0, 0),n(0, 0),e({p("P"),t("posP"),n(0, 0)}, KV)},(I(0),1),(h(0),4))
+
+  )
