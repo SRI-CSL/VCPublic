@@ -21,8 +21,8 @@ A ---> B : A,B,READ_RECORD2
 B ---> A : PAN, cert_privB,NC
 
 Article:
-	Name : Relay Cost Bounding for Contactless EMV Payments
-	Authors : Tom Chothia, Flavio D. Garcia, Joeri de Ruiter, Jordi van den Breekel and Matthew Thompson
+  Name : Relay Cost Bounding for Contactless EMV Payments
+  Authors : Tom Chothia, Flavio D. Garcia, Joeri de Ruiter, Jordi van den Breekel and Matthew Thompson
 )
 
 ***(
@@ -38,6 +38,7 @@ mod PAYWAVE-FULL is
   inc META-TIME .
 
 var conf : Config .
+vars i j : Nat .
 
 ops evReader0 evReader evCard0 evCard : -> NeEvtList .
 ops rReader rCard : ->  role .
@@ -83,16 +84,13 @@ eq initPC =
  mkHonestKnow(0,rReader,((pv("A") := p("R")) (pv("B") := p("C"))), KS)
  mkHonestKnow(1,rCard,(pv("B") := p("C")), KS) .
 
-op initConf : -> Config .
-eq initConf = initPC ! tt(4) ! none ! true ! nil .
+ops initFar initClose : -> Config .
 
-eq d(0,1) = 3/1 .
-eq d(1,0) = 3/1 .
+eq initFar = initPC ! tt(4) ! none ! (d(1,0) === 10/1) and (d(0,1) === 10/1) and (tt(4) >= 0/1) and true ! nil .
 
---- Players far away
---- eq d(0,1) = 10/1 .
---- eq d(1,0) = 10/1 .
+eq initClose = initPC ! tt(4) ! none ! (d(1,0) === 3/1) and (d(0,1) === 3/1) and (tt(4) >= 0/1) and true ! nil .
 
+eq toVarsR(d(i,j)) = qid("d" + string(i,10) + string(j,10) + ":Real") .
 
 --- Again, just check if both players completed.
 
@@ -107,12 +105,11 @@ mod META-TEST-FULL is
 
 endm
 ***(
-Searching for a complete configuration. Since the time between parties is smaller then the max time allowed by the protocol, it will complete. Below we used d(0,1) = 3.
 
-search [1] in META-TEST-FULL : initConf =>* c:Config such that goalC(c:Config) = (true).Bool .
+search [1] in META-TEST-FULL : initClose =>* c:Config such that goalC(c:Config) = (true).Bool .
 
-Solution 1 (state 7516)
-states: 7517  rewrites: 5728146 in 31167ms cpu (31705ms real) (183786
+Solution 1 (state 21872)
+states: 21873  rewrites: 15514179 in 48232ms cpu (48883ms real) (321653
     rewrites/second)
 c:Config --> ([h(0),(11).NzNat | (nil).evtList | KS sk(p("R"))]
  [h(1),(11).NzNat | (nil).evtList | KS sk(p("C"))]
@@ -125,12 +122,13 @@ c:Config --> ([h(0),(11).NzNat | (nil).evtList | KS sk(p("R"))]
     t("PDOL") t("SELECT-AID") t("SELECT-PAY") t("cert-privB") t(
     "cert_privCA_PubB") sk(p("I:1")) n(0, 0) n(1, 0) e({t("GPO"),n(0, 0)}, KS)
     e({t("GPO"),n(0, 0),t("ATC"),n(1, 0)}, sk(p("C"))) | ({p("R"),p("C"),t(
-    "READ_RECORD1")} @ tt(7) + 3/1) {p("R"),p("C"),t("READ_RECORD2")} @ tt(7) +
-    3/1]
+    "READ_RECORD1")} @ tt(7) + d(0, 1)) {p("R"),p("C"),t("READ_RECORD2")} @ tt(
+    7) + d(0, 1)]
 ) ! tt(7) ! none ! tt(7) <= tt(4) + (10/1).Real and (tt(7) >= (0/1).Real and (
     tt(7) >= tt(6) and (tt(6) >= (0/1).Real and (tt(6) >= tt(5) and (tt(6) >=
-    tt(5) + (3/1).Real and (tt(5) >= (0/1).Real and (tt(5) >= tt(4) and (tt(5)
-    >= tt(4) + (3/1).Real and true)))))))) !
+    tt(5) + d(1, 0) and (tt(5) >= (0/1).Real and (tt(5) >= tt(4) and (tt(5) >=
+    tt(4) + d(1, 0) and (d(1, 0) === (3/1).Real and d(0, 1) === (3/1).Real and
+    tt(4) >= (0/1).Real and true))))))))) !
 o({p("R"),t("SELECT-PAY")},(h(0),1),(I(0),1)) ;
 o({p("R"),p("C"),t("AID")},(I(0),0),(h(0),2)) ;
 o({p("R"),p("C"),t("SELECT-AID")},(h(0),3),(I(0),3)) ;
@@ -154,14 +152,9 @@ o({p("R"),p("C"),t("cert-privCA-PubB")},(I(0),3),(h(0),8)) ;
 o({p("R"),p("C"),t("READ_RECORD2")},(h(0),9),(I(0),9)) ;
 o({t("cert-privB"),t("PAN"),n(1, 0)},(I(0),4),(h(0),10))
 
-Using d(0,1) = 10 (uncomment in the code!), i.e., players very far away from each other. As expected it is not possible for the protocol to complete.
-
-search [1] in META-TEST-FULL : initConf =>* c:Config such that goalC(c:Config) = (true).Bool .
-search [1] in META-TEST-FULL : initConf =>* c:Config such that goalC(c:Config)
-    = (true).Bool .
+search [1] in META-TEST-FULL : initFar =>* c:Config such that goalC(c:Config) = (true).Bool .
 
 No solution.
-states: 5131  rewrites: 4930689 in 27423ms cpu (27734ms real) (179796
+states: 14258  rewrites: 12869946 in 41249ms cpu (42022ms real) (312002
     rewrites/second)
-
 )

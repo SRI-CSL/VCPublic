@@ -27,6 +27,7 @@ var pc : PlayerConf .
 vars T T1 tsym : TimeSym .
 var TR1 : TSymReal .
 vars b b' : Boolean .
+vars i j : Nat .
 var ds ds0 : DSet .
 
 var conf : Config .
@@ -36,9 +37,9 @@ ops rProver rVerifier : ->  role .
 
 eq evVerifier = ( new(nv("NV")), evVerifier0) .
 eq evVerifier0 = (+({pv("V"), t("REQUEST")}),
-				+(nv("NV") # tt(0) := cur),
-				-({nv("NV"), pv("P"), nv("NP")} # cur <= tt(0) + 10/1),
-				-({pv("P"), t("posP"), nv("NP"), nv("NV"), e({pv("P"), t("posP"), nv("NP"), nv("NV")}, KV)}) ) .
+        +(nv("NV") # tt(0) := cur),
+        -({nv("NV"), pv("P"), nv("NP")} # cur <= tt(0) + 10/1),
+        -({pv("P"), t("posP"), nv("NP"), nv("NV"), e({pv("P"), t("posP"), nv("NP"), nv("NV")}, KV)}) ) .
 
 
 eq rVerifier = r("verifier", pv("V"), (pv("V"),pv("P")), evVerifier ) .
@@ -98,19 +99,14 @@ eq honestPC =
  mkHonestKnow(1,rAltProver,(pv("P") := p("P")), KV) . 
 
 
-ops honestConf dishonestConf alternateConf : -> Config .
-eq honestConf = honestPC ! tt(4) ! none ! (tt(4) >= 0/1) and true ! nil .
-eq dishonestConf = dishonestPC ! tt(4) ! none ! (tt(4) >= 0/1) and true ! nil .
-eq alternateConf = alternatePC ! tt(4) ! none ! (tt(4) >= 0/1) and true ! nil .
+ops closeHonestConf farHonestConf dishonestConf alternateConf : -> Config .
+eq closeHonestConf = honestPC ! tt(4) ! none ! (d(1,0) === 4/1) and (d(0,1) === 4/1) and (tt(4) >= 0/1) and true ! nil .
+eq farHonestConf = honestPC ! tt(4) ! none ! (d(1,0) === 9/1) and (d(0,1) === 9/1) and (tt(4) >= 0/1) and true ! nil .
+--- both the dishonestConf and the alternateConf uses the same distances from the farHonestConf
+eq dishonestConf = dishonestPC ! tt(4) ! none ! (d(1,0) === 9/1) and (d(0,1) === 9/1) and (tt(4) >= 0/1) and true ! nil .
+eq alternateConf = alternatePC ! tt(4) ! none ! (d(1,0) === 9/1) and (d(0,1) === 9/1) and (tt(4) >= 0/1) and true ! nil .
 
-***(
-eq d(0,1) = 4/1 .
-eq d(1,0) = 4/1 .
-)
-
-eq d(0,1) = 9/1 .
-eq d(1,0) = 9/1 .
-
+eq toVarsR(d(i,j)) = qid("d" + string(i,10) + string(j,10) + ":Real") .
 
 op goalC : Config -> Bool .
 eq goalC(conf) =  isDone(getPC(conf)) .
@@ -127,62 +123,66 @@ We, here, are searching for a configuration that finishes.
 
 With distance between players equals 4 (d(0,1) = 4/1 and d(1,0) = 4/1) and honest configuration
 
-search [1] in META-TEST : honestConf =>* c:Config such that goalC(c:Config) = (true).Bool .
+search [1] in META-TEST : closeHonestConf =>* c:Config such that goalC(
+    c:Config) = (true).Bool .
 
 Solution 1 (state 100)
-states: 101  rewrites: 57997 in 447ms cpu (451ms real) (129476 rewrites/second)
+states: 101  rewrites: 63972 in 367ms cpu (498ms real) (174045 rewrites/second)
 c:Config --> ([h(0),(5).NzNat | (nil).evtList | KV sk(p("V"))]
  [h(1),(5).NzNat | (nil).evtList | KV sk(p("P"))]
- [I(0),(2).NzNat | p("P") p("V") t("REQUEST") t("posP") sk(p("I:0")) n(0, 0) n(1, 0) e({p("P"),t(
-    "posP"),n(1, 0),n(0, 0)}, KV) | (none).TimedTS]
- [I(1),(2).NzNat | p("P") p("V") t("REQUEST") t("posP") sk(p("I:1")) n(0, 0) n(1, 0) e({p("P"),t(
-    "posP"),n(1, 0),n(0, 0)}, KV) | (none).TimedTS]
-) ! tt(8) ! none ! tt(8) <= tt(4) + (10/1).Real and (tt(8) >= (0/1).Real and (tt(8) >= tt(7) and (
-    tt(7) >= (0/1).Real and (tt(7) >= tt(6) and (tt(7) >= tt(6) + (4/1).Real and (tt(6) <= tt(5) +
-    (10/1).Real and (tt(6) >= (0/1).Real and (tt(6) >= tt(5) and (tt(5) >= (0/1).Real and (tt(5) >=
-    tt(4) and (tt(5) >= tt(4) + (4/1).Real and (tt(4) >= (0/1).Real and true)))))))))))) !
+ [I(0),(2).NzNat | p("P") p("V") t("REQUEST") t("posP") sk(p("I:0")) n(0, 0) n(
+    1, 0) e({p("P"),t("posP"),n(1, 0),n(0, 0)}, KV) | (none).TimedTS]
+ [I(1),(2).NzNat | p("P") p("V") t("REQUEST") t("posP") sk(p("I:1")) n(0, 0) n(
+    1, 0) e({p("P"),t("posP"),n(1, 0),n(0, 0)}, KV) | (none).TimedTS]
+) ! tt(8) ! none ! tt(8) <= tt(4) + (10/1).Real and (tt(8) >= (0/1).Real and (
+    tt(8) >= tt(7) and (tt(7) >= (0/1).Real and (tt(7) >= tt(6) and (tt(7) >=
+    tt(6) + d(1, 0) and (tt(6) <= tt(5) + (10/1).Real and (tt(6) >= (0/1).Real
+    and (tt(6) >= tt(5) and (tt(5) >= (0/1).Real and (tt(5) >= tt(4) and (tt(5)
+    >= tt(4) + d(0, 1) and (d(1, 0) === (4/1).Real and d(0, 1) === (4/1).Real
+    and tt(4) >= (0/1).Real and true)))))))))))) !
 o({p("V"),t("REQUEST")},(h(0),1),(I(0),1)) ;
 o(n(0, 0),(h(0),2),(I(0),2)) ;
 o({ps(1, 0),t("REQUEST")},(I(1),0),(h(1),1)) ;
 o(n(0, 0),(I(1),1),(h(1),2)) ;
 o({n(0, 0),p("P"),n(1, 0)},(h(1),3),(I(1),3)) ;
-o({p("P"),t("posP"),n(1, 0),n(0, 0),e({p("P"),t("posP"),n(1, 0),n(0, 0)}, KV)},(h(1),4),(I(1),4)) ;
-
+o({p("P"),t("posP"),n(1, 0),n(0, 0),e({p("P"),t("posP"),n(1, 0),n(0, 0)}, KV)},
+    (h(1),4),(I(1),4)) ;
 o({n(0, 0),p("P"),n(1, 0)},(I(0),0),(h(0),3)) ;
-o({p("P"),t("posP"),n(1, 0),n(0, 0),e({p("P"),t("posP"),n(1, 0),n(0, 0)}, KV)},(I(0),1),(h(0),4))
+o({p("P"),t("posP"),n(1, 0),n(0, 0),e({p("P"),t("posP"),n(1, 0),n(0, 0)}, KV)},
+    (I(0),1),(h(0),4))
 
-
-With distance between players equals 9 (d(0,1) = 9/1 and d(1,0) = 9/1) and honest configuration
-search [1] in META-TEST : honestConf =>* c:Config such that goalC(c:Config) = (true).Bool .
+search [1] in META-TEST : farHonestConf =>* c:Config such that goalC(c:Config) = (true).Bool .
 
 No solution.
-states: 98  rewrites: 59431 in 465ms cpu (470ms real) (127778 rewrites/second)
+states: 98  rewrites: 65406 in 350ms cpu (353ms real) (186389 rewrites/second)
 
-With distance 9, but this time using the dishonest configuration
 search [1] in META-TEST : dishonestConf =>* c:Config such that goalC(c:Config) = (true).Bool .
 
 Solution 1 (state 99)
-states: 100  rewrites: 30837 in 206ms cpu (210ms real) (148991 rewrites/second)
+states: 100  rewrites: 33519 in 155ms cpu (157ms real) (215786 rewrites/second)
 c:Config --> ([h(0),(5).NzNat | (nil).evtList | KV sk(p("V"))]
  [h(1),(5).NzNat | (nil).evtList | KV sk(p("P"))]
- [I(0),(2).NzNat | KV p("V") t("REQUEST") sk(p("I:0")) n(0, 0) | ({ns(1, 1),p("P"),n(1, 0)} @ tt(5)
-    + 9/1) {p("P"),t("posP"),n(1, 0),ns(1, 1),e({p("P"),t("posP"),n(1, 0),ns(1, 1)}, KV)} @ tt(5) +
-    9/1]
- [I(1),(2).NzNat | KV p("P") t("posP") sk(p("I:1")) n(1, 0) e({p("P"),t("posP"),n(1, 0),ns(1, 1)},
-    KV) | ({p("V"),t("REQUEST")} @ tt(4) + 9/1) n(0, 0) @ tt(4) + 9/1]
-) ! tt(6) ! dc(ns(0, 0), z(KV p("V") t("REQUEST") sk(p("I:0")) n(0, 0))) dc(ns(1, 1), z(KV sk(p(
-    "I:1")))) ! tt(6) <= tt(4) + (10/1).Real and (tt(6) >= (0/1).Real and (tt(6) >= tt(5) and (tt(
-    5) <= tt(4) + (10/1).Real and (tt(5) >= (0/1).Real and (tt(5) >= tt(4) and (tt(4) >= (0/1).Real
-    and true)))))) !
+ [I(0),(2).NzNat | KV p("V") t("REQUEST") sk(p("I:0")) n(0, 0) | ({ns(1, 1),p(
+    "P"),n(1, 0)} @ tt(5) + d(1, 0)) {p("P"),t("posP"),n(1, 0),ns(1, 1),e({p(
+    "P"),t("posP"),n(1, 0),ns(1, 1)}, KV)} @ tt(5) + d(1, 0)]
+ [I(1),(2).NzNat | KV p("P") t("posP") sk(p("I:1")) n(1, 0) e({p("P"),t(
+    "posP"),n(1, 0),ns(1, 1)}, KV) | ({p("V"),t("REQUEST")} @ tt(4) + d(0, 1))
+    n(0, 0) @ tt(4) + d(0, 1)]
+) ! tt(6) ! dc(ns(0, 0), z(KV p("V") t("REQUEST") sk(p("I:0")) n(0, 0))) dc(ns(
+    1, 1), z(KV sk(p("I:1")))) ! tt(6) <= tt(4) + (10/1).Real and (tt(6) >= (
+    0/1).Real and (tt(6) >= tt(5) and (tt(5) <= tt(4) + (10/1).Real and (tt(5)
+    >= (0/1).Real and (tt(5) >= tt(4) and (d(1, 0) === (9/1).Real and d(0, 1)
+    === (9/1).Real and tt(4) >= (0/1).Real and true)))))) !
 o({p("V"),t("REQUEST")},(h(0),1),(I(0),1)) ;
 o(n(0, 0),(h(0),2),(I(0),2)) ;
 o({ps(1, 0),t("REQUEST")},(I(1),0),(h(1),1)) ;
 o(ns(1, 1),(I(1),1),(h(1),2)) ;
 o({ns(1, 1),p("P"),n(1, 0)},(h(1),3),(I(1),3)) ;
-o({p("P"),t("posP"),n(1, 0),ns(1, 1),e({p("P"),t("posP"),n(1, 0),ns(1, 1)}, KV)},(h(1),4),(I(1),4))
-    ;
+o({p("P"),t("posP"),n(1, 0),ns(1, 1),e({p("P"),t("posP"),n(1, 0),ns(1, 1)},
+    KV)},(h(1),4),(I(1),4)) ;
 o({n(0, 0),p("P"),ns(0, 0)},(I(0),0),(h(0),3)) ;
-o({p("P"),t("posP"),ns(0, 0),n(0, 0),e({p("P"),t("posP"),ns(0, 0),n(0, 0)}, KV)},(I(0),1),(h(0),4))
+o({p("P"),t("posP"),ns(0, 0),n(0, 0),e({p("P"),t("posP"),ns(0, 0),n(0, 0)},
+    KV)},(I(0),1),(h(0),4))
 
 We try, in here, with the suggested tweak by Malladi, and find an attack, with distance equals 9, just like
 the previous examples.
@@ -190,25 +190,29 @@ the previous examples.
 search [1] in META-TEST : alternateConf =>* c:Config such that goalC(c:Config) = (true).Bool .
 
 Solution 1 (state 98)
-states: 99  rewrites: 52901 in 464ms cpu (470ms real) (113963 rewrites/second)
+states: 99  rewrites: 58876 in 350ms cpu (353ms real) (167961 rewrites/second)
 c:Config --> ([h(0),(5).NzNat | (nil).evtList | KV sk(p("V"))]
  [h(1),(5).NzNat | (nil).evtList | KV sk(p("P"))]
- [I(0),(2).NzNat | p("P") p("V") t("REQUEST") t("posP") sk(p("I:0")) n(0, 0) n(1, 0) e({p("P"),t(
-    "posP"),n(0, 0)}, KV) | (none).TimedTS]
- [I(1),(2).NzNat | p("P") p("V") t("REQUEST") t("posP") sk(p("I:1")) n(0, 0) n(1, 0) e({p("P"),t(
-    "posP"),n(0, 0)}, KV) | (none).TimedTS]
-) ! tt(8) ! dc(ns(0, 0), z(p("V") t("REQUEST") sk(p("I:0")) n(0, 0))) ! tt(8) >= (0/1).Real and (
-    tt(8) >= tt(7) and (tt(8) >= tt(7) + (9/1).Real and (tt(7) <= tt(6) + (10/1).Real and (tt(7) >=
-    (0/1).Real and (tt(7) >= tt(6) and (tt(6) >= (0/1).Real and (tt(6) >= tt(5) and (tt(6) >= tt(4)
-    + (9/1).Real and (tt(5) <= tt(4) + (10/1).Real and (tt(5) >= (0/1).Real and (tt(5) >= tt(4) and
-    (tt(4) >= (0/1).Real and true)))))))))))) !
+ [I(0),(2).NzNat | p("P") p("V") t("REQUEST") t("posP") sk(p("I:0")) n(0, 0) n(
+    1, 0) e({p("P"),t("posP"),n(0, 0)}, KV) | (none).TimedTS]
+ [I(1),(2).NzNat | p("P") p("V") t("REQUEST") t("posP") sk(p("I:1")) n(0, 0) n(
+    1, 0) e({p("P"),t("posP"),n(0, 0)}, KV) | (none).TimedTS]
+) ! tt(8) ! dc(ns(0, 0), z(p("V") t("REQUEST") sk(p("I:0")) n(0, 0))) ! tt(8)
+    >= (0/1).Real and (tt(8) >= tt(7) and (tt(8) >= tt(7) + d(1, 0) and (tt(7)
+    <= tt(6) + (10/1).Real and (tt(7) >= (0/1).Real and (tt(7) >= tt(6) and (
+    tt(6) >= (0/1).Real and (tt(6) >= tt(5) and (tt(6) >= tt(4) + d(0, 1) and (
+    tt(5) <= tt(4) + (10/1).Real and (tt(5) >= (0/1).Real and (tt(5) >= tt(4)
+    and (d(1, 0) === (9/1).Real and d(0, 1) === (9/1).Real and tt(4) >= (
+    0/1).Real and true)))))))))))) !
 o({p("V"),t("REQUEST")},(h(0),1),(I(0),1)) ;
 o(n(0, 0),(h(0),2),(I(0),2)) ;
 o({ps(1, 0),t("REQUEST")},(I(1),0),(h(1),1)) ;
 o({n(0, 0),p("P"),ns(0, 0)},(I(0),0),(h(0),3)) ;
 o(n(0, 0),(I(1),1),(h(1),2)) ;
 o({n(0, 0),p("P"),n(1, 0)},(h(1),3),(I(1),3)) ;
-o({p("P"),t("posP"),n(1, 0),n(0, 0),e({p("P"),t("posP"),n(0, 0)}, KV)},(h(1),4),(I(1),4)) ;
-o({p("P"),t("posP"),ns(0, 0),n(0, 0),e({p("P"),t("posP"),n(0, 0)}, KV)},(I(0),1),(h(0),4))
+o({p("P"),t("posP"),n(1, 0),n(0, 0),e({p("P"),t("posP"),n(0, 0)}, KV)},(h(1),
+    4),(I(1),4)) ;
+o({p("P"),t("posP"),ns(0, 0),n(0, 0),e({p("P"),t("posP"),n(0, 0)}, KV)},(I(0),
+    1),(h(0),4))
 
   )
