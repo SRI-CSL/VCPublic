@@ -1,3 +1,11 @@
+This directory contains the implementation of the protocol specification
+language and timed intruder model described in
+
+Towards the Automated Verification of Cyber-Physical Security Protocols: Bounding the Number of Timed Intruders
+Vivek Nigam, Carolyn Talcott and Abraa ̃o Aires Urquiza
+to appear in ESORICS 2016.
+A tech report version is available at https://arxiv.org/pdf/1605.08563
+
 The following files define the syntax and semantics of CPSPs.
 
  term.maude      ---  the algebra of terms, various sets of terms,
