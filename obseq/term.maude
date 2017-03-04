@@ -1,0 +1,311 @@
+**** The Maude formalization
+fmod TERM is
+  inc STRING .  **** for making variables
+
+**** Terms 
+  sorts base T .  subsort base < T .
+  sorts text name nonce key . 
+  subsort text name nonce key < base .  --- the union of the base sorts
+
+**** separating assym keys (enumerated by names) and symmkeys (generated)
+  sorts skey akey . subsort skey akey < key .
+
+  sorts nonceC textC nameC skeyC baseC .
+  subsort nonceC textC nameC skeyC < baseC < base .
+  subsort nonceC < nonce .
+  subsort nameC < name .
+  subsort textC < text .
+  subsort skeyC < skey .
+
+  sort MtL .
+  op nil : -> MtL [ctor] .
+
+  sort TL . subsort MtL T < TL .
+  op _`,_ : TL TL -> TL [ctor assoc id: nil] .
+
+
+**** Base Constants
+***  op n : String -> nonceC [ctor] .    --- not needed?
+  op n : Nat Nat -> nonceC [ctor] .   --- for fresh nonces
+  op p : String -> nameC [ctor] .
+  op t : String -> textC [ctor] .
+  op k : String -> skeyC [ctor] .    --- can be used for shared lt keys
+  op k : Nat Nat -> skeyC [ctor] . --- fresh keys
+
+  op pk : name -> akey [ctor] .   --- public key
+  op sk : name -> akey [ctor] .   --- secret/private key
+  op secretT : baseC -> T [ctor] .
+  op eventT : T -> T [ctor] .
+
+***(
+  op pk : nameC -> akeyC [ctor] .   --- public key
+  op sk : nameC -> akeyC [ctor] .   --- secret/private key
+)
+
+**** Term constructors
+  op e : T key -> T [ctor] .
+  op `{_`} : TL -> T [ctor] .
+  op d : T key -> T  [ctor] .
+  op pr : T Nat -> T [ctor] .
+  op w : Nat -> T [ctor] . 
+  *** w(i) is a place holder for the i-th observed term in a trace
+
+  op inv : key -> key .
+  eq inv(pk(n:name)) = sk(n:name) .
+  eq inv(sk(n:name)) = pk(n:name) .
+  eq inv(k:key) = k:key [owise] .    **** pk,sk are the only akeys
+
+*** term set
+  sort TS .  subsort T < TS .
+  op none : -> TS [ctor] .
+  op __ : TS TS -> TS [ctor assoc comm id: none] .
+  op _in_ : T TS -> Bool .
+  eq t:T in t:T ts:TS = true .
+  eq t:T in ts:TS = false [owise] .
+
+  op setAdd : T TS -> TS .
+  eq setAdd(t:T,t:T ts:TS) = t:T ts:TS .
+  eq setAdd(t:T,ts:TS) = t:T ts:TS [owise] .
+
+  op intersect : TS TS -> TS .
+  eq intersect(t:T ts0:TS,t:T ts1:TS) = t:T intersect(ts0:TS,ts1:TS) .
+  eq intersect(ts0:TS,ts1:TS) = none [owise] .
+
+  op minus : TS TS -> TS .
+  eq minus(none,ts:TS) = none .
+  eq minus(t:T ts:TS,ts':TS) = 
+           if t:T in ts':TS then minus(ts:TS,ts':TS) 
+           else t:T (minus(ts:TS,ts':TS)) fi .
+
+  sort TSS .  **** term set set
+  op none : -> TSS [ctor] .
+  op __ : TSS TSS -> TSS [ctor assoc comm id: none] .
+  op z : TS -> TSS [ctor] .
+
+  op inAll : T TSS -> Bool .
+  ceq inAll(t:T,z(ts:TS) tss:TSS) = false
+  if t:T in ts:TS == false .
+  eq inAll(t:T,tss:TSS) = true [owise] .
+
+**** any z(none) absorbs
+
+***  eq tss:TSS z((none).TS) = z((none).TS) .
+**** maudes says the above has `collapse at the top'
+**** causing possibly more matches than intended
+
+  eq tss:TSS z(ts:TS) z((none).TS) = tss:TSS z((none).TS) .
+
+****  eq tss:TSS z(ts) z(ts) = tss z(ts) .
+
+**** Variables
+**** no need for akey vars??
+  sort baseVar TVar Var .
+  subsort baseVar TVar  < Var .
+  subsort Var < T .
+
+  sorts textVar nameVar nonceVar skeyVar . 
+  subsort textVar nameVar nonceVar skeyVar < baseVar < base . 
+  subsort nonceVar < nonce .
+  subsort nameVar < name .
+  subsort textVar < text .
+  subsort skeyVar < skey .
+
+  
+  op nv : String  -> nonceVar [ctor] .
+  op pv : String -> nameVar [ctor] .
+  op tv : String -> textVar [ctor] .
+  op kv : String -> skeyVar [ctor] .
+  op v : String -> TVar [ctor] .
+
+  sort VarL . subsort MtL Var < VarL . subsort VarL < TL .
+  op _`,_ : VarL VarL -> VarL [ctor ditto] .
+
+  op varsOf : T -> VarL .
+  eq varsOf(v:Var) = v:Var .
+  eq varsOf(pk(v:nameVar)) = v:nameVar .
+  eq varsOf(sk(v:nameVar)) = v:nameVar .
+  eq varsOf(e(t:T,k:key)) = (varsOf(t:T), varsOf(k:key)) .
+  eq varsOf({nil}) = nil .
+  eq varsOf({t:T,tl:TL}) = (varsOf(t:T), varsOf({tl:TL})) .
+  eq varsOf(t:T) = nil [owise] .
+
+**** Symbols  for the intruder  --- no akey syms (pk(nameSym) ???)
+  sort baseSym TSym Sym .
+  subsort baseSym TSym  < Sym .
+  subsort Sym < T .
+  sorts textSym nameSym nonceSym skeySym . 
+  subsort textSym nameSym nonceSym skeySym < baseSym < base . 
+  subsort nonceSym < nonce .
+  subsort nameSym < name .
+  subsort textSym < text .
+  subsort skeySym < skey .
+
+
+***  op ps : String -> nameSym [ctor] .
+  op ps : Nat Nat -> nameSym [ctor] .
+  op ns : Nat Nat -> nonceSym [ctor] .
+  op ps : Nat Nat -> nameSym [ctor] .
+  op ts : Nat Nat -> textSym [ctor] .
+  op ks : Nat Nat -> skeySym [ctor] .
+  op vs : Nat Nat -> TSym [ctor] .
+
+endfm
+
+*** cpsaspec p5 cpsadesign 2.1.1 Equations
+fmod VAR-SUBST is
+  pr TERM .
+
+**** substitution
+  sorts Bnd Subst .
+  subsort Bnd < Subst .
+  op mtS : -> Subst [ctor] .
+  op __ : Subst Subst -> Subst [ctor assoc comm id: mtS] .
+
+  op _:=_ : TVar T -> Bnd  [ctor] .
+  op _:=_ : nameVar name -> Bnd  [ctor] .
+  op _:=_ : nonceVar nonce -> Bnd  [ctor] .
+  op _:=_ : textVar text -> Bnd  [ctor] .
+  op _:=_ : skeyVar skey -> Bnd  [ctor] .
+
+  vars v v' : Var . 
+  vars t t' t0 t1 : T . 
+  vars k k1 : key .
+  var tl : TL .
+  vars sb sb' : Subst .
+
+  op lookupd : Subst Var T -> T .
+  eq lookupd(sb (v := t), v,t') = t .
+  eq lookupd(sb,v,t')  = t' [owise] .   **** v not bound
+
+  op boundP : Subst Var -> Bool .
+  eq boundP(sb (v := t), v) = true .
+  eq boundP(sb,v)  = false [owise] .
+
+**** assume at most one binding of any variable
+  op unbind : Subst Var -> Subst .
+  eq unbind(sb (v := t), v) = sb .
+  eq unbind(sb,v) = sb [owise] .   **** not bound
+
+****  applying substitution  sb[t]
+**** t is either a baseC, a var a sym  or pk/sk(name) or {_} or e(_,_)
+
+  op _[_] : Subst T -> T .
+  op _[[_]] : Subst TL -> TL .
+
+  eq sb[v] = lookupd(sb,v,v) .
+  eq sb[e(t0,k1)] = e(sb[t0],sb[k1]) .
+  eq sb[{ tl }] = { sb[[ tl ]] } .
+  eq sb[c:baseC] = c:baseC .
+  eq sb[pk(p:name)] = pk(sb[p:name])  . 
+  eq sb[sk(p:name)] = sk(sb[p:name])  .
+  eq sb[secretT(t0)] = secretT(sb[t0])  .
+  eq sb[eventT(t0)] = eventT(sb[t0])  .
+  eq sb[s:Sym] = s:Sym .
+
+  eq sb[[nil]] = nil .
+  eq sb[[t,tl]] = (sb[t]), sb[[tl]] .
+
+
+endfm
+
+
+fmod SYM-SUBST is
+  pr TERM .
+
+**** substitution
+  sorts SBnd SSubst SSubstSet .
+  subsort SBnd < SSubst .
+  op mtSS : -> SSubst [ctor] .
+  op __ : SSubst SSubst -> SSubst [ctor assoc comm id: mtSS] .
+
+  op mtSSS : -> SSubstSet .
+  op z : SSubst -> SSubstSet .
+  op __ : SSubstSet SSubstSet -> SSubstSet
+            [ctor assoc comm id: mtSSS] .
+  
+**** An ssubst is well-formed if no symbol in the domain appears in the range
+***(
+*** Symbols  for the intruder
+  sort baseSym TSym Sym .
+  subsort baseSym TSym  < Sym .
+  subsort Sym < T .
+  sorts textSym nameSym nonceSym skeySym . 
+  subsort textSym nameSym nonceSym skeySym < baseSym < base . 
+  subsort nonceSym < nonce .
+  subsort nameSym < name .
+  subsort textSym < text .
+  subsort skeySym < skey .
+)
+
+  op _:~_ : TSym T -> SBnd  [ctor] .
+  op _:~_ : nameSym name -> SBnd  [ctor] .
+  op _:~_ : nonceSym nonce -> SBnd  [ctor] .
+  op _:~_ : textSym text -> SBnd  [ctor] .
+  op _:~_ : skeySym skey -> SBnd  [ctor] .
+
+  vars v v' : Sym . 
+  vars t t' t0 t1 : T . 
+  vars k k1 : key .
+  var tl : TL .
+  var ts : TS .
+  var tss : TSS .
+  vars ssb ssb' ssb0 : SSubst .
+  var sbnd : SBnd .
+
+  op lookupd : SSubst Sym T -> T .
+  eq lookupd(ssb (v :~ t), v,t') = t .
+  eq lookupd(ssb,v,t')  = t' [owise] .   **** v not bound
+
+  op boundP : SSubst Sym -> Bool .
+  eq boundP(ssb (v :~ t), v) = true .
+  eq boundP(ssb,v)  = false [owise] .
+
+**** assume at most one binding of any variable
+  op unbind : SSubst Sym -> SSubst .
+  eq unbind(ssb (v :~ t), v) = ssb .
+  eq unbind(ssb,v) = ssb [owise] .   **** not bound
+
+
+****  applying sym substitution  ssb[t]
+  op _[_] : SSubst T -> T .
+  op _[[_]] : SSubst TL -> TL .
+  op _[[[_]]]: SSubst TS -> TS .
+  op _[*_*]: SSubst TSS -> TSS .
+
+  eq ssb[v] = lookupd(ssb,v,v) .
+  eq ssb[e(t0,k1)] = e(ssb[t0],ssb[k1]) .
+  eq ssb[{ tl }] = { ssb[[ tl ]] } .
+  eq ssb[c:baseC] = c:baseC .
+  eq ssb[x:Var] = x:Var .
+  eq ssb[pk(p:name)] = pk(ssb[p:name])  . 
+  eq ssb[sk(p:name)] = sk(ssb[p:name])  .
+  eq ssb[secretT(t0)] = secretT(ssb[t0])  .
+
+***  eq ssb[kk(p0:name,p1:name)] = kk(ssb[p0:name],ssb[p1:name])  .
+
+  eq ssb[[nil]] = nil .
+  eq ssb[[t,tl]] = (ssb[t]), ssb[[tl]] .
+
+  eq ssb[[[none]]] = none .
+  eq ssb[[[t ts]]] = (ssb[t]) ssb[[[ts]]] .
+
+  eq ssb[* none *] = none .
+  eq ssb[* z(ts) tss *] = z(ssb[[[ts]]]) ssb[* tss *] .
+
+
+  op ssbUpdate : SSubst Sym T -> SSubst .
+  op ssbUpdateX : SSubst SBnd SSubst -> SSubst .
+  eq ssbUpdate(ssb,v,t) = ssbUpdateX(unbind(ssb,v), v :~ t, v :~ t) .
+  eq ssbUpdateX(mtSS,sbnd,ssb) = ssb  .
+  eq ssbUpdateX((v :~ t) ssb',sbnd,ssb) =  
+       ssbUpdateX(ssb',sbnd, ssb (v :~ (sbnd[t]))) .
+
+  op sbRng : SBnd SSubst SSubst -> SSubst .
+  eq sbRng(sbnd:SBnd,mtSS,ssb)  = ssb .
+  eq sbRng(sbnd:SBnd,(s:Sym :~ t) ssb0,ssb)  = 
+        sbRng(sbnd:SBnd,ssb0,ssb (s:Sym :~ sbnd:SBnd[t])) .
+
+
+endfm
+
+

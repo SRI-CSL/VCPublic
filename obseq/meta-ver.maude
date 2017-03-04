@@ -1,0 +1,244 @@
+mod META-VER is
+ inc EXE .
+ inc ANALYSIS .
+ inc META-LEVEL .
+ inc PASSPORT .
+ --- inc IMaude .
+
+ vars b1 b2 b : Boolean .
+ var i : Nat .
+ vars tr res confT tcT sterm term : Term .
+ var rname : Qid .
+ vars res? res2?? : [ResultPair] .
+ vars res1? res3?? : [ResultTriple] .
+ vars res3 : ResultTriple .
+ vars res4?? : [Result4Tuple] .
+ vars res4 : Result4Tuple .
+ var tl : TermList .
+ var md : Module .
+ vars n n1 : Nat .
+ var bl : Bool .
+ vars conf conf1 conf2 : Config .
+ vars ds ds1 ds2 : DSet .
+ vars aconf aconf1 aconf2 : Config .
+
+ vars tt1 tt2 tt3 nutt iTime : TimeSym .
+ vars tr1 tr2 tr0 tr3 : TSymReal .
+ vars bb bb1 bb2 nubb bb3 : Boolean .
+ vars obs obs1 obs2 : OutEles .
+ vars oele oele1 oele2 : OutEles .
+ var var : Variable .
+ var subst : Substitution .
+ vars o o1 o2 : T .
+ var ts0 ts1 ts2 : TS .
+
+ op noConf : -> Config .
+
+ sorts OutEle OutEles . subsorts OutEle < OutEles .
+ op {_,_,_,_,_} : T Boolean TimeSym TimeSym DSet -> OutEle [ctor format (d d d d d d d d d d d n)] .
+ op none : -> OutEles [ctor] .
+ op __ : OutEles OutEles -> OutEles [ctor assoc comm id: none] .
+
+*** TODO: getObs of the initial configuration
+
+ op searchAllOuts : Module Term TimeSym Nat -> OutEles .
+ ceq searchAllOuts(md,sterm,iTime,n) =
+    obs searchAllOuts(md,sterm,iTime,s n)
+  if res3?? := metaSearch(md,sterm,'aconf:Config,nil,'+,unbounded,n)
+  /\ res3?? :: ResultTriple
+  /\ t:Term := getTerm(res3??)
+  /\ obs := getAllObs(md,t:Term,iTime) .
+
+ eq searchAllOuts(md,sterm,iTime,n) = none [owise] .
+
+ op getAllObs : Module Term TimeSym -> OutEles .
+ ops getAllObs$ : Module Term Qid TimeSym Nat -> OutEles .
+
+ eq getAllObs(md,sterm,iTime) = 
+   getAllObs$(md,sterm,'snd,iTime,0)
+   getAllObs$(md,sterm,'asnd,iTime,0)
+   getAllObs$(md,sterm,'tsnd,iTime,0) .
+
+ ceq getAllObs$(md,sterm,rname,iTime,n) = 
+     {o,bb,iTime,tt1,ds} getAllObs$(md,sterm,rname,iTime,s n)
+  if res4?? := metaXapply(md,sterm,rname,none,0,1,n) 
+  /\ res4?? :: Result4Tuple
+  /\ term := getTerm(res4??)
+  /\ aconf := downTerm(term,noConf)
+  /\ subst := getSubstitution(res4??)
+  /\ o := findTerm(md,subst,'t:T)
+  /\ not (o == t("NotFound"))
+  /\ tt1 := getTime(aconf) 
+  /\ bb := getBool(aconf) 
+  /\ ds := getDS(aconf) .
+
+eq getAllObs$(md,sterm,rname,iTime,n) = none [owise] .
+
+op findTerm : Module Substitution Variable -> T .
+eq findTerm(md,(var <- term ); subst, var) = 
+    downTerm(term,t("NotFound")) . 
+eq findTerm(md,subst,var) = t("NotFound") [owise] .
+
+*** Assuming that we do not have 10000 variables
+ op rnTVar : TSymReal Boolean -> Boolean .
+ op rnTVar : TSymReal TSymReal -> TSymReal .
+ eq rnTVar(iTime,true) = true .
+ eq rnTVar(iTime, (tr1 <= tr2 ) and bb) = 
+   (rnTVar(iTime,tr1) <= rnTVar(iTime,tr2)) and rnTVar(iTime,bb) .
+ eq rnTVar(iTime,(tr1 >= tr2 ) and bb) = 
+   (rnTVar(iTime,tr1) >= rnTVar(iTime,tr2)) and rnTVar(iTime,bb) .
+ eq rnTVar(iTime,(tr1 > tr2 ) and bb) = 
+   (rnTVar(iTime,tr1) > rnTVar(iTime,tr2)) and rnTVar(iTime,bb) .
+ eq rnTVar(iTime,(tr1 === tr2 ) and bb) = 
+   (rnTVar(iTime,tr1) === rnTVar(iTime,tr2)) and rnTVar(iTime,bb) .
+ eq rnTVar(iTime,(tr1 =/== tr2 ) and bb) = 
+   (rnTVar(iTime,tr1) =/== rnTVar(iTime,tr2)) and rnTVar(iTime,bb) .
+
+ eq rnTVar(iTime,tt(n)) = if tt(n) == iTime 
+                          then tt(n) else tt(n + 10000) fi .
+ eq rnTVar(iTime,tw(n)) = tw(n) .
+ eq rnTVar(iTime,r:Real) = r:Real .
+ eq rnTVar(iTime,- tr1) = - rnTVar(iTime,tr1) .
+ eq rnTVar(iTime,tr1 + tr2) = rnTVar(iTime,tr1) + rnTVar(iTime,tr2) .
+ eq rnTVar(iTime,tr1 * tr2) = rnTVar(iTime,tr1) * rnTVar(iTime,tr2) .
+ eq rnTVar(iTime,tr1 - tr2) = rnTVar(iTime,tr1) - rnTVar(iTime,tr2) .
+ eq rnTVar(iTime,tr1 / tr2) = rnTVar(iTime,tr1) / rnTVar(iTime,tr2) .
+ eq rnTVar(iTime,b ? tr1 : tr2) = 
+       rnTVar(iTime,b) ? rnTVar(iTime,tr1) : rnTVar(iTime,tr2) .
+ eq rnTVar(iTime,toReal(tt1)) = toReal(rnTVar(iTime,tt1)) .
+ eq rnTVar(iTime,toInt(tr1)) = toInt(rnTVar(iTime,tr1)) .
+
+ op subTVar : TimeSym TimeSym Boolean -> Boolean .
+ op subTVar : TimeSym TimeSym TSymReal -> TSymReal .
+ eq subTVar(tt1,tt2,true) = true .
+ eq subTVar(tt1,tt2,(tr1 <= tr2 ) and bb) = 
+   (subTVar(tt1,tt2,tr1) <= subTVar(tt1,tt2,tr2)) and subTVar(tt1,tt2,bb) .
+ eq subTVar(tt1,tt2,(tr1 >= tr2 ) and bb) = 
+   (subTVar(tt1,tt2,tr1) >= subTVar(tt1,tt2,tr2)) and subTVar(tt1,tt2,bb) .
+ eq subTVar(tt1,tt2,(tr1 > tr2 ) and bb) = 
+   (subTVar(tt1,tt2,tr1) > subTVar(tt1,tt2,tr2)) and subTVar(tt1,tt2,bb) .
+ eq subTVar(tt1,tt2,(tr1 === tr2 ) and bb) = 
+   (subTVar(tt1,tt2,tr1) === subTVar(tt1,tt2,tr2)) and subTVar(tt1,tt2,bb) .
+ eq subTVar(tt1,tt2,(tr1 =/== tr2 ) and bb) = 
+   (subTVar(tt1,tt2,tr1) =/== subTVar(tt1,tt2,tr2)) and subTVar(tt1,tt2,bb) .
+
+ eq subTVar(tt1,tt2,tt3) = if tt3 == tt1 then tt2 else tt3 fi .
+ eq subTVar(tt1,tt2,r:Real) = r:Real .
+ eq subTVar(tt1,tt2,- tr1) = - subTVar(tt1,tt2,tr1) .
+ eq subTVar(tt1,tt2,tr1 + tr2) = subTVar(tt1,tt2,tr1) + subTVar(tt1,tt2,tr2) .
+ eq subTVar(tt1,tt2,tr1 * tr2) = subTVar(tt1,tt2,tr1) * subTVar(tt1,tt2,tr2) .
+ eq subTVar(tt1,tt2,tr1 - tr2) = subTVar(tt1,tt2,tr1) - subTVar(tt1,tt2,tr2) .
+ eq subTVar(tt1,tt2,tr1 / tr2) = subTVar(tt1,tt2,tr1) / subTVar(tt1,tt2,tr2) .
+ eq subTVar(tt1,tt2,b ? tr1 : tr2) = 
+       subTVar(tt1,tt2,b) ? subTVar(tt1,tt2,tr1) : subTVar(tt1,tt2,tr2) .
+ eq subTVar(tt1,tt2,toReal(tt3)) = toReal(subTVar(tt1,tt2,tt3)) .
+ eq subTVar(tt1,tt2,toInt(tr3)) = toInt(subTVar(tt1,tt2,tr3)) .
+
+
+*** Assuming that we do not have 10000 variables
+*** To be implemented 
+*** Need to be careful with the variables and nonces...
+ op rnSym : DSet -> DSet .
+ op rnSym : TS -> TS .
+ op rnSym : T -> T .
+
+*** Assuming that both start with the same TimeSym iTime
+*** It checks whether conf1 can be aproximated by conf2, conf1 <= conf2,
+*** strictly speaking for two configurations to be observational
+*** equivalent, we need conf1 <= conf2 and conf2 <= conf1
+ op obsaprox : Module Config Config -> OutEles .
+ ceq obsaprox (md,conf1,conf2) = checkObs(obs1,obs2)
+  if iTime := getTime(conf1)
+  /\ obs1 := searchAllOuts(md,upTerm(conf1),iTime,0)
+  /\ obs2 := searchAllOuts(md,upTerm(conf2),iTime,0) .
+  
+ op checkObs : OutEles OutEles -> OutEles .
+ ceq checkObs(oele1 obs1,oele2 obs2) = checkObs(obs1,oele2 obs2)
+  if isEquiv(oele1,oele2) .
+ eq checkObs(none,obs2) = none .
+ eq checkObs(obs1,obs2) = obs1 [owise] .
+ 
+ op isEquiv : OutEle OutEle -> Bool .
+ *** Assuming the same term
+ ceq isEquiv({o1,bb1,iTime,tt1,ds1},{o2,bb2,iTime,tt2,ds2}) = true
+  if o1 == o2
+  /\ nutt := rnTVar(iTime,tt2) 
+  /\ nubb := rnTVar(iTime,bb2) 
+  /\ bb3 := subTVar(nutt,tt1,nubb)
+  /\ bb := (nutt === tt1) and bb1 and nubb
+  --- /\ bb :=  bb1 implies bb3 
+  /\ metaCheck(['EXE],toVarsB(bb)) .
+
+
+ eq isEquiv(oele1,oele2) = false [owise] .
+
+
+ops bbb1 bbb2 bbb3 : -> Boolean .
+ eq bbb1 = tt(6) === tt(5) + tt(3) and (tt(6) >= (0/1).Real    and (tt(6) >= tt(5) and (tt(5) >= (0/1).Real and (tt(3) === (1/1).Real and (tt(4) === (2/1).Real and true))))) .
+
+ eq bbb2 = tt(6) === tt(5) + tt(3) + tt(4) and (tt(6) >= (0/1).Real and (tt( 6) >= tt(5) and (tt(5) >= (0/1).Real and (tt(3) === (1/1).Real and (tt(4) === (2/1).Real and true))))) .
+
+ eq bbb3 = subTVar(rnTVar(tt(5),tt(6)),tt(6),rnTVar(tt(5),bbb2)) .
+
+
+ops eleTest1 eleTest2 : -> OutEle .
+eq eleTest1 = {t("ERROR"),tt(6) === tt(5) + tt(3) and (tt(6) >= (0/1).Real    and (tt(6) >= tt(5) and (tt(5) >= (0/1).Real and (tt(3) === (1/1).Real and (tt(4) === (2/1).Real and true))))),tt(5),tt(6),dc(vs(0, 0), z(sk(p("I:0")) n(0, 0))) dc(vs(0, 1), z(sk(p("I:0")) n(0, 0)))}  .
+
+eq eleTest2 = {t("ERROR"),tt(6) === tt(5) + tt(3) + tt(4) and (tt(6) >= (0/1).Real and (tt( 6) >= tt(5) and (tt(5) >= (0/1).Real and (tt(3) === (1/1).Real and (tt(4) === (2/1).Real and true))))),tt(5),tt(6),none} .
+
+
+endm
+
+
+
+***(
+
+red obsaprox(['PASSPORT], initConf2, initConf) .
+rewrites: 3006 in 68ms cpu (177ms real) (43743 rewrites/second)
+result OutEle: {t("ERROR"),tt(6) === tt(5) + tt(3) + tt(4) and (tt(6) >= (
+    0/1).Real and (tt(6) >= tt(5) and (tt(5) >= (0/1).Real and (tt(3) === (
+    1/1).Real and (tt(4) === (2/1).Real and true))))),tt(5),tt(6),none}
+
+red obsaprox(['PASSPORT],initConf,initConf2) .
+reduce in META-VER : obsaprox(['PASSPORT], initConf, initConf2) .
+rewrites: 2745 in 21ms cpu (21ms real) (130416 rewrites/second)
+result OutEles: (none).OutEles
+
+***(
+
+match tt(6) >= (0/1).Real and b:Boolean and b2:Boolean and b3:Boolean <=? tt(6) >= (0/1).Real and tt(6) >= tt(5) + (3/1).Real and (tt(5) >= (0/1).Real and (tt(5) >= tt(4) and tt(5) >= tt(4) + (3/1).Real)) and (true).Boolean .
+Solution 1
+b --> tt(6) >= tt(5) + (3/1).Real
+b2 --> tt(5) >= (0/1).Real and (tt(5) >= tt(4) and tt(5) >= tt(4) + (3/1).Real)
+b3:Boolean --> (true).Boolean
+
+match tt(6) >= (0/1).Real and b:Boolean  <=? tt(6) >= (0/1).Real and tt(6) >= tt(5) + (3/1).Real and (tt(5) >= (0/1).Real and (tt(5) >= tt(4) and tt(5) >= tt(4) + (3/1).Real)) and (true).Boolean .
+Decision time: 0ms cpu (0ms real)
+No match.
+
+red searchAllOuts(['PASSPORT],upTerm(initConf),tt(5),0) .
+reduce in META-VER : searchAllOuts(['PASSPORT], upTerm(initConf), tt(5), 0) .
+rewrites: 747 in 47ms cpu (48ms real) (15770 rewrites/second)
+result OutEles: 
+ {t("ERROR"),tt(6) === tt(5) + tt(3) and (tt(6) >= (0/1).Real    and (tt(6) >= tt(5) and (tt(5) >= (0/1).Real and (tt(3) === (1/1).Real and (tt(4) === (2/1).Real and true))))),tt(5),tt(6),dc(vs(0, 0), z(sk(p("I:0")) n(0, 0))) dc(vs(0, 1), z(sk(p("I:0")) n(0, 0)))} 
+
+ {n(0, 0),tt(5) >= (0/1).Real and (tt(3) === (1/1).Real and (tt(4) === (2/1).Real and true)),tt(5),tt(5),none}
+
+ red searchAllOuts(['PASSPORT],upTerm(initConf2),tt(5),0) .
+reduce in META-VER : searchAllOuts(['PASSPORT], upTerm(initConf2), tt(5), 0) .
+rewrites: 1302 in 15ms cpu (15ms real) (86156 rewrites/second)
+result OutEles: 
+ {t("ERROR"),tt(6) === tt(5) + tt(3) and (tt(6) >= (0/1).Real    and (tt(6) >= tt(5) and (tt(5) >= (0/1).Real and (tt(3) === (1/1).Real and    (tt(4) === (2/1).Real and true))))),tt(5),tt(6),dc(vs(0, 0), z(sk(p("I:0"))    n(0, 0) e(n(0, 1000), KE) e(e(n(0, 1000), KE), KM))) dc(vs(0, 1), z(sk(p(    "I:0")) n(0, 0) e(n(0, 1000), KE) e(e(n(0, 1000), KE), KM)))}  
+
+ {t("ERROR"),tt(6) === tt(5) + tt(3) + tt(4) and (tt(6) >= (0/1).Real and (tt( 6) >= tt(5) and (tt(5) >= (0/1).Real and (tt(3) === (1/1).Real and (tt(4) === (2/1).Real and true))))),tt(5),tt(6),none}  
+
+ {n(0, 0),tt(5) >= (0/1).Real and (tt(3) === (1/1).Real and (tt(4) === (2/1).Real and true)),tt(5),tt(5),none}
+
+
+)
+
+  
+)
+
+
+

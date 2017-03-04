@@ -1,0 +1,150 @@
+***(
+payWave
+
+A(Reader) ---> B(Card) : A,SELECT.PAY  [The reader asks the card which protocol it uses]
+B ---> A : A,B,SELECTION   [The card responds specifying the protocol to be followed]
+A ---> B : A,B,NR # tt(0) := cur [At this moment, the reader replies with a nonce of its own and also starts to count the time.]
+B ---> A : A,B,NR,NC # cur <= tt(0) + T [The card replies.]
+A checks time [Here, the reader checks how long since the nonce NR was sent until now. If it took longer then
+a value T that was previously specified, the transaction isnt allowed, and the protocol stops here]
+A ---> B : e({NR,NC}, private_key(A)) [The reader sends his signature, the nonces encrypted with his private
+key]
+B ---> A : e({NR,NC}, private_key(B)) [The card ends his signature, the nonces encrypted with his private key]
+
+Its important to say that this is a simplified version of a modification made in the original payWave protocol
+with the intention to make it more resilient against relay attacks by including a distance bounding challenge in protocol sessions. This modification, and the original protocol,
+can be found in the article Relay Cost Bounding for Contactless EMV Payments.
+
+Article:
+	Name : Relay Cost Bounding for Contactless EMV Payments
+	Authors : Tom Chothia, Flavio D. Garcia, Joeri de Ruiter, Jordi van den Breekel and Matthew Thompson
+)
+
+mod PAYWAVE is
+  inc EXE .
+  inc ANALYSIS .
+  inc META-TIME .
+
+var exe : Execution .
+  var pc : PlayerConf .
+  vars T T1 tsym : TimeSym .
+  var TR1 : TSymReal .
+  vars b b' : Boolean .
+  vars i j : Nat .
+var ds ds0 : DSet .
+
+var conf : Config .
+
+ops evInit0 evInit evResp0 evResp : -> NeEvtList .
+ops rInit rResp : ->  role .
+
+--- Reader
+eq evInit = ( new(nv("NR")), evInit0) .
+eq evInit0 = (+({pv("A"),t("SELECT-PAY")}),
+              -({pv("A"),pv("B"),t("SELECTION")}),
+              +({pv("A"),pv("B"),nv("NR")} # tt(0) := cur),
+              -({pv("A"),pv("B"),nv("NR"),nv("NC")} # cur <= tt(0) + 10/1),
+              +(e({nv("NR"),nv("NC")},sk(pv("A")))),
+              -(e({nv("NR"),nv("NC")},sk(pv("B"))))) .
+
+
+eq rInit = r("reader", pv("A"), (pv("A"),pv("B")), evInit ) .
+
+--- Card
+eq evResp = (new(nv("NC")), evResp0) .
+eq evResp0 =  (-({pv("A"),t("SELECT-PAY")}),
+              +({pv("A"),pv("B"),t("SELECTION")}),
+              -({pv("A"),pv("B"),nv("NR")}),
+              +({pv("A"),pv("B"),nv("NR"),nv("NC")}),
+              -(e({nv("NR"),nv("NC")},sk(pv("A")))),
+              +(e({nv("NR"),nv("NC")},sk(pv("B"))))) .
+
+eq rResp = r("card", pv("B"), pv("B"), evResp ) .
+
+op initPC : -> PlayerConf .
+
+eq initPC =
+ mkHonest(0,rInit,((pv("A") := p("R")) (pv("B") := p("C"))))
+ mkHonest(1,rResp,(pv("B") := p("C"))) .
+
+***(With this protocol, we tested only one configuration. The interesting here is to check de distance between
+ players. Observer that the d(0,1) and d(1,0) are both equal to 3, and earlier we defined that when the current
+ time is checked the second time, it should be smaller than the time it previously checked, tt(0).
+ So, cur <= tt(0) + 10/1, as defined earlier. Assuming that the message should go and then return with the
+ answer, the current time should be smaller then tt(0) + 6/1. In this case, the protocol should complete. If we alter the
+ distances and put, say, d(0,1) and d(1,0) equals 10/1, it wouldn't complete.)
+
+
+ops initFar initClose : -> Config .
+eq initFar = initPC ! tt(4) ! none ! (d(1,0) === 10/1) and (d(0,1) === 10/1) and (tt(4) >= 0/1) and true ! nil .
+
+eq initClose = initPC ! tt(4) ! none ! (d(1,0) === 3/1) and (d(0,1) === 3/1) and (tt(4) >= 0/1) and true ! nil .
+
+--- Function to convert non-standard d(i,j) maude variables into SMT 
+--- interpretable ones using the qids.
+eq toVarsR(d(i,j)) = qid("d" + string(i,10) + string(j,10) + ":Real") .
+
+--- eq d(0,1) = 3/1 .
+--- eq d(1,0) = 3/1 .
+
+--- Players far away. 
+--- eq d(0,1) = 10/1 .
+--- eq d(1,0) = 10/1 .
+
+
+--- It checks if all the players sent and received everything that was expected of them, i.e if the config completed.
+
+op goalC : Config -> Bool .
+eq goalC(conf) =  isDone(getPC(conf)) .
+
+op getBoolean : Config -> Boolean .
+eq getBoolean(pc ! T ! ds ! b ! exe) = b .
+
+endm
+
+mod META-TEST is
+  inc META-TIME .
+  inc PAYWAVE .
+endm
+
+***(
+In here, we search for a single configuration that has completed, starting from initConf and it is possible to complete an attack if the players are close. Below we used d(0,1) = 3.
+
+search [1] in META-TEST : initClose =>* c:Config such that goalC(c:Config) = (true).Bool .
+
+Solution 1 (state 2549)
+states: 2550  rewrites: 1026631 in 7199ms cpu (7268ms real) (142606 rewrites/second)
+c:Config --> ([h(0),(7).NzNat | (nil).evtList | sk(p("R"))]
+ [h(1),(7).NzNat | (nil).evtList | sk(p("C"))]
+ [I(0),(3).NzNat | p("C") p("R") t("SELECT-PAY") t("SELECTION") sk(p("I:0")) n(0, 0) n(1, 0) e({n(
+    0, 0),n(1, 0)}, sk(p("C"))) e({n(0, 0),n(1, 0)}, sk(p("R"))) | (none).TimedTS]
+ [I(1),(3).NzNat | p("C") p("R") t("SELECT-PAY") t("SELECTION") sk(p("I:1")) n(0, 0) n(1, 0) e({n(
+    0, 0),n(1, 0)}, sk(p("C"))) | e({n(0, 0),n(1, 0)}, sk(p("R"))) @ tt(7) + d(0, 1)]
+) ! tt(7) ! dc(ps(1, 0), z(p("I:1")) z(p("I:1"))) ! tt(7) <= tt(4) + (10/1).Real and (tt(7) >= (
+    0/1).Real and (tt(7) >= tt(6) and (tt(6) >= (0/1).Real and (tt(6) >= tt(5) and (tt(6) >= tt(5)
+    + d(1, 0) and (tt(5) >= (0/1).Real and (tt(5) >= tt(4) and (tt(5) >= tt(4) + d(1, 0) and (d(1,
+    0) === (3/1).Real and d(0, 1) === (3/1).Real and tt(4) >= (0/1).Real and true))))))))) !
+o({p("R"),t("SELECT-PAY")},(h(0),1),(I(0),1)) ;
+o({p("R"),p("C"),t("SELECTION")},(I(0),0),(h(0),2)) ;
+o({p("R"),p("C"),n(0, 0)},(h(0),3),(I(0),3)) ;
+o({ps(1, 0),t("SELECT-PAY")},(I(1),0),(h(1),1)) ;
+o({ps(1, 0),p("C"),t("SELECTION")},(h(1),2),(I(1),2)) ;
+o({ps(1, 0),p("C"),n(0, 0)},(I(1),1),(h(1),3)) ;
+o({ps(1, 0),p("C"),n(0, 0),n(1, 0)},(h(1),4),(I(1),4)) ;
+o(e({n(0, 0),n(1, 0)}, sk(ps(1, 0))),(I(1),2),(h(1),5)) ;
+o(e({n(0, 0),n(1, 0)}, sk(p("C"))),(h(1),6),(I(1),6)) ;
+o({p("R"),p("C"),n(0, 0),n(1, 0)},(I(0),1),(h(0),4)) ;
+o(e({n(0, 0),n(1, 0)}, sk(p("R"))),(h(0),5),(I(0),5)) ;
+o(e({n(0, 0),n(1, 0)}, sk(p("C"))),(I(0),2),(h(0),6))
+
+Using d(0,1) = 10, i.e., players far away. The protocol cannot be 
+completed as expected.
+
+search [1] in META-TEST : initFar =>* c:Config such that goalC(c:Config) = (true).Bool .
+
+No solution.
+states: 3519  rewrites: 1765811 in 10926ms cpu (11106ms real) (161602 rewrites/second)
+
+TODO: Investigate why it takes much longer to consider d(0,1) >= 10/1, instead of d(0,1) === 10/1.
+
+  )

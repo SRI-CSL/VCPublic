@@ -1,0 +1,204 @@
+***(
+    This attack is based on the concept of red pills, softwares whose intent is to determine
+    if they're executing in a real machine or in a virtual machine. The idea of the red pills
+    we use as basis here is to use the difference in time between the challenge and the answer
+    for two distinct requests: the baseline request and the differential request. The baseline
+    request doesn't have a distinct response time in case the software is running in a VM, and
+    is used as a way to equalize factors such internet connection and processing speed. The
+    differential request, on the other hand, has a slight difference in time response when executes
+    in a VM instead of a actual machine. The redpills than utilizes this difference to determine whether
+    its in a real machine or in a VM. For a more in-depth analysis, and examples using Javascript to
+    implement such a red pill in a browser, check the article below.
+
+    Article:
+        Name: Tick Tock: Building Browser Red Pills from Timing Side Channels
+        Authors: Grant Ho, Dan Boneh, Lucas Ballard, Niels Provos
+
+
+)
+
+
+mod REDPILL is
+  inc EXE .
+  inc ANALYSIS .
+  inc META-TIME .
+
+var conf : Config .
+
+ops evVirtual evReal evInitiator evRealW evVirtualW evRealW2 evVirtualW2 : ->   NeEvtList .
+ops dBaseline dVirtual dReal : -> TSymReal .
+
+--- RedPill receiving from a real machine, not a virtual one
+eq evReal = (-(t("BASELINE REQUEST") # tt(0) := cur),
+             +(t("BASELINE DONE") # cur === tt(0) + dBaseline),
+             -(t("DIFFERENTIAL REQUEST") # tt(1) := cur ),
+             +(t("DIFFERENTIAL DONE") # cur === tt(1) + dReal) ).
+
+eq evVirtual = (-(t("BASELINE REQUEST") # tt(0) := cur),
+             +(t("BASELINE DONE") # cur === tt(0) + dBaseline),
+             -(t("DIFFERENTIAL REQUEST") # tt(1) := cur ),
+             +(t("DIFFERENTIAL DONE") # cur === tt(1) + dVirtual) ).
+
+--- trace that allows waiting in the differential operation
+
+eq evRealW = (-(t("BASELINE REQUEST") # tt(0) := cur),
+             +(t("BASELINE DONE") # cur === tt(0) + dBaseline),
+             -(t("DIFFERENTIAL REQUEST") # tt(1) := cur ),
+             +(t("DIFFERENTIAL DONE") # cur >= tt(1) + dReal) ).
+
+eq evVirtualW = (-(t("BASELINE REQUEST") # tt(0) := cur),
+             +(t("BASELINE DONE") # cur === tt(0) + dBaseline),
+             -(t("DIFFERENTIAL REQUEST") # tt(1) := cur ),
+             +(t("DIFFERENTIAL DONE") # cur >= tt(1) + dVirtual) ).
+
+--- trace that allows waiting in both the baseline and the differential operations
+
+eq evRealW2 = (-(t("BASELINE REQUEST") # tt(0) := cur),
+             +(t("BASELINE DONE") # cur >= tt(0) + dBaseline),
+             -(t("DIFFERENTIAL REQUEST") # tt(1) := cur ),
+             +(t("DIFFERENTIAL DONE") # cur >= tt(1) + dReal) ).
+
+eq evVirtualW2 = (-(t("BASELINE REQUEST") # tt(0) := cur),
+             +(t("BASELINE DONE") # cur >= tt(0) + dBaseline),
+             -(t("DIFFERENTIAL REQUEST") # tt(1) := cur ),
+             +(t("DIFFERENTIAL DONE") # cur >= tt(1) + dVirtual) ).
+
+
+
+eq evInitiator = ( +(t("BASELINE REQUEST")),
+             -(t("BASELINE DONE")),
+             +(t("DIFFERENTIAL REQUEST")),
+             -(t("DIFFERENTIAL DONE")) ) .
+
+
+
+
+eq dBaseline = 1/1 .
+eq dReal = tw(1) .
+eq dVirtual = tw(2) .
+eq d(0,1) = 2/1 .
+eq d(1,0) = 2/1 .
+
+ops rInit rReal rVirtual rRealW rVirtualW rRealW2 rVirtualW2 : ->  role .
+
+eq rInit = r("initiator", pv("A"),  nil, evInitiator ) .
+
+eq rReal = r("real responder", pv("B"), nil, evReal ) .
+eq rVirtual = r("virtual responder", pv("B"), nil, evVirtual ) .
+
+eq rRealW = r("real waiting responder", pv("B"), nil, evRealW ) .
+eq rVirtualW = r("virtual waiting responder", pv("B"), nil, evVirtualW ) .
+
+eq rRealW2 = r("real waiting responder", pv("B"), nil, evRealW2) .
+eq rVirtualW2 = r("virtual waiting responder", pv("B"), nil, evVirtualW2) .
+
+ops virtualPC realPC virtualWPC realWPC realSPC virtualSPC realSPC2 virtualSPC2 : -> PlayerConf .
+
+eq virtualPC = mkHonest(0,0,rInit,mtS)
+               mkHonest(1, 0, rVirtual, mtS) .
+
+eq realPC = mkHonest(0, 0, rInit, mtS)
+            mkHonest(1, 0, rReal, mtS) .
+
+eq virtualWPC = mkHonest(0,0,rInit,mtS)
+                mkHonest(1, 0, rVirtualW, mtS) .
+
+eq realWPC = mkHonest(0, 0, rInit, mtS)
+             mkHonest(1, 0, rRealW, mtS) .
+
+--- the SPC configurations are simplified, abstracting the initiator with the intruder associated with the responder.
+
+eq realSPC = mkHonest(0, 0, rRealW, mtS) .
+
+eq virtualSPC = mkHonest(0, 0, rVirtualW, mtS) .
+
+--- the SPC2 is similar to the SPC, with the exception tha it also allows waiting when the responder receive
+--- the baseline request, no only the differential one .
+
+eq realSPC2 = mkHonest(0, 0, rRealW2, mtS) .
+
+eq virtualSPC2 = mkHonest(0, 0, rVirtualW2, mtS) .
+
+ops virtualConf realConf virtualWConf realWConf realSConf virtualSConf realSConf2 virtualSConf2 : -> Config .
+
+eq virtualConf = virtualPC ! tt(5) ! none ! (dVirtual >= dReal and ((tt(5) >= 0/1) and true)) ! nil .
+eq realConf = realPC ! tt(5) ! none ! (dVirtual >= dReal and ((tt(5) >= 0/1) and true)) ! nil .
+
+eq virtualWConf = virtualWPC ! tt(5) ! none ! (dVirtual >= dReal and ((tt(5) >= 0/1) and true)) ! nil .
+eq realWConf = realWPC ! tt(5) ! none ! (dVirtual >= dReal and ((tt(5) >= 0/1) and true)) ! nil .
+
+eq virtualSConf = virtualSPC ! tt(5) ! none ! (dVirtual >= dReal and ((tt(5) >= 0/1) and true)) ! nil .
+eq realSConf = realSPC ! tt(5) ! none ! (dVirtual >= dReal and ((tt(5) >= 0/1) and true)) ! nil .
+
+eq virtualSConf2 = virtualSPC2 ! tt(5) ! none ! (dVirtual >= dReal and ((tt(5) >= 0/1) and true)) ! nil .
+eq realSConf2 = realSPC2 ! tt(5) ! none ! (dVirtual >= dReal and ((tt(5) >= 0/1) and true)) ! nil .
+
+op goalC : Config -> Bool .
+eq goalC(conf) =  isDone(getPC(conf)) .
+
+endm
+
+mod REDPILL-EXE is
+  inc META-VER .
+  inc REDPILL .
+
+endm
+
+***(
+
+testing with cur === tt(1) + dReal and cur === tt(1) + dVirtual, which semantically means none of the
+players can wait: they send their messages as soon as they're ready.
+  
+    reduce in REDPILL-EXE : obsAprox('REDPILL, virtualConf, realConf) .
+rewrites: 5467464 in 76642ms cpu (81862ms real) (71337 rewrites/second)
+result Bool: (false).Bool
+
+    reduce in REDPILL-EXE : obsAprox('REDPILL, realConf, virtualConf) .
+rewrites: 5467464 in 81680ms cpu (88687ms real) (66937 rewrites/second)
+result Bool: (false).Bool
+    
+    reduce in REDPILL-EXE : obsAprox('REDPILL, realConf, realConf) .
+      ???
+
+    reduce in REDPILL-EXE : obsAprox('REDPILL, virtualConf, virtualConf) .
+      ???
+
+now, testing with cur >= tt(1) + X, which means that our players now are allowed to wait.
+
+    reduce in REDPILL-EXE : obsAprox('REDPILL, virtualWConf, realWConf) .
+    ???
+
+    reduce in REDPILL-EXE : obsAprox('REDPILL, realWConf, virtualWConf) .
+rewrites: 5467423 in 83646ms cpu (91718ms real) (65363 rewrites/second)
+result Bool: (false).Bool
+
+evaluating SPC version of the protocol.
+
+reduce in REDPILL-EXE : obsAprox('REDPILL, virtualSConf, realSConf) .
+reduce in REDPILL-EXE : obsAprox('REDPILL, virtualSConf, realSConf) .
+rewrites: 2658 in 30ms cpu (30ms real) (88390 rewrites/second)
+result Bool: (true).Bool
+
+reduce in REDPILL-EXE : obsAprox('REDPILL, realSConf, virtualSConf) .
+reduce in REDPILL-EXE : obsAprox('REDPILL, realSConf, virtualSConf) .
+rewrites: 2657 in 30ms cpu (31ms real) (86898 rewrites/second)
+result Bool: (false).Bool
+
+evaluating SPC2 version of the protocol.
+
+    
+reduce in REDPILL-EXE : obsAprox('REDPILL, virtualSConf2, realSConf2) .
+reduce in REDPILL-EXE : obsAprox('REDPILL, virtualSConf2, realSConf2) .
+rewrites: 2658 in 29ms cpu (29ms real) (90815 rewrites/second)
+result Bool: (true).Bool
+
+
+    reduce in REDPILL-EXE : obsAprox('REDPILL, realSConf2, virtualSConf2) .
+reduce in REDPILL-EXE : obsAprox('REDPILL, realSConf2, virtualSConf2) .
+rewrites: 2657 in 34ms cpu (37ms real) (76974 rewrites/second)
+result Bool: (false).Bool
+
+
+
+)
+

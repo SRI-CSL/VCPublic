@@ -1,0 +1,167 @@
+***(
+A ---> B: A,SELECT_PAY [ The reader asks the card which protocol it supports]
+B ---> A : A,B,AID [The card responds, sending the Aplication Identities of the protocols it supports]
+A ---> B : A,B,SELECT_AID [The reader select the protocol it wishes to run]
+B ---> A : A,B,PDOL [The card sends a list of information it requires in response to the selected protocol]
+A ---> B : A,B,GPO,NR # tt(0) := cur [The reader responds with the Get Processing Options, with the info the card
+needs, and also with the nonce NR. At this point, the reader starts to count the time it takes for a response ]
+B ---> A : A,B, e({GPO, NR}, KS), e({GPO,NR,ATC,NC}, private_key(B)),ATC,PAN,AFL # cur <= tt(0) + T
+
+[KS => Symmetric key, shared by the card and the bank
+ATC => Application transaction counter
+PAN => records with card information
+AFL => location of the records on the card
+]
+
+A checks the time, and the current time must be smaller than tt(0) [the moment that the GPO was sent] plus a T
+
+A ---> B : A,B,READ_RECORD
+B ---> A : A,B,Cert_Priv_CA_PubB [The card sends to the reader a certificate for the bank's public key]
+A ---> B : A,B,READ_RECORD2
+B ---> A : PAN, cert_privB,NC
+
+Article:
+	Name : Relay Cost Bounding for Contactless EMV Payments
+	Authors : Tom Chothia, Flavio D. Garcia, Joeri de Ruiter, Jordi van den Breekel and Matthew Thompson
+)
+
+load ../term
+load ../constraints
+load ../protocol
+load ../exe
+load ../meta-time
+
+mod PAYWAVE-FULL is
+  inc EXE .
+  inc ANALYSIS .
+  inc META-TIME .
+
+var conf : Config .
+
+ops evReader0 evReader evCard0 evCard : -> NeEvtList .
+ops rReader rCard : ->  role .
+
+--- Reader
+eq evReader = ( new(nv("NR")), evReader0) .
+eq evReader0 = (+({pv("A"),t("SELECT-PAY")}),
+              -({pv("A"),pv("B"),t("AID")}),
+              +({pv("A"),pv("B"),t("SELECT-AID")}),
+              -({pv("A"), pv("B"), t("PDOL")}),
+              +({pv("A"),pv("B"),t("GPO"),nv("NR")} # tt(0) := cur ),
+              -({pv("A"),pv("B"), e({t("GPO"), nv("NR")}, KS), e({t("GPO"), nv("NR"),t("ATC"), nv("NC")}, sk(pv("B"))),
+               t("ATC"), t("PAN"),t("AFL")} # cur <= tt(0) + 10/1),
+              +({pv("A"), pv("B"), t("READ_RECORD1")}),
+              -({pv("A"), pv("B"), t("cert-privCA-PubB")}),
+              +({pv("A"), pv("B"), t("READ_RECORD2")}),
+              -({t("cert-privB"),t("PAN"), nv("NC")})) .
+
+eq rReader = r("reader", pv("A"), (pv("A"),pv("B")), evReader ) .
+
+--- Card
+eq evCard = (new(nv("NC")), evCard0) .
+eq evCard0 =  (-({pv("A"),t("SELECT-PAY")}),
+              +({pv("A"),pv("B"),t("AID")}),
+              -({pv("A"),pv("B"), t("SELECT-AID")}),
+              +({pv("A"), pv("B"), t("PDOL")}),
+              -({pv("A"),pv("B"), t("GPO") ,nv("NR")}),
+              +({pv("A"),pv("B"), e({t("GPO"), nv("NR")}, KS), e({t("GPO"), nv("NR"),t("ATC"), nv("NC")}, sk(pv("B"))),
+               t("ATC"), t("PAN"),t("AFL")}),
+              -({pv("A"), pv("B"), t("READ_RECORD1")}),
+              +({pv("A"), pv("B"), t("cert_privCA_PubB")}),
+              -({pv("A"), pv("B"), t("READ_RECORD2")}),
+              +({t("cert-privB"),t("PAN"), nv("NC")})) .
+
+eq rCard = r("card", pv("B"), pv("B"), evCard ) .
+
+op initPC : -> PlayerConf .
+op KS : -> skeyC .
+
+--- The idea here is the same as the shortened paywave (see comments in file paywave.maude), just with a larger trace and thus a larger state space.
+
+eq initPC =
+ mkHonestKnow(0,rReader,((pv("A") := p("R")) (pv("B") := p("C"))), KS)
+ mkHonestKnow(1,rCard,(pv("B") := p("C")), KS) .
+
+op initConf : -> Config .
+eq initConf = initPC ! tt(4) ! none ! true ! nil .
+
+--- eq d(0,1) = 3/1 .
+--- eq d(1,0) = 3/1 .
+
+--- Players far away
+eq d(0,1) = 10/1 .
+eq d(1,0) = 10/1 .
+
+
+--- Again, just check if both players completed.
+
+op goalC : Config -> Bool .
+eq goalC(conf) =  isDone(getPC(conf)) .
+
+endm
+
+mod META-TEST-FULL is
+  inc META-TIME .
+  inc PAYWAVE-FULL .
+
+endm
+***(
+Searching for a complete configuration. Since the time between parties is smaller then the max time allowed by the protocol, it will complete. Below we used d(0,1) = 3.
+
+search [1] in META-TEST-FULL : initConf =>* c:Config such that goalC(c:Config)
+    = (true).Bool .
+
+Solution 1 (state 7516)
+states: 7517  rewrites: 5728146 in 31167ms cpu (31705ms real) (183786
+    rewrites/second)
+c:Config --> ([h(0),(11).NzNat | (nil).evtList | KS sk(p("R"))]
+ [h(1),(11).NzNat | (nil).evtList | KS sk(p("C"))]
+ [I(0),(5).NzNat | p("C") p("R") t("AFL") t("AID") t("ATC") t("GPO") t("PAN")
+    t("PDOL") t("READ_RECORD1") t("READ_RECORD2") t("SELECT-AID") t(
+    "SELECT-PAY") t("cert-privB") t("cert_privCA_PubB") sk(p("I:0")) n(0, 0) n(
+    1, 0) e({t("GPO"),n(0, 0)}, KS) e({t("GPO"),n(0, 0),t("ATC"),n(1, 0)}, sk(
+    p("C"))) | (none).TimedTS]
+ [I(1),(5).NzNat | p("C") p("R") t("AFL") t("AID") t("ATC") t("GPO") t("PAN")
+    t("PDOL") t("SELECT-AID") t("SELECT-PAY") t("cert-privB") t(
+    "cert_privCA_PubB") sk(p("I:1")) n(0, 0) n(1, 0) e({t("GPO"),n(0, 0)}, KS)
+    e({t("GPO"),n(0, 0),t("ATC"),n(1, 0)}, sk(p("C"))) | ({p("R"),p("C"),t(
+    "READ_RECORD1")} @ tt(7) + 3/1) {p("R"),p("C"),t("READ_RECORD2")} @ tt(7) +
+    3/1]
+) ! tt(7) ! none ! tt(7) <= tt(4) + (10/1).Real and (tt(7) >= (0/1).Real and (
+    tt(7) >= tt(6) and (tt(6) >= (0/1).Real and (tt(6) >= tt(5) and (tt(6) >=
+    tt(5) + (3/1).Real and (tt(5) >= (0/1).Real and (tt(5) >= tt(4) and (tt(5)
+    >= tt(4) + (3/1).Real and true)))))))) !
+o({p("R"),t("SELECT-PAY")},(h(0),1),(I(0),1)) ;
+o({p("R"),p("C"),t("AID")},(I(0),0),(h(0),2)) ;
+o({p("R"),p("C"),t("SELECT-AID")},(h(0),3),(I(0),3)) ;
+o({p("R"),p("C"),t("PDOL")},(I(0),1),(h(0),4)) ;
+o({p("R"),p("C"),t("GPO"),n(0, 0)},(h(0),5),(I(0),5)) ;
+o({ps(1, 0),t("SELECT-PAY")},(I(1),0),(h(1),1)) ;
+o({ps(1, 0),p("C"),t("AID")},(h(1),2),(I(1),2)) ;
+o({ps(1, 0),p("C"),t("SELECT-AID")},(I(1),1),(h(1),3)) ;
+o({ps(1, 0),p("C"),t("PDOL")},(h(1),4),(I(1),4)) ;
+o({ps(1, 0),p("C"),t("GPO"),n(0, 0)},(I(1),2),(h(1),5)) ;
+o({ps(1, 0),p("C"),e({t("GPO"),n(0, 0)}, KS),e({t("GPO"),n(0, 0),t("ATC"),n(1,
+    0)}, sk(p("C"))),t("ATC"),t("PAN"),t("AFL")},(h(1),6),(I(1),6)) ;
+o({ps(1, 0),p("C"),t("READ_RECORD1")},(I(1),3),(h(1),7)) ;
+o({ps(1, 0),p("C"),t("cert_privCA_PubB")},(h(1),8),(I(1),8)) ;
+o({ps(1, 0),p("C"),t("READ_RECORD2")},(I(1),4),(h(1),9)) ;
+o({t("cert-privB"),t("PAN"),n(1, 0)},(h(1),10),(I(1),10)) ;
+o({p("R"),p("C"),e({t("GPO"),n(0, 0)}, KS),e({t("GPO"),n(0, 0),t("ATC"),n(1,
+    0)}, sk(p("C"))),t("ATC"),t("PAN"),t("AFL")},(I(0),2),(h(0),6)) ;
+o({p("R"),p("C"),t("READ_RECORD1")},(h(0),7),(I(0),7)) ;
+o({p("R"),p("C"),t("cert-privCA-PubB")},(I(0),3),(h(0),8)) ;
+o({p("R"),p("C"),t("READ_RECORD2")},(h(0),9),(I(0),9)) ;
+o({t("cert-privB"),t("PAN"),n(1, 0)},(I(0),4),(h(0),10))
+
+Using d(0,1) = 10, i.e., players very far away from each other. As expected it is not possible for the protocol to complete.
+
+search [1] in META-TEST-FULL : initConf =>* c:Config such that goalC(c:Config) = (true).Bool .
+search [1] in META-TEST-FULL : initConf =>* c:Config such that goalC(c:Config)
+    = (true).Bool .
+
+No solution.
+states: 5131  rewrites: 4930689 in 27423ms cpu (27734ms real) (179796
+    rewrites/second)
+
+)

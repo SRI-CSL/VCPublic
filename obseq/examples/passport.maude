@@ -1,0 +1,94 @@
+***(
+
+The privacy attack on passport identification protocols exploits the time 
+for a passport answering a reader request. In order to identify these attack
+we use the machinery in the file ../meta-ver.maude. 
+)
+
+
+mod PASSPORT is
+  inc EXE .
+  inc ANALYSIS .
+  inc META-TIME .
+
+var conf : Config .
+
+ops evInit evInit0 evPass evPass0 evResp0 evResp : -> NeEvtList .
+ops rResp : ->  role .
+ops KE KM : -> skeyC .
+ops dMac dEnc : -> TSymReal .
+
+eq evPass = ( new(nv("NT")), evPass0) .
+eq evPass0 = ( +(nv("NT")),
+              -({v("ENC"),v("MAC")} # tt(0) := cur),
+              eif v("MAC") ~ e(v("ENC"),KM) # tt(1) := tt(0) + dMac
+              ethen
+                (eif v("ENC") ~ e(nv("NT"),KE) # tt(2) := tt(1) + dEnc
+                ethen +(t("DONE") # cur === tt(2))
+                eelse +(t("ERROR") # cur === tt(2)) efi)
+              eelse  +(t("ERROR") # cur === tt(1) ) efi
+              ) .
+
+ops initPC initPC2 initPC3 initPC4 : -> PlayerConf .
+ops rInit rInit2 : ->  role .
+
+eq rInit = r("reader", pv("A"), nil, evPass) .
+eq rInit2 = r("reader", pv("A"), nil, evPass0) .
+
+eq dMac = tw(1) .
+eq dEnc = tw(2) .
+
+--- eq dMac = 1/1 .
+--- eq dEnc = 2/1 .
+
+eq initPC =  mkHonest(0,0,rInit,mtS) . 
+eq initPC2 =  mkHonestKnowKnow(0,1000,rInit,mtS,none,
+    e(e(n(0,1000),KE),KM) e(n(0,1000),KE)) . 
+
+eq initPC3 =  mkHonestKnowKnow(0,0,rInit,mtS,none,
+    e(e(n(0,0),KE),KM) e(n(0,0),KE)) . 
+
+eq initPC4 =  mkHonestKnowKnow(0,0,rInit2,mtS,none,
+    e(e(n(0,0),KE),KM) e(n(0,0),KE)) . 
+
+ops initConf initConf2 initConf3 initConf4 : -> Config .
+
+eq initConf = initPC ! tt(5) ! none ! (tt(5) >= 0/1) and 
+   (dMac >= 1/1 and (dEnc >= 2/1 and true)) ! nil .
+
+eq initConf2 = initPC2 ! tt(5) ! none ! (tt(5) >= 0/1) and 
+   (dMac >= 1/1 and (dEnc >= 2/1 and true)) ! nil .
+
+eq initConf3 = initPC3 ! tt(5) ! none ! (tt(5) >= 0/1) and 
+   (dMac === 1/1 and (dEnc === 2/1 and true)) ! nil .
+
+*** For meta level test only
+eq initConf4 = initPC4 ! tt(5) ! none ! (tt(5) >= 0/1) and 
+   (dMac > 0/1 and (dEnc > 0/1 and true)) ! nil .
+
+op goalC : Config -> Bool .
+eq goalC(conf) =  isDone(getPC(conf)) .
+
+endm
+
+mod PASSPORT-EXE is
+  inc META-VER .
+  inc PASSPORT .
+
+endm
+
+***(
+
+red obsAprox('PASSPORT,initConf,initConf2) .
+reduce in PASSPORT-EXE : obsAprox('PASSPORT, initConf, initConf2) .
+rewrites: 5104 in 96ms cpu (99ms real) (52944 rewrites/second)
+result Bool: (true).Bool
+
+red obsAprox('PASSPORT,initConf2,initConf) .
+reduce in PASSPORT-EXE : obsAprox('PASSPORT, initConf2, initConf) .
+rewrites: 4515 in 24ms cpu (25ms real) (188085 rewrites/second)
+result Bool: (false).Bool
+
+
+)
+

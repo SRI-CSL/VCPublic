@@ -1,0 +1,338 @@
+mod META-VER is
+ inc EXE .
+ inc ANALYSIS .
+ inc META-LEVEL .
+ --- inc PASSPORT .
+ --- inc IMaude .
+
+ vars iid : Iid .
+ vars ts ts0 ts1 : TS .
+ vars i j n1 n : Nat .
+ vars t t0 t1 tadd t2 : T .
+ vars tl tl0 tl1 : TL .
+ vars tts tts0 tts1 : TimedTS .
+ vars pc0 pc1 : PlayerConf .
+ vars tt0 tt1 iTime tt2 tt3 : TimeSym .
+ vars b0 b1 b : Boolean .
+ vars ds0 ds1 ds : DSet .
+ vars iconfT iconfT1 iconfT2 confT confT0 lhs rhs lastT : Term .
+ vars sres?? : [ResultTriple?] .
+ vars sres : ResultTriple .
+ var spres?? : [Trace?] .
+ vars trace : Trace .
+ var cond : Condition .
+ vars exe exe0 exe1 : Execution .
+ vars conf conf1 conf0 conf2 : Config .
+ var step : TraceStep .
+ vars mname q : Qid .
+ var attrs : AttrSet .
+ vars sym sym1 sym0 sym2 : Sym .
+ vars rep rep1 : ReplSet .
+ vars TR1 TR2 : TSymReal .
+ var k : key .
+ vars obs0 obs1 obs : Obs .
+ vars obsS obsS1 obsS2 obsS3 : ObsSet .
+ var tss : TSS .
+ var cs : Constraint .
+ var css : CSet .
+ var ssbs : SSubstSet .
+ vars tr1 tr2 tr0 tr3 : TSymReal .
+ vars bb bb1 bb2 nubb bb3 : Boolean .
+
+ op isAdd : T -> Bool .
+ eq isAdd(d(t,k)) = true .
+ eq isAdd(pr(t,n)) = true .
+ eq isAdd(w(n)) = true .
+ eq isAdd(t) = false [owise] .
+
+
+ sorts TLDset ReplBnd ReplSet ExeDSet TReplSet TLReplSet .
+ subsort ReplBnd < ReplSet .
+ op {_`,_} : TL DSet -> TLDset .
+ op {_`,_} : Execution DSet -> ExeDSet .
+ op {_`,_} : T ReplSet -> TReplSet .
+ op {{_`,_}} : TL ReplSet -> TLReplSet .
+ op _>>_ : T T -> ReplBnd [ctor] .
+ op none : -> ReplSet [ctor] .
+ op __ : ReplSet ReplSet -> ReplSet [ctor assoc comm id: none] .
+
+ op _[_] : ReplSet T -> T .
+ op _[[_]] : ReplSet TS -> T .
+ op _[[_]] : ReplSet TL -> TL .
+ op _[[_]] : ReplSet Execution -> Execution .
+ op _[[[_]]] : ReplSet DSet -> DSet .
+ op _[[[_]]] : ReplSet TSS -> TSS .
+
+ eq ((t0 >> t1) rep)[t0] = t1 .
+ eq rep[pk(t)] = pk(rep[t]) .
+ eq rep[sk(t)] = sk(rep[t]) .
+ eq rep[{tl}] = {rep[[tl]]} .
+ eq rep[e(t,k)] = e(rep[t],rep[k]) .
+ eq rep[t0] = t0 [owise] .
+ eq rep[[(nil).TL]] = (nil).TL .
+ eq rep[[(t,tl)]] = ((rep[t]),rep[[tl]]) .
+ eq rep[[o(t,nd1:Node,nd2:Node,tt0) ; exe]] = 
+   o(rep[t],nd1:Node,nd2:Node,tt0) ; rep[[exe]] .
+ eq rep[[(nil).Execution]] = (nil).Execution .
+
+ eq rep[[none]] = none .
+ eq rep[[t ts]] = ((rep[t]) rep[[ts]]) .
+
+ eq rep[[[dc(sym,tss) ds]]] = dc(sym,rep[[[tss]]]) rep[[[ds]]] . 
+ eq rep[[[(none).DSet]]] = (none).DSet .
+
+ eq rep[[[z(ts) tss]]] = z(rep[[ts]]) rep[[[tss]]] . 
+ eq rep[[[(none).TSS]]] = (none).TSS . 
+
+ op norm : Execution TS Execution DSet Nat -> ExeDSet .
+ op norm$ : T TS T -> TReplSet .
+ op norm$$ : TL TS T Nat -> TLReplSet .
+ 
+ eq norm(nil,ts,exe0,ds0,n) = {exe0,ds0} .
+ ceq norm((o(t,nd1:Node,nd2:Node,tt0) ; exe),ts,exe0,ds0,n) = 
+     norm(rep[[exe]],ts,(exe0 ; o(t2,nd1:Node,nd2:Node,tt0)),rep[[[ds0]]],s n) 
+  if {t2,rep} := norm$(t,ts,w(n)) .
+
+  eq norm$(sym,ts,tadd) = {sym,none} .
+ ceq norm$(t,ts,tadd) = {t,none} 
+  if isAdd(t) [owise] .
+ eq norm$(pk(t),ts,tadd) = {pk(t),pk(t) >> tadd} .
+ eq norm$(sk(t),ts,tadd) = {sk(t),sk(t) >> tadd} .
+ eq norm$(c:baseC,ts,tadd) = {c:baseC,c:baseC >> tadd} .
+ ceq norm$({t,tl},ts,tadd) = {{tl0},rep}
+ if {{tl0,rep}} := norm$$((t,tl),ts,tadd,0) .
+ eq norm$({nil},ts,tadd) = {{nil},{nil} >> tadd} .
+ ceq norm$$((t,tl),ts,tadd,n) = 
+   {{(t0,tl0), rep rep1}}
+  if {t0,rep} := norm$(t,ts,pr(tadd,n)) 
+  /\ {{tl0,rep1}} := norm$$(rep[[tl]],ts,tadd,s n) .
+ ceq norm$$(t,ts,tadd,n) = {{t0,rep}}
+ if {t0,rep} := norm$(t,ts,pr(tadd,n)) .
+ eq norm$(e(t,k),ts,tadd) = 
+  if hasKey(inv(k),ts) or isAdd(k) then 
+   norm$(t,ts,d(tadd,k)) 
+  else {e(t,k),e(t,k) >> tadd} fi .
+
+ sorts Obs ObsSet .
+ subsort Obs < ObsSet .
+ op _|_|_|_ : Execution TS DSet Boolean -> Obs .
+ op none : -> ObsSet [ctor] .
+ op __ : ObsSet ObsSet -> ObsSet [ctor assoc comm id: none] .
+
+ op obsAprox : Qid Config Config -> Bool .
+ op obsAprox$ : ObsSet ObsSet -> Bool .
+ eq obsAprox(mname,conf1,conf2) 
+  = obsAprox$(toObs(mname,upTerm(conf1),0),toObs(mname,upTerm(conf2),0)) .
+
+ ceq obsAprox$(obs obsS1,obsS2) 
+  =  if timeEq2(obs,obsS3) then obsAprox$(obsS1,obsS2)
+     else false fi
+  if obsS3 := findAllMatch(obs,obsS2) 
+  /\ not (obsS3 == none) .
+ eq obsAprox$(none,obsS2) = true .
+ eq obsAprox$(obsS1,obsS2) = false [owise] .
+
+ op toObs : Qid Term Nat -> ObsSet .
+ op toObs$ : Qid Term Nat -> Obs .
+
+ ceq toObs(mname,iconfT,n) = obs toObs(mname,iconfT,s n)
+  if obs := toObs$(mname,iconfT,n) 
+  /\ not (obs == nil | none | none | true) .
+ eq toObs(mname,iconfT,n) = none [owise] .
+
+ ceq toObs$(mname,iconfT,n) 
+  = getExe(conf) | getAllIS(conf) | getDS(conf) | getBool(conf)  
+  if sres?? :=  metaSearch([mname],iconfT,'c:Config,'goalC['c:Config] = 'true.Bool,'+,unbounded,n)
+  /\ spres?? :=  metaSearchPath([mname],iconfT,'c:Config,'goalC['c:Config] = 'true.Bool,'+,unbounded,n)
+  /\ lastT := (if sres?? :: ResultTriple
+               then getTerm(sres??)
+               else  'mtConf.Config fi)
+  /\ conf := downTerm(lastT,mtConf) .
+
+  sort ObsCons .
+  op {_`,_} : Obs Constraint -> ObsCons .
+  op findMatch : Obs ObsSet -> ObsCons .
+  op findAllMatch : Obs ObsSet -> ObsSet .
+  op resTerm : Obs Obs -> Constraint .
+
+  ceq findAllMatch(obs, obs0 obsS) = obs0 findAllMatch(obs,obsS)
+   if {obs0,cs} := findMatch(obs,obs0 obsS) .
+  eq findAllMatch(obs,obsS) = none [owise] . 
+
+  ceq findMatch(obs,obs0 obsS) = {obs0,cs}
+   if len(obs) == len(obs0)
+   /\ cs := resTerm(obs,obs0) .
+
+  ceq resTerm(exe0 | ts0 | ds0 | b0, exe1 | ts1 | ds1 | b1 ) 
+    = cs
+   if tl0 := getTL(exe0)
+   /\ tl1 := getTL(exe1)
+   /\ ssbs := resolutions({tl0},{tl1},mtSSS) 
+   /\ cs css := resCheck(ssbs,mtSS,ds0 ds1,none) .
+
+ op timeEq : Obs ObsSet -> Bool .
+ op timeEq2 : Obs ObsSet -> Bool .
+ ceq timeEq(obs, obs1 obsS) = true
+  if b := mkBool(obs,obs1,1) 
+  /\ b1 := getBool(obs) and b
+  /\ (metaCheck(['META-VER],toVarsB(b1))) == false .
+ eq timeEq(obs, obsS) = false [owise] .
+ 
+ ceq timeEq2(obs,obsS) = true 
+  if b := mkBools(obs,obsS,1)
+  /\ b1 := getBool(obs) and b
+  /\ (metaCheck(['META-VER],toVarsB(b1))) == false .
+ eq timeEq2(obs, obsS) = false [owise] .
+
+ op mkBools : Obs ObsSet Nat -> Boolean .
+ eq mkBools(obs,none,n) = true .
+ eq mkBools(obs,obs1 obsS,n) =
+  mkBool(obs,obs1,n) and mkBools(obs,obsS,s n) .
+
+ op mkBool : Obs Obs Nat -> Boolean .
+ op mkBool$ : Execution Execution Boolean Nat -> Boolean .
+ ceq mkBool(obs,obs0 obsS,n) = b1 
+  if obs1 := shiftTVar(obs0,n)
+  /\ b0 := mkBool$(getExe(obs),getExe(obs1),getBool(obs1),n) 
+  /\ b1 := not (b0) .
+
+ ceq mkBool$(o(t0,nd10:Node,nd20:Node,tt0) ; exe0,
+                 o(t1,nd11:Node,nd21:Node,tt1); exe1,b,n) = 
+    mkBool$(exe0,exe1,b1,n)
+  if b1 := subTVar(tt1,tt0,b) .
+ eq mkBool$(nil,nil,b,n) = b .
+
+ op shiftTVar : Obs Nat -> Obs .
+ op shiftTVar$ : Execution Nat -> Execution .
+
+ *** Assuming there is no tt(1000000) timesym
+ eq shiftTVar(exe | ts | ds | b,n) = 
+  (shiftTVar$(exe,n)) | ts | ds | rnTVar(tt(1000000),b,n) .
+
+ eq shiftTVar$(o(t0,nd10:Node,nd20:Node,tt0) ; exe0,n) = 
+   o(t0,nd10:Node,nd20:Node,rnTVar(tt(1000000),tt0,n)) ; 
+   shiftTVar$(exe0,n) .
+ eq shiftTVar$(nil,n) = nil .
+
+ *** Assuming that we do not have 10000 variables
+ op rnTVar : TSymReal Boolean Nat -> Boolean .
+ op rnTVar : TSymReal TSymReal Nat -> TSymReal .
+ eq rnTVar(iTime,true,n) = true .
+ eq rnTVar(iTime, (tr1 <= tr2 ) and bb,n) = 
+   (rnTVar(iTime,tr1,n) <= rnTVar(iTime,tr2,n)) and rnTVar(iTime,bb,n) .
+ eq rnTVar(iTime,(tr1 >= tr2 ) and bb,n) = 
+   (rnTVar(iTime,tr1,n) >= rnTVar(iTime,tr2,n)) and rnTVar(iTime,bb,n) .
+ eq rnTVar(iTime,(tr1 > tr2 ) and bb,n) = 
+   (rnTVar(iTime,tr1,n) > rnTVar(iTime,tr2,n)) and rnTVar(iTime,bb,n) .
+ eq rnTVar(iTime,(tr1 === tr2 ) and bb,n) = 
+   (rnTVar(iTime,tr1,n) === rnTVar(iTime,tr2,n)) and rnTVar(iTime,bb,n) .
+ eq rnTVar(iTime,(tr1 =/== tr2 ) and bb,n) = 
+   (rnTVar(iTime,tr1,n) =/== rnTVar(iTime,tr2,n)) and rnTVar(iTime,bb,n) .
+
+ eq rnTVar(iTime,tt(n1),n) = if tt(n1) == iTime 
+                          then tt(n1) else tt(n1 + (n * 100)) fi .
+ eq rnTVar(iTime,tw(n1),n) = tw(n1) .                         
+ eq rnTVar(iTime,r:Real,n) = r:Real .
+ eq rnTVar(iTime,- tr1,n) = - rnTVar(iTime,tr1,n) .
+ eq rnTVar(iTime,tr1 + tr2,n) = rnTVar(iTime,tr1,n) + rnTVar(iTime,tr2,n) .
+ eq rnTVar(iTime,tr1 * tr2,n) = rnTVar(iTime,tr1,n) * rnTVar(iTime,tr2,n) .
+ eq rnTVar(iTime,tr1 - tr2,n) = rnTVar(iTime,tr1,n) - rnTVar(iTime,tr2,n) .
+ eq rnTVar(iTime,tr1 / tr2,n) = rnTVar(iTime,tr1,n) / rnTVar(iTime,tr2,n) .
+ eq rnTVar(iTime,b ? tr1 : tr2,n) = 
+       rnTVar(iTime,b,n) ? rnTVar(iTime,tr1,n) : rnTVar(iTime,tr2,n) .
+ eq rnTVar(iTime,toReal(tt1),n) = toReal(rnTVar(iTime,tt1,n)) .
+ eq rnTVar(iTime,toInt(tr1),n) = toInt(rnTVar(iTime,tr1,n)) .
+ --- eq rnTVar(iTime,t:TSymReal,n) = t:TSymReal [owise] .
+
+op subTVar : TimeSym TimeSym Boolean -> Boolean .
+ op subTVar : TimeSym TimeSym TSymReal -> TSymReal .
+ eq subTVar(tt1,tt2,true) = true .
+ eq subTVar(tt1,tt2,(tr1 <= tr2 ) and bb) = 
+   (subTVar(tt1,tt2,tr1) <= subTVar(tt1,tt2,tr2)) and subTVar(tt1,tt2,bb) .
+ eq subTVar(tt1,tt2,(tr1 >= tr2 ) and bb) = 
+   (subTVar(tt1,tt2,tr1) >= subTVar(tt1,tt2,tr2)) and subTVar(tt1,tt2,bb) .
+ eq subTVar(tt1,tt2,(tr1 > tr2 ) and bb) = 
+   (subTVar(tt1,tt2,tr1) > subTVar(tt1,tt2,tr2)) and subTVar(tt1,tt2,bb) .
+ eq subTVar(tt1,tt2,(tr1 === tr2 ) and bb) = 
+   (subTVar(tt1,tt2,tr1) === subTVar(tt1,tt2,tr2)) and subTVar(tt1,tt2,bb) .
+ eq subTVar(tt1,tt2,(tr1 =/== tr2 ) and bb) = 
+   (subTVar(tt1,tt2,tr1) =/== subTVar(tt1,tt2,tr2)) and subTVar(tt1,tt2,bb) .
+
+ eq subTVar(tt1,tt2,tt3) = if tt3 == tt1 then tt2 else tt3 fi .
+ eq subTVar(tt1,tt2,r:Real) = r:Real .
+ eq subTVar(tt1,tt2,- tr1) = - subTVar(tt1,tt2,tr1) .
+ eq subTVar(tt1,tt2,tr1 + tr2) = subTVar(tt1,tt2,tr1) + subTVar(tt1,tt2,tr2) .
+ eq subTVar(tt1,tt2,tr1 * tr2) = subTVar(tt1,tt2,tr1) * subTVar(tt1,tt2,tr2) .
+ eq subTVar(tt1,tt2,tr1 - tr2) = subTVar(tt1,tt2,tr1) - subTVar(tt1,tt2,tr2) .
+ eq subTVar(tt1,tt2,tr1 / tr2) = subTVar(tt1,tt2,tr1) / subTVar(tt1,tt2,tr2) .
+ eq subTVar(tt1,tt2,b ? tr1 : tr2) = 
+       subTVar(tt1,tt2,b) ? subTVar(tt1,tt2,tr1) : subTVar(tt1,tt2,tr2) .
+ eq subTVar(tt1,tt2,toReal(tt3)) = toReal(subTVar(tt1,tt2,tt3)) .
+ eq subTVar(tt1,tt2,toInt(tr3)) = toInt(subTVar(tt1,tt2,tr3)) .
+ --- eq subTVar(tt1,tt2,t:TSymReal) = t:TSymReal [owise] .
+
+*** NEED TO CHANGE THIS, BUT FIRST CORRECT IKADD!
+ op ikAddAux : TS TS -> TS .
+ eq ikAddAux(ts0,ts1) = ts0 ts1 .
+
+ op getAllIS : Config -> TS .
+  ceq getAllIS([I(n), i | ts | tts ] pc:PlayerConf ! tt:TimeSym ! ds:DSet ! b:Boolean ! exe:Execution) = ikAddAux(ts0,ts1)
+   if ts0 := deliver(ts,tts)
+   /\ ts1 := getAllIS(pc:PlayerConf ! tt:TimeSym ! ds:DSet ! b:Boolean ! exe:Execution) .
+  eq getAllIS(pc:PlayerConf ! tt:TimeSym ! ds:DSet ! b:Boolean ! exe:Execution) = none [owise] .
+
+  op deliver : TS TimedTS -> TS .
+  eq deliver(ts,(t @ TR2) tts ) = deliver(ikAddAux(t,ts),tts) .
+  eq deliver(ts,none) = ts .
+
+  op getExe : Obs -> Execution .
+  eq getExe(exe | ts | ds | b) = exe:Execution .
+
+  op getBool : Obs -> Boolean .
+  eq getBool(exe | ts | ds | b) = b .
+
+  op getTS : Obs -> TS .
+  eq getTS(exe | ts | ds | b) = ts .
+
+  op getDS : Obs -> DSet .
+  eq getDS(exe | ts | ds | b) = ds .
+
+  op getiTime : Obs -> TimeSym .
+  eq getiTime(o(t,nd1:Node,nd2:Node,tt0) ; exe | ts | ds | b) = tt0 .
+
+  op getTL : Execution -> TL .
+  eq getTL(o(t,nd1:Node,nd2:Node,tt0) ; exe) 
+   = t, getTL(exe) .
+  eq getTL(nil) = nil . 
+
+  op len : Obs -> Nat .
+  op len : Execution -> Nat .
+  eq len(exe0 | ts0 | ds0 | b0) = len(exe0) .
+  eq len((nil).Execution) = 0 .
+  eq len(ed:Edge ; exe) = s (len(exe)) .
+
+
+  op count : ObsSet -> Nat .
+  eq count(none) = 0 .
+  eq count(obs0 obsS) = s (count(obsS)) .
+
+endm
+
+
+***(
+
+red obsAprox('PASSPORT,initConf,initConf2) .
+reduce in META-VER : obsAprox('PASSPORT, initConf, initConf2) .
+rewrites: 3969 in 99ms cpu (102ms real) (39704 rewrites/second)
+result Bool: (true).Bool
+
+red obsAprox('PASSPORT,initConf2,initConf) .
+reduce in META-VER : obsAprox('PASSPORT, initConf2, initConf) .
+rewrites: 3653 in 25ms cpu (26ms real) (143361 rewrites/second)
+result Bool: (false).Bool
+
+)
+
+
+
+

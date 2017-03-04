@@ -1,0 +1,271 @@
+**** using current CPSA terminology -- event / message / directed term ....
+load smt
+fmod SYM-REAL is 
+  pr REAL .
+  pr REAL-INTEGER .
+
+  vars tt1 tt2 tt3 : TimeSym .
+  vars tr1 tr2 tr0 : TSymReal .
+  var r : Real .
+  var b : Boolean .
+
+  sort TimeSym TSymReal .
+  subsort Real < TSymReal .
+  subsort TimeSym < TSymReal .
+  op _<=_ : TSymReal TSymReal -> Boolean  [ditto] .
+  op _>=_ : TSymReal TSymReal -> Boolean  [ditto] .
+  op _>_ : TSymReal TSymReal -> Boolean [ditto] .
+  op _<_ : TSymReal TSymReal -> Boolean [ditto] .
+  op _===_ : TSymReal TSymReal -> Boolean [ditto] .
+  op _=/==_ : TSymReal TSymReal -> Boolean [ditto] .
+
+  op -_ : TSymReal -> TSymReal [ditto] .
+  op _+_ : TSymReal TSymReal -> TSymReal [ditto] .
+  op _*_ : TSymReal TSymReal -> TSymReal [ditto] .
+  op _-_ : TSymReal TSymReal -> TSymReal [ditto] .
+  op _/_ : TSymReal TSymReal -> TSymReal [ditto] .
+  op _?_:_ : Boolean TSymReal TSymReal -> TSymReal [ditto] .
+  --- These functions are SMT specific which converts from Real to Int and Int to Real.
+  op toReal : TimeSym -> TSymReal [ctor] .
+  op toInt : TSymReal -> TimeSym [ctor] .
+
+  op tsubr : TimeSym TSymReal TSymReal -> TSymReal .
+  op tsubb : TimeSym TSymReal Boolean -> Boolean .
+
+  eq tsubb(tt1,tr0,b) = b [owise] .
+  eq tsubb(tt1,tr0,tr1 <= tr2) = 
+   tsubr(tt1,tr0,tr1) <= tsubr(tt1,tr0,tr2) .
+  eq tsubb(tt1,tr0,tr1 >= tr2) = 
+   tsubr(tt1,tr0,tr1) >= tsubr(tt1,tr0,tr2) .
+  eq tsubb(tt1,tr0,tr1 > tr2) = 
+   tsubr(tt1,tr0,tr1) > tsubr(tt1,tr0,tr2) .
+  eq tsubb(tt1,tr0,tr1 === tr2) = 
+   tsubr(tt1,tr0,tr1) === tsubr(tt1,tr0,tr2) .
+  eq tsubb(tt1,tr0,tr1 =/== tr2) = 
+   tsubr(tt1,tr0,tr1) =/== tsubr(tt1,tr0,tr2) .
+
+  eq tsubr(tt1,tr0,tt1) = tr0 .
+  eq tsubr(tt1,tr0,tr1) = tr1 [owise] .
+  eq tsubr(tt1,tr0,- tr1) = - tsubr(tt1,tr0,tr1) .
+  eq tsubr(tt1,tr0,tr1 + tr2) = 
+       tsubr(tt1,tr0,tr1) + tsubr(tt1,tr0,tr2) .
+  eq tsubr(tt1,tr0,tr1 * tr2) = 
+       tsubr(tt1,tr0,tr1) * tsubr(tt1,tr0,tr2) .
+  eq tsubr(tt1,tr0,tr1 - tr2) = 
+       tsubr(tt1,tr0,tr1) - tsubr(tt1,tr0,tr2) .
+  eq tsubr(tt1,tr0,tr1 / tr2) = 
+       tsubr(tt1,tr0,tr1) / tsubr(tt1,tr0,tr2) .
+  eq tsubr(tt1,tr0,b ? tr1 : tr2) = 
+       tsubb(tt1,tr0,b) ?
+         tsubr(tt1,tr0,tr1) : tsubr(tt1,tr0,tr2) .
+  eq tsubr(tt1,tr0,toReal(toInt(tr1))) = 
+     toReal(toInt(tsubr(tt1,tr0,tr1))) .
+
+--- Assuming that r is positive!
+op simplify : Boolean -> Boolean .
+eq simplify(false and b) = false .
+eq simplify((tt1 > tt1 + r) and b) = false .
+eq simplify((tt1 >= tt1 + r) and b) = false .
+eq simplify((tt1 + r < tt1) and b) = false .
+eq simplify((tt1 + r <= tt1) and b) = false .
+eq simplify((tt1 === tt1 + r) and b) = false .
+eq simplify((tt1 <= tt1 + r) and b) = simplify(b) .
+eq simplify((tt1 < tt1 + r) and b) = simplify(b) .
+eq simplify((tt1 + r > tt1) and b) = simplify(b) .
+eq simplify((tt1 + r >= tt1) and b) = simplify(b) .
+eq simplify((tt1 === tt1) and b) = simplify(b) .
+eq simplify((tt1 === tt2 + 0/1) and b) = simplify((tt1 === tt2) and b) .
+eq simplify((tt1 >= tt2 + 0/1) and b) = tt1 >= tt2 and b .
+eq simplify((tt1 > tt2 + 0/1) and b) = tt1 > tt2 and b .
+eq simplify((tt1 >= tt2 + r) and (tt1 >= tt2) and b) = 
+           (tt1 >= tt2 + r) and b .
+eq simplify((tt1 >= tt2) and (tt1 >= tt2 + r) and b) = 
+           (tt1 >= tt2 + r) and b .
+
+eq simplify(b) = b [owise] .
+
+
+endfm
+
+fmod EVENT is
+ inc VAR-SUBST .
+ inc SYM-SUBST .
+ inc SYM-REAL .
+
+ vars t t' t0 t1 : T .
+ var ts : TS .
+ vars ?evt ?evt'  : evt .
+ vars evtl evtl' evtl0 evtl1 : evtList .
+ var ??evt : evtList .  --- nil or evt
+ var nevtl : NeEvtList .
+ var i,j : Nat .
+ vars sb sb' : Subst .
+ vars ssb ssb' : SSubst .
+ vars tt1 tt2 tt3 : TimeSym .
+ vars tr1 tr2 tr0 : TSymReal .
+ var b : Boolean .
+ var tacb : TAssBool .
+
+ sort evt .
+ sort TAssign TAssBool .
+ subsort TAssign < TAssBool .
+ subsort Boolean < TAssBool .
+ op _:=_ : TimeSym TSymReal -> TAssign .
+
+ op cur : -> TimeSym .
+ ops + - : T -> evt [ctor] .
+ op +(_#_) : T TAssBool -> evt [ctor] .
+ op -(_#_) : T TAssBool -> evt [ctor] .
+ sort condition .
+ op _~_ : T T -> condition [ctor] .
+ op _~_#_ : T T TAssBool -> condition [ctor] .
+ op eif_ethen_eelse_efi : condition evtList evtList -> evt [ctor] .
+
+*** events
+op secret : baseVar -> evt [ctor] .
+op secret : baseC -> evt [ctor] .
+op event : T -> evt [ctor] .
+op endT : T -> evt [ctor] .
+
+*** to generate a nonce
+  op new : nonceVar -> evt [ctor] .
+  op new : skeyVar -> evt [ctor] .
+
+ op msg : evt -> T .
+ eq msg(+(t)) = t .
+ eq msg(-(t)) = t .
+ eq msg(-(t # tacb)) = t .
+ eq msg(+(t # tacb)) = t .
+
+ ops isOut isIn : evt -> Bool .
+ eq isOut(+(t)) = true .
+ eq isOut(+(t # tacb)) = true .
+ eq isOut(-(t)) = false .
+ eq isOut(-(t # tacb )) = false .
+ eq isIn(-(t)) = true .
+ eq isIn(-(t # tacb)) = true .
+ eq isIn(+(t)) = false .
+ eq isIn(+(t # tacb)) = false .
+
+**** extending subst and ssubst to evt
+  op _[_] : Subst evt -> evt .   
+  eq sb[+(t)] = +(sb[t]) .
+  eq sb[-(t)] = -(sb[t]) .
+  eq sb[+(t # tacb)] = +(sb[t] # tacb) .
+  eq sb[-(t # tacb)] = -(sb[t] # tacb) .
+  eq sb[eif t ~ t' ethen evtl eelse evtl0 efi] 
+      = eif sb[t] ~ sb[t'] ethen sb[[evtl]] eelse sb[[evtl0]] efi .
+  eq sb[eif t ~ t' # tacb ethen evtl eelse evtl0 efi] 
+      = eif sb[t] ~ sb[t'] # tacb ethen sb[[evtl]] eelse sb[[evtl0]] efi .
+  eq sb[secret(v:Var)] = secret(sb[v:Var]) .	
+  eq sb[event(t)] = event(sb[t]) .
+  eq sb[endT(t)] = endT(sb[t]) .
+  eq sb[eventT(t)] = eventT(sb[t]) .
+
+  op _[_] : SSubst evt -> evt .   
+  eq ssb[+(t)] = +(ssb[t]) .
+  eq ssb[-(t)] = -(ssb[t]) .
+  eq ssb[+(t # tacb)] = +(ssb[t] # tacb) .
+  eq ssb[-(t # tacb)] = -(ssb[t] # tacb) .
+  eq ssb[eif t ~ t' ethen evtl eelse evtl0 efi] 
+    = eif ssb[t] ~ ssb[t'] ethen ssb[[evtl]] eelse ssb[[evtl0]] efi .
+  eq ssb[eif t ~ t' # tacb ethen evtl eelse evtl0 efi] 
+    = eif ssb[t] ~ ssb[t'] # tacb ethen ssb[[evtl]] eelse ssb[[evtl0]] efi .
+  eq ssb[secret(v:Var)] = secret(ssb[v:Var]) .	
+  eq ssb[event(t)] = event(ssb[t]) .
+  eq ssb[eventT(t)] = eventT(ssb[t]) .
+  eq ssb[endT(t)] = endT(ssb[t]) .
+
+  --- op tsub : TSymReal evt -> evt .
+  op tsubtacb : TimeSym TSymReal TAssBool -> TAssBool .
+  op tsub : TimeSym TSymReal evt -> evt .
+  op tsubl : TimeSym TSymReal evtList -> evtList .
+
+  eq tsubtacb(tt1,tr0,tt3 := tr1) = tt3 := tsubr(tt1,tr0,tr1) .
+  eq tsubtacb(tt1,tr0,b) = tsubb(tt1,tr0,b) .
+
+  eq tsub(tt1,tr0,+(t)) = +(t) .
+  eq tsub(tt1,tr0,new(t)) = new(t) .
+  eq tsub(tt1,tr0,-(t)) = -(t) .
+  eq tsub(tt1,tr0,+(t # tacb)) = +(t # tsubtacb(tt1,tr0,tacb)) .
+  eq tsub(tt1,tr0,-(t # tacb)) = -(t # tsubtacb(tt1,tr0,tacb)) .
+  eq tsub(tt1,tr0,eif t ~ t' ethen evtl eelse evtl0 efi) 
+    = eif t ~ t' ethen tsubl(tt1,tr0,evtl) eelse tsubl(tt1,tr0,evtl0) efi .
+  eq tsub(tt1,tr0,eif t ~ t' # tacb ethen evtl eelse evtl0 efi) 
+    = eif t ~ t' # tsubtacb(tt1,tr0,tacb) ethen tsubl(tt1,tr0,evtl) eelse tsubl(tt1,tr0,evtl0) efi .
+  eq tsub(tt1, tr0, event(t)) = event(t) . 
+ 
+  eq tsubl(tt1,tr0,nil) = nil .
+  eq tsubl(tt1,tr0,(?evt,evtl)) = 
+       tsub(tt1,tr0,?evt),tsubl(tt1,tr0,evtl) .
+
+*** TODO: Need to correct the syntax to disallow expressions of the form 
+*** eif...efi, evtl
+
+**** evt lists / traces
+ sort evtList NeEvtList . subsorts evt < NeEvtList < evtList .
+ op nil : -> evtList [ctor] .
+ op _`,_ : evtList evtList -> evtList [ctor assoc id: nil] .
+ op _`,_ : NeEvtList evtList -> NeEvtList [ctor ditto] .
+ op _`,_ : evtList NeEvtList -> NeEvtList [ctor ditto] .
+  
+ op len : evtList -> Nat .
+ eq len(nil) = 0 .
+ eq len((?evt , evtl)) = s(len(evtl)) .
+ 
+ op getNth : evtList Nat ~> evt .  
+ eq getNth((?evt,evtl),0) = ?evt .
+ eq getNth((?evt,evtl),s(j)) = getNth(evtl,j) .
+
+ 
+ op msg : evtList Nat -> T .
+ eq msg(evtl, j) = msg(getNth(evtl,j)) .
+
+**** Lift subst to evt lists
+  op _[[_]] : Subst evtList -> evtList .
+  eq sb[[(nil).evtList]] = (nil).evtList .
+  eq sb[[(new(v:nonceVar),evtl)]] = 
+        new(v:nonceVar), unbind(sb,v:nonceVar)[[evtl]] .
+  eq sb[[(new(k:skeyVar),evtl)]] = 
+        new(k:skeyVar), unbind(sb,k:skeyVar)[[evtl]] .
+  eq sb[[(?evt,evtl)]] = (sb[?evt]), sb[[evtl]] [owise] .
+
+**** Lift ssubst to evt lists
+ op _[[_]] : SSubst evtList -> evtList .
+  eq ssb[[(nil).evtList]] = (nil).evtList .
+  eq ssb[[(new(v:nonceVar),evtl)]] = new(v:nonceVar), ssb[[evtl]] .
+  eq ssb[[(new(k:skeyVar),evtl)]] = new(k:skeyVar),ssb[[evtl]] .
+  eq ssb[[(?evt,evtl)]] = (ssb[?evt]), ssb[[evtl]] [owise] .
+
+endfm
+
+
+fmod PROTOCOL is
+ inc EVENT .
+
+*** role roleset
+
+ vars nevtl nevtl' : NeEvtList .
+ var rid : String .
+ var r : role . var rs : roleSet .
+ var pn : name . 
+ var vars : VarL .
+
+  sort role .
+****   rname  pname  vars trace
+  op r : String nameVar VarL NeEvtList -> role [ctor] . 
+
+
+**** protocols are sets of wellformed roles with unique ids
+ sort roleSet .  subsort role < roleSet .
+ op none : -> roleSet [ctor] .
+ op __ : roleSet roleSet -> roleSet [ctor assoc comm id: none] .
+
+**** getting a role by name
+  op getRole : roleSet String ~> role .
+  eq getRole(r(rid,pn,vars,nevtl) rs, rid) = r(rid,pn,vars,nevtl) .
+****  eq getRole(rs:roleSet, rid) = none [owise] .
+
+endfm
+
+  
