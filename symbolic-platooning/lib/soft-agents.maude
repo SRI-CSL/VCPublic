@@ -1,0 +1,460 @@
+
+************* generic agent
+fmod AGENT is
+  inc SA-KNOWLEDGE .
+  inc EVENTS .
+
+  var attrs : AttributeSet .
+  var kb : KB .
+  var id : Id .
+  var cl : Class .
+
+  sort Agent  .
+  op [_:_|_] : Id Class AttributeSet -> Agent [ctor format (n d d d d n++i --i d)] .  **** 14 format points
+
+  op lkb`:_ : KB -> Attribute [ctor] .
+  op ckb`:_ : KB -> Attribute [ctor] .
+  op sensors`:_ : SensorSet -> Attribute [ctor] .
+  op evs`:_ : EventSet -> Attribute [ctor] .
+
+  op getLKB : Agent -> KB .
+  eq getLKB([id : cl | (lkb : kb),  attrs]) = kb .
+
+  sorts Attribute AttributeSet .
+  subsort Attribute < AttributeSet .
+  op none : -> AttributeSet  [ctor] .
+  op _,_ : AttributeSet AttributeSet -> AttributeSet 
+                         [ctor assoc comm id: none format (d d ni d)] .
+  
+  sort Env .
+  op [_|_] : Id KB -> Env [ctor format (n d d n++i --i d)] .  *** 6 format points
+  
+  
+  op inContact : Id Id KB -> Bool .
+
+ 
+endfm
+
+
+************* generic conf
+fmod SA-CONF is
+  pr AGENT .
+
+  sorts  ConfElt Conf .
+  subsorts Agent  < ConfElt < Conf .
+  subsort Env < ConfElt .
+  
+  op none : -> Conf .
+  op __ : Conf Conf -> Conf [ctor assoc comm id: none] .
+
+  var aconf lconf : Conf .  
+  vars attrs attrs1 attrs2 : AttributeSet . 
+  vars a a1 a2 eid : Id .   vars cl cl1 cl2 : Class .
+  vars t t' u  t0 t1 : Time .  var ti : TimeInf .
+  vars i j n : Nat .
+  var tsk : Task .      
+  var act : Action . 
+  var ract : RAct . 
+  var racts : RActSet .
+  var iev : IEvent .  var ev : Event .  var evs evs0 evs1 : EventSet .
+  var lkb ckb1 ckb2 ckb1' ckb2' rcvk1 rcvk2 ekb ekb' newkb oldkb : KB .
+  var nzt : NzTime .
+  vars log log1 : Log .
+  var ids : IdSet .
+  vars cond cond1 : Boolean .
+  var sract : SRAct .
+  vars nkb nkb1 nkb2 nkb3 nkbAcc : NatKBBooleanSet .
+  
+  op getAgent : Id Conf -> Conf .  *** 0 or 1 agents
+  eq getAgent(a, [a : cl | attrs] aconf) = [a : cl | attrs] .
+  eq getAgent(a, aconf) = none [owise] .
+
+  op getIds : Conf -> IdSet .
+  eq getIds([a : cl | attrs] aconf) = a getIds(aconf) .
+  eq getIds(aconf) = none [owise] .
+  
+  op getTime : Conf -> Time .
+  eq getTime([ eid | clock(t) ekb ] aconf) = t .
+
+  op getStopTime : Conf -> Time .
+  eq getStopTime([ eid | stop(t) ekb ] aconf) = t .
+  op setStopTime : Conf Time -> Conf .
+  eq setStopTime([ eid | stop(t) ekb ] aconf, t1) 
+   = [ eid | stop(t1) ekb ] aconf .
+  eq setStopTime([ eid | ekb ] aconf, t1) 
+   = [ eid | stop(t1) ekb ] aconf [owise] .
+
+  op getTickSize : KB -> SymTerm .
+  eq getTickSize(tickSize(r:SymTerm) ekb) 
+    = r:SymTerm .
+
+  op getTickSize : Conf -> SymTerm .
+  eq getTickSize([ eid | tickSize(r:SymTerm) ekb ] aconf) = r:SymTerm .
+  op upTickSize : Conf SymTerm -> Conf .
+  eq upTickSize([ eid | tickSize(r:SymTerm) ekb ] aconf,r2:SymTerm) 
+   = [ eid | tickSize(r2:SymTerm) ekb ] aconf .
+
+  op getEnvId : Conf -> Id .
+  eq getEnvId([ eid | clock(t) ekb ] aconf) = eid .
+
+  eq envKB([eid | ekb] aconf) = ekb .
+  eq envKB(aconf) = none [owise] .
+
+*** update environments 
+  op updateEnv : KB Conf -> Conf .
+  op updateEnv : KB Conf Nat Boolean -> Conf .
+  eq updateEnv(ekb', [eid | ekb] aconf) = [eid | addK(ekb,ekb')] aconf .
+  eq updateEnv(ekb', aconf) = aconf [owise] .
+ 
+  eq updateEnv(ekb', [eid | constraint(i,cond) ekb] aconf,j,cond1) 
+   = [eid | constraint(j,cond1) addK(ekb,ekb')] aconf .
+  eq updateEnv(ekb', aconf) = aconf [owise] .
+
+  op updateEKB : KB Conf -> Conf .
+  eq updateEKB(clock(t) ekb', [eid | clock(t1) ekb] aconf)
+   = [eid | clock(t1) ekb'] aconf .
+  
+
+  *** available actions (with delay 0)
+  op effActs : Conf -> EventSet .
+  eq effActs([a : cl | evs : evs, attrs] aconf) = effActs(evs) effActs(aconf) .
+  eq effActs(aconf) = none [owise] .
+
+***!!! because t may count down to zero during envAct
+  op effActs : EventSet -> EventSet .
+  eq effActs((act @ t ) evs)  =  (act @ t) effActs(evs) .
+  eq effActs((ract @ t ) evs)  =  (ract @ t) effActs(evs) .
+  eq effActs((sract @ t ) evs)  =  (sract @ t) effActs(evs) .
+  eq effActs(evs) = none [owise] .
+
+  **** the global envkb 
+  **** either by collecting from agents or stored in the Env object
+  op envKB : Conf -> KB .
+  eq envKB(aconf) = none [owise] .  
+  op constraint : Nat Boolean -> KItem . 
+  op getVarNat : KB -> Nat .
+  op getBoolean : KB -> Boolean .
+  eq getVarNat(constraint(i:Nat,cond:Boolean) kb:KB) = i:Nat .
+  eq getBoolean(constraint(i:Nat,cond:Boolean) kb:KB) = cond:Boolean .
+
+  
+  *** time elapse (also update local clocks)
+  op timeEffect : Conf Time -> Conf .
+  eq timeEffect([a : cl | lkb : (lkb clock(t)), evs : evs, attrs] aconf, u) 
+   = [a : cl | lkb : (lkb clock(t plus u)), evs : timeEffect(evs,u), attrs] 
+      timeEffect(aconf, u) .
+  eq timeEffect([eid | clock(t) ekb] aconf, u)
+      = [eid | clock(t plus u) ekb] timeEffect(aconf, u) .
+  eq timeEffect(aconf, u) = aconf [owise] .
+
+  op timeEffect : EventSet Time -> EventSet .
+
+  eq timeEffect((tsk @ t) evs, u) 
+      = (tsk @ (t monus u)) timeEffect(evs,u) .
+  eq timeEffect((act @ t) evs, u) = 
+     (if (t >= u) then (act @ (t monus u)) else  none fi ) 
+     timeEffect(evs,u) .
+  eq timeEffect((ract @ t) evs, u) = 
+     (if (t >= u) then (ract @ (t monus u)) else  none fi ) 
+     timeEffect(evs,u) .
+  eq timeEffect((sract @ t) evs, u) = 
+     (if (t >= u) then (sract @ (t monus u)) else  none fi ) 
+     timeEffect(evs,u) .    
+  eq timeEffect(evs, u) = evs [owise] .
+  
+
+  op mte : Conf -> TimeInf .
+  eq mte(aconf) = mteX(aconf) .
+
+  op mteX : Conf -> TimeInf .
+  eq mteX([a : cl | evs : evs, attrs] aconf) = minimum(mte(evs),mteX(aconf)) .
+****  eq mteX([eid | ekb]) = infty .
+  eq mteX(aconf) = infty [owise] .
+
+  op mte : EventSet -> TimeInf .
+  eq mte(iev evs) = mte(evs) .
+  eq mte((tsk @ t) evs) = minimum(t,mte(evs)) .
+--- actions are performed with timeStep
+  eq mte((act @ t) evs) = mte(evs) .
+  eq mte((ract @ t) evs) = mte(evs) .
+  eq mte((sract @ t) evs) = mte(evs) .
+  eq mte((none).EventSet) = infty .
+
+  ***( 
+   doEnvAct(t, nzt,ekb,evs): 
+   performs actions evs for duration nzt from global time t
+   i.e. for nzt unit time increments, doUnitEnvAct(t,ekb,evs)
+)
+
+  op doEnvAct : Time Time KB EventSet -> KB .
+
+  --- Perform actions simultaneously. 
+  --- Note that the concurrent results need to be resolved if there are `collisions'.
+ ceq doEnvAct(t, nzt, ekb, evs) 
+   = doEnvAct(s(t), nzt monus 1, ekb', timeEffect(evs,1))
+   if ekb' := doUnitEnvAct(t, ekb, evs)
+   /\ okEnv(ekb') .  
+  eq doEnvAct(t, 0, ekb, evs) = ekb .
+
+ sorts NatKBBoolean NatKBBooleanSet .
+ subsort NatKBBoolean < NatKBBooleanSet .
+ op none : -> NatKBBooleanSet [ctor] .
+ op __ : NatKBBooleanSet NatKBBooleanSet -> NatKBBooleanSet [comm assoc id: none] .
+  op {_,_,_} : Nat KB Boolean -> NatKBBoolean [ctor] .
+
+ op size : NatKBBooleanSet -> Nat .
+ eq size(nkb:NatKBBoolean nkbs:NatKBBooleanSet)
+  = s(size(nkbs:NatKBBooleanSet)) .
+  eq size(none:NatKBBooleanSet) = 0 .
+
+ op getNKB : Nat NatKBBooleanSet -> NatKBBoolean .
+
+ op getNat : NatKBBoolean -> Nat .
+ eq getNat({i,ekb,cond}) = i .
+ op getKB : NatKBBoolean -> KB .
+ eq getKB({i,ekb,cond}) = ekb .
+ op getBoolean : NatKBBoolean -> Boolean .
+ eq getBoolean({i,ekb,cond}) = cond .
+
+*** Symbolic version of doEnvAct
+  op doEnvAct : Nat Time Time KB 
+                EventSet Boolean -> NatKBBooleanSet .
+  op doEnvAct$ : Time Time EventSet NatKBBooleanSet 
+                 NatKBBooleanSet 
+                   -> NatKBBooleanSet .
+
+  vars kbs kbs1 kbs2 kbs3 kbsAcc : KBSet .
+
+  op doEnvAct : Time Time EventSet KB -> KBSet .
+  op doEnvAct$ : Time Time EventSet KBSet KBSet -> KBSet .
+  
+  eq doEnvAct(t,nzt,evs,ekb)
+   = doEnvAct$(t,nzt,evs,ekb,noKBs) .
+
+  eq doEnvAct$(t,0,evs,kbs,noKBs) = kbs .
+  eq doEnvAct$(t,i,evs,noKBs,kbsAcc) = kbsAcc .
+  ceq doEnvAct$(t,nzt,evs,ekb ; kbs,kbsAcc) 
+   = doEnvAct$(t,nzt,evs,kbs,kbsAcc ; kbs3)
+   if kbs1 :=  doUnitEnvAct(t,ekb,evs)
+   --- /\ kbs2 := filterOkEnv(kbs1,noKBs)
+   **** for each nkb2, run doEnvAct$
+   /\ kbs3 := doEnvAct$(s(t),nzt monus 1,
+                        timeEffect(evs,1),kbs1,noKBs) .
+
+  eq doEnvAct(i,t,nzt,ekb,evs,cond)
+  = doEnvAct$(t,nzt,evs,{i,ekb,cond},none) .
+
+  eq doEnvAct$(t,0,evs,nkb,none) = nkb .
+  eq doEnvAct$(t,i,evs,none,nkbAcc) = nkbAcc .
+  ceq doEnvAct$(t,nzt,evs,{i,ekb,cond} nkb,nkbAcc) 
+   = doEnvAct$(t,nzt,evs,nkb,nkbAcc nkb3)
+   if nkb1 :=  doUnitEnvAct(i,t,ekb,evs,cond)
+   /\ nkb2 := filterOkEnv(nkb1,none)
+   **** for each nkb2, run doEnvAct$
+   /\ nkb3 := doEnvAct$(s(t),nzt monus 1,
+                        timeEffect(evs,1),nkb2,none) .
+
+ --- ceq doEnvAct(i,t,nzt,ekb,evs,cond) 
+ ---   = doEnvAct(j,s(t), nzt monus 1, ekb', timeEffect(evs,1),cond1)
+ ---   if {j,ekb',cond1} := doUnitEnvAct(i,t,ekb,evs,cond)
+ ---   /\ okEnv(ekb') .  
+ ---  eq doEnvAct(i,t, 0, ekb, evs,cond) 
+ ---   = {i,ekb,cond} .
+
+**** update envkb by doing actions in evset for 1 unit dur
+**** t is the clock at current time unit
+**** ekb should not have a clock
+	op doUnitEnvAct : Time KB EventSet -> KB .
+  op doUnitEnvAct : Nat Time KB 
+                    EventSet Boolean -> NatKBBooleanSet .
+  op doUnitEnvAct : Time KB EventSet  -> KBSet .
+
+  op filterOkEnv : KBSet KBSet -> KBSet .
+  eq filterOkEnv(kbs1,none) = kbs1 [owise] . 
+
+  op filterOkEnv : NatKBBooleanSet NatKBBooleanSet -> NatKBBooleanSet .
+  eq filterOkEnv({j,ekb,cond1} nkb:NatKBBooleanSet,
+                 nkbAcc:NatKBBooleanSet)
+   = if okEnv(ekb) then 
+     filterOkEnv(nkb:NatKBBooleanSet,
+                 {j,ekb,cond1} nkbAcc:NatKBBooleanSet)
+     else 
+     filterOkEnv(nkb:NatKBBooleanSet,
+                 nkbAcc:NatKBBooleanSet) fi .
+
+  eq filterOkEnv(none,nkbAcc:NatKBBooleanSet)
+   = nkbAcc:NatKBBooleanSet .
+
+--- check if there is collision
+  op okEnv : KB -> Bool .
+  eq okEnv(ekb) = true [owise] .
+
+***** newkb is the proposed update to oldkb -- resolution should deal with conflicts
+op resolveKB : Id KB KB -> KB .
+eq resolveKB(eid,newkb,oldkb)  = newkb [owise] .
+
+***** for processing network messages if any
+***** presumable based on kitems in the ekb
+  op processNet : Conf -> Conf .
+  eq processNet(aconf) = aconf [owise] .
+
+***** for instrumenting configurations.
+*** For example, it is used to stop search according to the stop knowledge item.
+  op updateConf : Conf -> Conf .
+  eq updateConf(conf:Conf 
+      [ eId:Id | clock(t) stop(t) lkb])
+   = [eId:Id | clock(t) lkb] .
+  eq updateConf(aconf) = aconf [owise] .
+
+  sorts LogItem Log .
+  subsort LogItem < Log .
+  subsort Log < ConfElt .
+  
+****  op [_:_|_] : Id Class AttributeSet -> Agent [ctor format (n d d d d n++i --i d)] .  **** 8 format points
+
+**** 8 format points
+  op {_,_,_} : Time RActSet Conf -> LogItem 
+              [ctor format(n d d nt d d d n)] .
+  op nil : -> Log [ctor] .
+  op _;_ : Log Log -> Log [ctor assoc id: nil] .
+  
+  op bound : Nat -> ConfElt .
+
+ op stopped : Conf -> Conf .
+ eq updateConf(bound(0) aconf) = stopped(aconf) .
+ eq updateConf(bound(s n) aconf) = bound(n) updateConf(aconf) .
+ 
+  sort  RActsEvents .
+  op {_,_} : RActSet EventSet -> RActsEvents [ctor] .
+  
+****                 cur  todo     
+  op updateLog : Log Time Time EventSet Conf -> Log .
+  eq updateLog(log, t, 0, evs,lconf) = log .
+**** one time unit left
+  ceq updateLog(log, t, s 0, evs,lconf) = log1
+   if {racts,evs1} := splitReadyEvents(evs)
+   /\ log1 := log ; {t,racts,lconf} .
+**** more than one time unit to pass
+  ceq updateLog(log, t, s s t0, evs,lconf) = 
+       updateLog(log1, s t, s t0, timeEffect(evs1,1),lconf)   
+   if {racts,evs1} := splitReadyEvents(evs)
+   /\ log1 := log ; {t,racts,none} .
+
+  op splitReadyEvents : EventSet -> RActsEvents .
+  op splitReadyEventsX : EventSet RActSet EventSet -> RActsEvents .
+  eq splitReadyEvents(evs) = splitReadyEventsX(evs,none,none) .
+  eq splitReadyEventsX(none,racts,evs1) = {racts,evs1} .
+  eq splitReadyEventsX((ract @ 0) evs,racts,evs1) = 
+           splitReadyEventsX(evs,racts ract ,evs1) .
+  eq splitReadyEventsX(ev evs,racts,evs1) = 
+           splitReadyEventsX(evs,racts,evs1 ev) [owise] .
+
+
+  op kbLog : Conf Conf -> Conf .
+  eq kbLog(aconf,lconf) = lconf [owise] .
+
+**** updateLog(aconf1, t,nzt,effActs(aconf))
+  op updateLog : Conf Time NzTime EventSet -> Conf .
+  eq updateLog(aconf log, t, nzt, evs) =
+       aconf 
+       updateLog(log,t,nzt,evs,kbLog(aconf,none)) 
+     .
+  eq updateLog(aconf, t, nzt, evs) = aconf [owise] .
+
+  op getLog : Conf -> Log .
+  eq getLog(aconf log) = log .
+  eq getLog(aconf) = nil [owise] .
+
+  
+endfm
+
+fmod SOFT-AGENTS is
+  pr SA-CONF .
+  inc CONSTRAINTS-TO-MAUDESE .
+
+  var asys : ASystem .
+  var conf : Conf .
+  var cond : Boolean .
+  var env : Env .
+  vars j n : Nat .
+  var id0 : Id .
+  var lkb : KB .
+
+  *** when top level is needed
+  sort ASystem .
+  op `{_`} : Conf -> ASystem .
+  op getConf : ASystem -> Conf .
+  eq getConf({ conf:Conf }) = conf:Conf .
+
+  op getIds : ASystem -> IdSet .
+  eq getIds({ conf env }) 
+   = getIds(conf) .
+
+  op getConstraint : ASystem -> KItem .
+  op getConstraint : Conf -> KItem .
+  eq getConstraint({ conf }) 
+     = getConstraint(conf) .
+  eq getConstraint(conf 
+        [eId:Id | constraint(n:Nat,b:Boolean) kb:KB ])
+     = constraint(n:Nat,b:Boolean) .
+  eq getConstraint(conf) = constraint(0,true) [owise] .
+  
+
+
+
+  op getBoolean : ASystem -> Boolean .
+  eq getBoolean(asys) 
+   = getBoolean(getConstraint(asys)) .
+
+  op addConstraint : ASystem Boolean -> ASystem .
+  op addConstraint : Conf Boolean -> Conf .
+  eq addConstraint({ conf },cond) 
+   = { addConstraint(conf,cond) } .
+  eq addConstraint(conf 
+   [eId:Id | constraint(n:Nat,b:Boolean) kb:KB ],cond)
+   = conf 
+    [eId:Id | constraint(n:Nat,b:Boolean 
+                        and cond) kb:KB ] .
+ 
+  op getSymCounter : ASystem -> Nat .
+  eq getSymCounter({ conf 
+       [eId:Id | constraint(n:Nat,b:Boolean) kb:KB ] })
+   = n:Nat .
+
+  op upSymCounter : ASystem Nat -> ASystem .
+  eq upSymCounter({ conf 
+       [eId:Id | constraint(n:Nat,b:Boolean) kb:KB ] },j)
+   = { conf [eId:Id | constraint(j,b:Boolean) kb:KB ] } .
+  
+  op getTime : ASystem -> Time .
+  eq getTime({ conf }) = getTime(conf) .
+  op getStopTime : ASystem -> Time .
+  eq getStopTime({ conf }) = getStopTime(conf) .
+  op setStopTime : ASystem Time -> ASystem .
+  eq setStopTime({ conf },t1:Time) 
+   = { setStopTime(conf,t1:Time) } .
+  op getTickSize : ASystem -> RealSym .
+  eq getTickSize({ conf }) = getTickSize(conf) .
+  op upTickSize : ASystem SymTerm -> ASystem .
+  eq upTickSize({ conf },dt:SymTerm) = { upTickSize(conf,dt:SymTerm) } .
+
+  op envKB : ASystem -> KB .
+  eq envKB(asys:ASystem) = envKB(getConf(asys:ASystem)) .
+
+  op addEnvKB : ASystem KB -> ASystem .
+  eq addEnvKB({ conf [eId:Id | ekb:KB ] },kb:KB)
+   = { conf [eId:Id | addK(kb:KB,ekb:KB) ] } .
+
+  op isSat : ASystem -> Bool .
+  eq isSat(asys:ASystem) 
+   = isSat(getBoolean(getConstraint(asys:ASystem)))   .
+  op isSatModel : ASystem -> SmtCheckResult .
+  op isSatModel$ : Env -> SmtCheckResult .
+  eq isSatModel({ conf env }) 
+    = isSatModel$(env) .
+  eq isSatModel$([id0 |
+     (constraint(n,cond))
+      lkb]) = isSatModel(cond) .
+
+endfm
+

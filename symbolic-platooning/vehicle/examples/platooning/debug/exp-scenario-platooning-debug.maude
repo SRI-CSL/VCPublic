@@ -1,0 +1,451 @@
+--- load ../load-platooning-simplified.maude
+load ../../../debug/test-timestep.maude 
+
+ mod DEBUG-SCENARIO-PLATOONING is
+ inc SCENARIO-PLATOONING .
+ inc TEST-TIMESTEP .
+
+--- op asys : -> ASystem .
+eq asys$ = {
+[eId |
+  clock(1) tickSize(vv(30, "tick-size")) stop(3) class(v(0), veh)
+    class(v(1), veh) (atloc(v(0), loc(vv(57, "ag0-Nu-positionX"), vv(
+    58, "ag0-Nu-positionY"))) @ 1) (atloc(v(1), loc(vv(78,
+    "ag1-Nu-positionX"), vv(79, "ag1-Nu-positionY"))) @ 1) (platoon(
+    v(0), v(1)) @ 0) (speed(v(0), vv(54, "ag0-Nu-speed")) @ 1) (
+    speed(v(1), vv(75, "ag1-Nu-speed")) @ 1) (accel(v(0), vv(52,
+    "ag0-acc")) @ 1) (accel(v(1), vv(72, "ag1-acc")) @ 1) (dir(v(0),
+    loc(vv(15, "ag0-inix"), vv(16, "ag0-iniy")), loc(vv(17,
+    "ag0-tarx"), vv(18, "ag0-tary")), vv(19, "ag0-dir-mag")) @ 0) (
+    dir(v(1), loc(vv(20, "ag1-inix"), vv(21, "ag1-iniy")), loc(vv(22,
+    "ag1-tarx"), vv(23, "ag1-tary")), vv(24, "ag1-dir-mag")) @ 0)
+    constraint(103, (vv(97, "uminValSpeedRedsafe") > vv(99,
+    "umaxValSpeedRedsafe") and vv(100, "actUVal") === vv(97,
+    "uminValSpeedRedsafe") and vv(101, "actVmin") === vv(96,
+    "vminValSpeedRedsafe") and vv(102, "actVmax") === vv(96,
+    "vminValSpeedRedsafe") or vv(97, "uminValSpeedRedsafe") < vv(99,
+    "umaxValSpeedRedsafe") and vv(100, "actUVal") === vv(99,
+    "umaxValSpeedRedsafe") and vv(101, "actVmin") === vv(98,
+    "vmaxValSpeedRedsafe") and vv(102, "actVmax") === vv(98,
+    "vmaxValSpeedRedsafe") or vv(97, "uminValSpeedRedsafe") === vv(
+    99, "umaxValSpeedRedsafe") and vv(100, "actUVal") === vv(97,
+    "uminValSpeedRedsafe") and vv(101, "actVmin") === vv(96,
+    "vminValSpeedRedsafe") and vv(102, "actVmax") === vv(98,
+    "vmaxValSpeedRedsafe")) and ((vv(96, "vminValSpeedRedsafe") ===
+    vv(75, "ag1-Nu-speed") + vv(8, "ag0-maxDec") and vv(97,
+    "uminValSpeedRedsafe") === (1/1).Real and vv(98,
+    "vmaxValSpeedRedsafe") === (vv(75, "ag1-Nu-speed") + vv(8,
+    "ag0-maxDec") + (vv(75, "ag1-Nu-speed") + vv(7, "ag0-maxAcc"))) /
+    (2/1).Real and vv(99, "umaxValSpeedRedsafe") === (0/1).Real and (
+    vv(95) <= vv(75, "ag1-Nu-speed") + vv(8, "ag0-maxDec") and vv(94)
+    <= vv(75, "ag1-Nu-speed") + vv(8, "ag0-maxDec")) or vv(96,
+    "vminValSpeedRedsafe") === (vv(75, "ag1-Nu-speed") + vv(8,
+    "ag0-maxDec") + (vv(75, "ag1-Nu-speed") + vv(7, "ag0-maxAcc"))) /
+    (2/1).Real and vv(97, "uminValSpeedRedsafe") === (0/1).Real and
+    vv(98, "vmaxValSpeedRedsafe") === vv(75, "ag1-Nu-speed") + vv(7,
+    "ag0-maxAcc") and vv(99, "umaxValSpeedRedsafe") === (1/1).Real
+    and (vv(75, "ag1-Nu-speed") + vv(7, "ag0-maxAcc") <= vv(94) and
+    vv(75, "ag1-Nu-speed") + vv(7, "ag0-maxAcc") <= vv(95)) or vv(96,
+    "vminValSpeedRedsafe") === vv(94) and vv(97,
+    "uminValSpeedRedsafe") === (1/1).Real and vv(98,
+    "vmaxValSpeedRedsafe") === vv(95) and vv(99,
+    "umaxValSpeedRedsafe") === (1/1).Real and (vv(75, "ag1-Nu-speed")
+    + vv(8, "ag0-maxDec") <= vv(94) and vv(75, "ag1-Nu-speed") + vv(
+    7, "ag0-maxAcc") >= vv(95)) or vv(96, "vminValSpeedRedsafe") ===
+    vv(75, "ag1-Nu-speed") + vv(8, "ag0-maxDec") and vv(97,
+    "uminValSpeedRedsafe") === (1/1).Real and vv(98,
+    "vmaxValSpeedRedsafe") === vv(95) and vv(99,
+    "umaxValSpeedRedsafe") === (1/1).Real and (vv(75, "ag1-Nu-speed")
+    + vv(8, "ag0-maxDec") >= vv(94) and vv(75, "ag1-Nu-speed") + vv(
+    7, "ag0-maxAcc") >= vv(95)) or vv(96, "vminValSpeedRedsafe") ===
+    vv(75, "ag1-Nu-speed") + vv(8, "ag0-maxDec") and vv(97,
+    "uminValSpeedRedsafe") === (1/1).Real and vv(98,
+    "vmaxValSpeedRedsafe") === vv(75, "ag1-Nu-speed") + vv(7,
+    "ag0-maxAcc") and vv(99, "umaxValSpeedRedsafe") === (1/1).Real
+    and (vv(75, "ag1-Nu-speed") + vv(8, "ag0-maxDec") >= vv(94) and
+    vv(75, "ag1-Nu-speed") + vv(7, "ag0-maxAcc") <= vv(95)) or vv(96,
+    "vminValSpeedRedsafe") === vv(94) and vv(97,
+    "uminValSpeedRedsafe") === (1/1).Real and vv(98,
+    "vmaxValSpeedRedsafe") === vv(75, "ag1-Nu-speed") + vv(7,
+    "ag0-maxAcc") and vv(99, "umaxValSpeedRedsafe") === (1/1).Real
+    and not (vv(95) <= vv(75, "ag1-Nu-speed") + vv(8, "ag0-maxDec")
+    and vv(94) <= vv(75, "ag1-Nu-speed") + vv(8, "ag0-maxDec") or vv(
+    75, "ag1-Nu-speed") + vv(7, "ag0-maxAcc") <= vv(94) and vv(75,
+    "ag1-Nu-speed") + vv(7, "ag0-maxAcc") <= vv(95) or vv(75,
+    "ag1-Nu-speed") + vv(8, "ag0-maxDec") <= vv(94) and vv(75,
+    "ag1-Nu-speed") + vv(7, "ag0-maxAcc") >= vv(95) or vv(75,
+    "ag1-Nu-speed") + vv(8, "ag0-maxDec") >= vv(94) and vv(75,
+    "ag1-Nu-speed") + vv(7, "ag0-maxAcc") >= vv(95) or vv(75,
+    "ag1-Nu-speed") + vv(8, "ag0-maxDec") >= vv(94) and vv(75,
+    "ag1-Nu-speed") + vv(7, "ag0-maxAcc") <= vv(95)) and vv(75,
+    "ag1-Nu-speed") + vv(8, "ag0-maxDec") <= vv(75, "ag1-Nu-speed") +
+    vv(7, "ag0-maxAcc") and vv(94) < vv(95)) and (vv(94) === (vv(92,
+    "distance") + vv(4, "ag0-speed")) / ((1/1).Real + vv(27,
+    "ag1-safer")) and vv(95) === (vv(92, "distance") + vv(4,
+    "ag0-speed")) / ((1/1).Real + vv(28, "ag1-safe")) and (vv(5,
+    "ag1-speed") >= vv(13, "ag1-speed-lower-bound") and vv(5,
+    "ag1-speed") <= vv(14, "ag1-speed-upper-bound") and (vv(72,
+    "ag1-acc") >= vv(8, "ag0-maxDec") and vv(72, "ag1-acc") <= vv(7,
+    "ag0-maxAcc")) and (vv(77, "ag1-auxv") === vv(5, "ag1-speed") +
+    vv(72, "ag1-acc") * vv(30, "tick-size") and (vv(77, "ag1-auxv")
+    >= vv(13, "ag1-speed-lower-bound") and vv(77, "ag1-auxv") <= vv(
+    14, "ag1-speed-upper-bound") and (vv(75, "ag1-Nu-speed") === vv(
+    77, "ag1-auxv") and (vv(78, "ag1-Nu-positionX") === vv(81,
+    "ag1-positionX") and vv(79, "ag1-Nu-positionY") === vv(82,
+    "ag1-positionY") and (vv(20, "ag1-inix") === vv(22, "ag1-tarx")
+    and not vv(21, "ag1-iniy") === vv(23, "ag1-tary") and vv(81,
+    "ag1-positionX") === vv(2, "ag1-positionX") and vv(82,
+    "ag1-positionY") === vv(3, "ag1-positionY") + (vv(77, "ag1-auxv")
+    + vv(5, "ag1-speed")) * vv(30, "tick-size") / (2/1).Real or vv(
+    21, "ag1-iniy") === vv(23, "ag1-tary") and not vv(20, "ag1-inix")
+    === vv(22, "ag1-tarx") and vv(81, "ag1-positionX") === vv(2,
+    "ag1-positionX") + (vv(77, "ag1-auxv") + vv(5, "ag1-speed")) *
+    vv(30, "tick-size") / (2/1).Real and vv(82, "ag1-positionY") ===
+    vv(3, "ag1-positionY") or not vv(20, "ag1-inix") === vv(22,
+    "ag1-tarx") and not vv(21, "ag1-iniy") === vv(23, "ag1-tary") and
+    vv(81, "ag1-positionX") === vv(2, "ag1-positionX") + (vv(77,
+    "ag1-auxv") + vv(5, "ag1-speed")) * vv(30, "tick-size") / (
+    2/1).Real * (vv(22, "ag1-tarx") - vv(20, "ag1-inix")) / vv(24,
+    "ag1-dir-mag") and vv(82, "ag1-positionY") === vv(3,
+    "ag1-positionY") + (vv(77, "ag1-auxv") + vv(5, "ag1-speed")) *
+    vv(30, "tick-size") / (2/1).Real * (vv(23, "ag1-tary") - vv(21,
+    "ag1-iniy")) / vv(24, "ag1-dir-mag")))))) and (vv(4, "ag0-speed")
+    >= vv(11, "ag0-speed-lower-bound") and vv(4, "ag0-speed") <= vv(
+    12, "ag0-speed-upper-bound") and (vv(52, "ag0-acc") >= vv(8,
+    "ag0-maxDec") and vv(52, "ag0-acc") <= vv(7, "ag0-maxAcc")) and (
+    vv(56, "ag0-auxv") === vv(4, "ag0-speed") + vv(52, "ag0-acc") *
+    vv(30, "tick-size") and (vv(56, "ag0-auxv") >= vv(11,
+    "ag0-speed-lower-bound") and vv(56, "ag0-auxv") <= vv(12,
+    "ag0-speed-upper-bound") and (vv(54, "ag0-Nu-speed") === vv(56,
+    "ag0-auxv") and (vv(57, "ag0-Nu-positionX") === vv(60,
+    "ag0-positionX") and vv(58, "ag0-Nu-positionY") === vv(61,
+    "ag0-positionY") and (vv(15, "ag0-inix") === vv(17, "ag0-tarx")
+    and not vv(16, "ag0-iniy") === vv(18, "ag0-tary") and vv(60,
+    "ag0-positionX") === vv(0, "ag0-positionX") and vv(61,
+    "ag0-positionY") === vv(1, "ag0-positionY") + (vv(56, "ag0-auxv")
+    + vv(4, "ag0-speed")) * vv(30, "tick-size") / (2/1).Real or vv(
+    16, "ag0-iniy") === vv(18, "ag0-tary") and not vv(15, "ag0-inix")
+    === vv(17, "ag0-tarx") and vv(60, "ag0-positionX") === vv(0,
+    "ag0-positionX") + (vv(56, "ag0-auxv") + vv(4, "ag0-speed")) *
+    vv(30, "tick-size") / (2/1).Real and vv(61, "ag0-positionY") ===
+    vv(1, "ag0-positionY") or not vv(15, "ag0-inix") === vv(17,
+    "ag0-tarx") and not vv(16, "ag0-iniy") === vv(18, "ag0-tary") and
+    vv(60, "ag0-positionX") === vv(0, "ag0-positionX") + (vv(56,
+    "ag0-auxv") + vv(4, "ag0-speed")) * vv(30, "tick-size") / (
+    2/1).Real * (vv(17, "ag0-tarx") - vv(15, "ag0-inix")) / vv(19,
+    "ag0-dir-mag") and vv(61, "ag0-positionY") === vv(1,
+    "ag0-positionY") + (vv(56, "ag0-auxv") + vv(4, "ag0-speed")) *
+    vv(30, "tick-size") / (2/1).Real * (vv(18, "ag0-tary") - vv(16,
+    "ag0-iniy")) / vv(19, "ag0-dir-mag")))))) and ((vv(45,
+    "uminValSpeedRedsafe") > vv(47, "umaxValSpeedRedsafe") and vv(48,
+    "actUVal") === vv(45, "uminValSpeedRedsafe") and vv(49,
+    "actVmin") === vv(44, "vminValSpeedRedsafe") and vv(50,
+    "actVmax") === vv(44, "vminValSpeedRedsafe") or vv(45,
+    "uminValSpeedRedsafe") < vv(47, "umaxValSpeedRedsafe") and vv(48,
+    "actUVal") === vv(47, "umaxValSpeedRedsafe") and vv(49,
+    "actVmin") === vv(46, "vmaxValSpeedRedsafe") and vv(50,
+    "actVmax") === vv(46, "vmaxValSpeedRedsafe") or vv(45,
+    "uminValSpeedRedsafe") === vv(47, "umaxValSpeedRedsafe") and vv(
+    48, "actUVal") === vv(45, "uminValSpeedRedsafe") and vv(49,
+    "actVmin") === vv(44, "vminValSpeedRedsafe") and vv(50,
+    "actVmax") === vv(46, "vmaxValSpeedRedsafe")) and ((vv(44,
+    "vminValSpeedRedsafe") === vv(5, "ag1-speed") + vv(8,
+    "ag0-maxDec") and vv(45, "uminValSpeedRedsafe") === (1/1).Real
+    and vv(46, "vmaxValSpeedRedsafe") === (vv(5, "ag1-speed") + vv(8,
+    "ag0-maxDec") + (vv(5, "ag1-speed") + vv(7, "ag0-maxAcc"))) / (
+    2/1).Real and vv(47, "umaxValSpeedRedsafe") === (0/1).Real and (
+    vv(43) <= vv(5, "ag1-speed") + vv(8, "ag0-maxDec") and vv(42) <=
+    vv(5, "ag1-speed") + vv(8, "ag0-maxDec")) or vv(44,
+    "vminValSpeedRedsafe") === (vv(5, "ag1-speed") + vv(8,
+    "ag0-maxDec") + (vv(5, "ag1-speed") + vv(7, "ag0-maxAcc"))) / (
+    2/1).Real and vv(45, "uminValSpeedRedsafe") === (0/1).Real and
+    vv(46, "vmaxValSpeedRedsafe") === vv(5, "ag1-speed") + vv(7,
+    "ag0-maxAcc") and vv(47, "umaxValSpeedRedsafe") === (1/1).Real
+    and (vv(5, "ag1-speed") + vv(7, "ag0-maxAcc") <= vv(42) and vv(5,
+    "ag1-speed") + vv(7, "ag0-maxAcc") <= vv(43)) or vv(44,
+    "vminValSpeedRedsafe") === vv(42) and vv(45,
+    "uminValSpeedRedsafe") === (1/1).Real and vv(46,
+    "vmaxValSpeedRedsafe") === vv(43) and vv(47,
+    "umaxValSpeedRedsafe") === (1/1).Real and (vv(5, "ag1-speed") +
+    vv(8, "ag0-maxDec") <= vv(42) and vv(5, "ag1-speed") + vv(7,
+    "ag0-maxAcc") >= vv(43)) or vv(44, "vminValSpeedRedsafe") === vv(
+    5, "ag1-speed") + vv(8, "ag0-maxDec") and vv(45,
+    "uminValSpeedRedsafe") === (1/1).Real and vv(46,
+    "vmaxValSpeedRedsafe") === vv(43) and vv(47,
+    "umaxValSpeedRedsafe") === (1/1).Real and (vv(5, "ag1-speed") +
+    vv(8, "ag0-maxDec") >= vv(42) and vv(5, "ag1-speed") + vv(7,
+    "ag0-maxAcc") >= vv(43)) or vv(44, "vminValSpeedRedsafe") === vv(
+    5, "ag1-speed") + vv(8, "ag0-maxDec") and vv(45,
+    "uminValSpeedRedsafe") === (1/1).Real and vv(46,
+    "vmaxValSpeedRedsafe") === vv(5, "ag1-speed") + vv(7,
+    "ag0-maxAcc") and vv(47, "umaxValSpeedRedsafe") === (1/1).Real
+    and (vv(5, "ag1-speed") + vv(8, "ag0-maxDec") >= vv(42) and vv(5,
+    "ag1-speed") + vv(7, "ag0-maxAcc") <= vv(43)) or vv(44,
+    "vminValSpeedRedsafe") === vv(42) and vv(45,
+    "uminValSpeedRedsafe") === (1/1).Real and vv(46,
+    "vmaxValSpeedRedsafe") === vv(5, "ag1-speed") + vv(7,
+    "ag0-maxAcc") and vv(47, "umaxValSpeedRedsafe") === (1/1).Real
+    and not (vv(43) <= vv(5, "ag1-speed") + vv(8, "ag0-maxDec") and
+    vv(42) <= vv(5, "ag1-speed") + vv(8, "ag0-maxDec") or vv(5,
+    "ag1-speed") + vv(7, "ag0-maxAcc") <= vv(42) and vv(5,
+    "ag1-speed") + vv(7, "ag0-maxAcc") <= vv(43) or vv(5,
+    "ag1-speed") + vv(8, "ag0-maxDec") <= vv(42) and vv(5,
+    "ag1-speed") + vv(7, "ag0-maxAcc") >= vv(43) or vv(5,
+    "ag1-speed") + vv(8, "ag0-maxDec") >= vv(42) and vv(5,
+    "ag1-speed") + vv(7, "ag0-maxAcc") >= vv(43) or vv(5,
+    "ag1-speed") + vv(8, "ag0-maxDec") >= vv(42) and vv(5,
+    "ag1-speed") + vv(7, "ag0-maxAcc") <= vv(43)) and vv(5,
+    "ag1-speed") + vv(8, "ag0-maxDec") <= vv(5, "ag1-speed") + vv(7,
+    "ag0-maxAcc") and vv(42) < vv(43)) and (vv(42) === (vv(29,
+    "ag1-gap-next") + vv(4, "ag0-speed")) / ((1/1).Real + vv(27,
+    "ag1-safer")) and vv(43) === (vv(29, "ag1-gap-next") + vv(4,
+    "ag0-speed")) / ((1/1).Real + vv(28, "ag1-safe")) and (vv(0,
+    "ag0-positionX") === (0/1).Real and vv(2, "ag1-positionX") === (
+    0/1).Real and vv(15, "ag0-inix") === (0/1).Real and vv(17,
+    "ag0-tarx") === (0/1).Real and vv(16, "ag0-iniy") === (0/1).Real
+    and vv(18, "ag0-tary") === (1/1).Real and vv(19, "ag0-dir-mag")
+    === (1/1).Real and vv(20, "ag1-inix") === (0/1).Real and vv(22,
+    "ag1-tarx") === (0/1).Real and vv(21, "ag1-iniy") === (0/1).Real
+    and vv(23, "ag1-tary") === (1/1).Real and vv(24, "ag1-dir-mag")
+    === (1/1).Real and vv(4, "ag0-speed") >= vv(11,
+    "ag0-speed-lower-bound") and vv(4, "ag0-speed") <= vv(12,
+    "ag0-speed-upper-bound") and vv(5, "ag1-speed") >= vv(13,
+    "ag1-speed-lower-bound") and vv(5, "ag1-speed") <= vv(14,
+    "ag1-speed-upper-bound") and vv(1, "ag0-positionY") >= (0/1).Real
+    and vv(3, "ag1-positionY") >= (0/1).Real and vv(1,
+    "ag0-positionY") > vv(3, "ag1-positionY") and (vv(11,
+    "ag0-speed-lower-bound") === (2/1).Real and vv(12,
+    "ag0-speed-upper-bound") === (10/1).Real and vv(13,
+    "ag1-speed-lower-bound") === (2/1).Real and vv(14,
+    "ag1-speed-upper-bound") === (10/1).Real and vv(7, "ag0-maxAcc")
+    === (2/1).Real and vv(8, "ag0-maxDec") === - (2/1).Real and vv(9,
+    "ag1-maxAcc") === (2/1).Real and vv(10, "ag1-maxDec") === - (
+    2/1).Real and vv(25, "ag0-safer") === (3/1).Real and vv(26,
+    "ag0-safe") === (2/1).Real and vv(27, "ag1-safer") === (3/1).Real
+    and vv(28, "ag1-safe") === (2/1).Real and vv(34, "ag1-bad") === (
+    1/1).Real and vv(33, "ag0-bad") === (1/1).Real and vv(30,
+    "tick-size") === (1/10).Real) and ((vv(2, "ag1-positionX") >= vv(
+    0, "ag0-positionX") implies vv(36) === vv(2, "ag1-positionX") -
+    vv(0, "ag0-positionX")) and (vv(2, "ag1-positionX") < vv(0,
+    "ag0-positionX") implies vv(36) === vv(0, "ag0-positionX") - vv(
+    2, "ag1-positionX")) and (vv(3, "ag1-positionY") >= vv(1,
+    "ag0-positionY") implies vv(37) === vv(3, "ag1-positionY") - vv(
+    1, "ag0-positionY")) and (vv(3, "ag1-positionY") < vv(1,
+    "ag0-positionY") implies vv(37) === vv(1, "ag0-positionY") - vv(
+    3, "ag1-positionY")) and vv(38, "manh-distance") === vv(36) + vv(
+    37) and vv(38) >= (0/1).Real and (vv(38, "manh-distance") < ((
+    1/1).Real + vv(27, "ag1-safer")) * vv(5, "ag1-speed") - vv(4,
+    "ag0-speed") and vv(38, "manh-distance") >= ((1/1).Real + vv(28,
+    "ag1-safe")) * vv(5, "ag1-speed") - vv(4, "ag0-speed"))) and (
+    true and true and true and true) and (true and true and true and
+    (vv(40, "distance") * vv(40, "distance") === (vv(3,
+    "ag1-positionY") - vv(1, "ag0-positionY")) * (vv(3,
+    "ag1-positionY") - vv(1, "ag0-positionY")) + (vv(2,
+    "ag1-positionX") - vv(0, "ag0-positionX")) * (vv(2,
+    "ag1-positionX") - vv(0, "ag0-positionX")) and vv(40, "distance")
+    >= (0/1).Real)))) and vv(44) <= vv(46)) and vv(48, "actUVal") > (
+    0/1).Real and (vv(52, "ag0-acc") >= vv(4, "ag0-speed") - vv(4,
+    "ag0-speed") and vv(52, "ag0-acc") <= vv(4, "ag0-speed") - vv(4,
+    "ag0-speed"))) and (vv(72, "ag1-acc") >= vv(49, "actVmin") - vv(
+    5, "ag1-speed") and vv(72, "ag1-acc") <= vv(50, "actVmax") - vv(
+    5, "ag1-speed"))) and (true and true and true and true) and (true
+    and true and true and (vv(92, "distance") * vv(92, "distance")
+    === (vv(79, "ag1-Nu-positionY") - vv(58, "ag0-Nu-positionY")) * (
+    vv(79, "ag1-Nu-positionY") - vv(58, "ag0-Nu-positionY")) + (vv(
+    78, "ag1-Nu-positionX") - vv(57, "ag0-Nu-positionX")) * (vv(78,
+    "ag1-Nu-positionX") - vv(57, "ag0-Nu-positionX")) and vv(92,
+    "distance") >= (0/1).Real)))) and vv(96) <= vv(98)) and vv(100,
+    "actUVal") > (0/1).Real) maxAcc(v(0), vv(7, "ag0-maxAcc"))
+    maxAcc(v(1), vv(7, "ag0-maxAcc")) maxDec(v(0), vv(8,
+    "ag0-maxDec")) maxDec(v(1), vv(8, "ag0-maxDec")) velb(v(0), vv(
+    11, "ag0-speed-lower-bound"), vv(12, "ag0-speed-upper-bound"))
+    velb(v(1), vv(13, "ag1-speed-lower-bound"), vv(14,
+    "ag1-speed-upper-bound")) gapSafety(v(0), vv(25, "ag0-safer"),
+    vv(26, "ag0-safe"), vv(33, "ag0-bad")) gapSafety(v(1), vv(27,
+    "ag1-safer"), vv(28, "ag1-safe"), vv(34, "ag1-bad"))]
+[v(0) : veh |
+  lkb : (clock(1) class(v(0), veh) (atloc(v(0), loc(vv(57,
+    "ag0-Nu-positionX"), vv(58, "ag0-Nu-positionY"))) @ 1) (atloc(v(
+    1), loc(vv(2, "ag1-positionX"), vv(3, "ag1-positionY"))) @ 0) (
+    mode(v(0), leading(none)) @ 0) (platoon(v(0), v(1)) @ 0) (speed(
+    v(0), vv(54, "ag0-Nu-speed")) @ 1) (speed(v(1), vv(5,
+    "ag1-speed")) @ 0) (accel(v(0), vv(31, "ag0-acc")) @ 0) (dir(v(
+    0), loc(vv(15, "ag0-inix"), vv(16, "ag0-iniy")), loc(vv(17,
+    "ag0-tarx"), vv(18, "ag0-tary")), vv(19, "ag0-dir-mag")) @ 0)
+    maxAcc(v(0), vv(7, "ag0-maxAcc")) maxDec(v(0), vv(8,
+    "ag0-maxDec")) velb(v(0), vv(11, "ag0-speed-lower-bound"), vv(12,
+    "ag0-speed-upper-bound")) gapSafety(v(0), vv(25, "ag0-safer"),
+    vv(26, "ag0-safe"), vv(33, "ag0-bad"))),
+  ckb : none,
+  sensors : (locS speedS gapS),
+  evs : ((tick @ (1).NzNat) (actSnd(v(0), msg(v(0), v(1), hbl2f(v(0),
+    vv(54, "ag0-Nu-speed"), loc(vv(57, "ag0-Nu-positionX"), vv(58,
+    "ag0-Nu-positionY")), (atloc(v(1), loc(vv(2, "ag1-positionX"),
+    vv(3, "ag1-positionY"))) @ 0) (platoon(v(0), v(1)) @ 0) speed(v(
+    1), vv(5, "ag1-speed")) @ 0)) @ 1) @ (0).Zero) {u(1/1),actSpeed(
+    v(0), vv(54, "ag0-Nu-speed"), vv(54, "ag0-Nu-speed"))} @ (
+    0).Zero)]
+[v(1) : veh |
+  lkb : (clock(1) class(v(1), veh) (atloc(v(0), loc(vv(0,
+    "ag0-positionX"), vv(1, "ag0-positionY"))) @ 0) (atloc(v(1), loc(
+    vv(78, "ag1-Nu-positionX"), vv(79, "ag1-Nu-positionY"))) @ 1) (
+    mode(v(1), following(v(0))) @ 0) (platoon(v(0), v(1)) @ 0) (
+    speed(v(0), vv(4, "ag0-speed")) @ 0) (speed(v(1), vv(75,
+    "ag1-Nu-speed")) @ 1) (gapNext(v(1), vv(92, "distance")) @ 1) (
+    accel(v(1), vv(32, "ag1-acc")) @ 0) (dir(v(1), loc(vv(20,
+    "ag1-inix"), vv(21, "ag1-iniy")), loc(vv(22, "ag1-tarx"), vv(23,
+    "ag1-tary")), vv(24, "ag1-dir-mag")) @ 0) maxAcc(v(1), vv(7,
+    "ag0-maxAcc")) maxDec(v(1), vv(8, "ag0-maxDec")) velb(v(1), vv(
+    13, "ag1-speed-lower-bound"), vv(14, "ag1-speed-upper-bound"))
+    gapSafety(v(1), vv(27, "ag1-safer"), vv(28, "ag1-safe"), vv(34,
+    "ag1-bad"))),
+  ckb : none,
+  sensors : (locS speedS gapS),
+  evs : ((tick @ (1).NzNat) (actSnd(v(1), msg(v(1), v(0), hbf2l(v(1),
+    vv(75, "ag1-Nu-speed"), loc(vv(78, "ag1-Nu-positionX"), vv(79,
+    "ag1-Nu-positionY")))) @ 1) @ (0).Zero) {u(vv(100, "actUVal")),
+    actSpeed(v(1), vv(101, "actVmin"), vv(102, "actVmax"))} @ (
+    0).Zero)]} .
+
+
+op asg : -> SmtCheckResult .
+eq asg = 
+{(r(vvv(36)) |-> (0/1).Real),(r(vvv(37)) |-> (
+    699/100).Real),(r(vvv(38)) |-> (0/1).Real),(r(vvv(42)) |-> (2/3).Real),(r(
+    vvv(43)) |-> (1/2).Real),(r(vvv(44)) |-> (0/1).Real),(r(vvv(46)) |-> (
+    0/1).Real),(r(vvv(94)) |-> (10/3).Real),(r(vvv(95)) |-> (5/2).Real),(r(
+    vvv(96)) |-> (0/1).Real),(r(vvv(98)) |-> (0/1).Real),(r(vvv(0,
+    "ag0-positionX")) |-> (0/1).Real),(r(vvv(1, "ag0-positionY")) |-> (
+    8/1).Real),(r(vvv(2, "ag1-positionX")) |-> (0/1).Real),(r(vvv(3,
+    "ag1-positionY")) |-> (101/100).Real),(r(vvv(4, "ag0-speed")) |-> (
+    3/1).Real),(r(vvv(5, "ag1-speed")) |-> (3/1).Real),(r(vvv(7,
+    "ag0-maxAcc")) |-> (2/1).Real),(r(vvv(8, "ag0-maxDec")) |-> (-2/1).Real),(
+    r(vvv(9, "ag1-maxAcc")) |-> (2/1).Real),(r(vvv(10, "ag1-maxDec")) |-> (
+    -2/1).Real),(r(vvv(11, "ag0-speed-lower-bound")) |-> (2/1).Real),(r(vvv(
+    12, "ag0-speed-upper-bound")) |-> (10/1).Real),(r(vvv(13,
+    "ag1-speed-lower-bound")) |-> (2/1).Real),(r(vvv(14,
+    "ag1-speed-upper-bound")) |-> (10/1).Real),(r(vvv(15, "ag0-inix")) |-> (
+    0/1).Real),(r(vvv(16, "ag0-iniy")) |-> (0/1).Real),(r(vvv(17, "ag0-tarx"))
+    |-> (0/1).Real),(r(vvv(18, "ag0-tary")) |-> (1/1).Real),(r(vvv(19,
+    "ag0-dir-mag")) |-> (1/1).Real),(r(vvv(20, "ag1-inix")) |-> (0/1).Real),(
+    r(vvv(21, "ag1-iniy")) |-> (0/1).Real),(r(vvv(22, "ag1-tarx")) |-> (
+    0/1).Real),(r(vvv(23, "ag1-tary")) |-> (1/1).Real),(r(vvv(24,
+    "ag1-dir-mag")) |-> (1/1).Real),(r(vvv(25, "ag0-safer")) |-> (3/1).Real),(
+    r(vvv(26, "ag0-safe")) |-> (2/1).Real),(r(vvv(27, "ag1-safer")) |-> (
+    3/1).Real),(r(vvv(28, "ag1-safe")) |-> (2/1).Real),(r(vvv(29,
+    "ag1-gap-next")) |-> (-1/1).Real),(r(vvv(30, "tick-size")) |-> (
+    1/10).Real),(r(vvv(33, "ag0-bad")) |-> (1/1).Real),(r(vvv(34, "ag1-bad"))
+    |-> (1/1).Real),(r(vvv(38, "manh-distance")) |-> (699/100).Real),(r(vvv(
+    40, "distance")) |-> (699/100).Real),(r(vvv(44, "vminValSpeedRedsafe"))
+    |-> (1/1).Real),(r(vvv(45, "uminValSpeedRedsafe")) |-> (1/1).Real),(r(vvv(
+    46, "vmaxValSpeedRedsafe")) |-> (3/1).Real),(r(vvv(47,
+    "umaxValSpeedRedsafe")) |-> (0/1).Real),(r(vvv(48, "actUVal")) |-> (
+    1/1).Real),(r(vvv(49, "actVmin")) |-> (1/1).Real),(r(vvv(50, "actVmax"))
+    |-> (1/1).Real),(r(vvv(52, "ag0-acc")) |-> (0/1).Real),(r(vvv(54,
+    "ag0-Nu-speed")) |-> (3/1).Real),(r(vvv(56, "ag0-auxv")) |-> (3/1).Real),(
+    r(vvv(57, "ag0-Nu-positionX")) |-> (0/1).Real),(r(vvv(58,
+    "ag0-Nu-positionY")) |-> (83/10).Real),(r(vvv(60, "ag0-positionX")) |-> (
+    0/1).Real),(r(vvv(61, "ag0-positionY")) |-> (83/10).Real),(r(vvv(72,
+    "ag1-acc")) |-> (-2/1).Real),(r(vvv(75, "ag1-Nu-speed")) |-> (14/5).Real),
+    (r(vvv(77, "ag1-auxv")) |-> (14/5).Real),(r(vvv(78, "ag1-Nu-positionX"))
+    |-> (0/1).Real),(r(vvv(79, "ag1-Nu-positionY")) |-> (13/10).Real),(r(vvv(
+    81, "ag1-positionX")) |-> (0/1).Real),(r(vvv(82, "ag1-positionY")) |-> (
+    13/10).Real),(r(vvv(92, "distance")) |-> (7/1).Real),(r(vvv(96,
+    "vminValSpeedRedsafe")) |-> (10/3).Real),(r(vvv(97,
+    "uminValSpeedRedsafe")) |-> (1/1).Real),(r(vvv(98, "vmaxValSpeedRedsafe"))
+    |-> (5/2).Real),(r(vvv(99, "umaxValSpeedRedsafe")) |-> (1/1).Real),(r(vvv(
+    100, "actUVal")) |-> (1/1).Real),(r(vvv(101, "actVmin")) |-> (10/3).Real),
+    r(vvv(102, "actVmax")) |-> (5/2).Real} .
+
+
+
+***** DEBUG doEnvAct$ ****
+*** doEnvAct$(t,nzt,evs,{i,ekb,cond} nkb,nkbAcc)
+op nkb1$$ : -> NatKBBooleanSet .
+eq nkb1$$ = doUnitEnvAct(i$,t$,ekb$,evs$,cond$) .
+op nkb2$$ : -> NatKBBooleanSet .
+eq nkb2$$ = filterOkEnv(nkb1$$,none) .
+
+op nkb3$$ : -> NatKBBooleanSet .
+eq nkb3$$ = doEnvAct$(s(t$),nzt$ monus 1,
+                        timeEffect(evs$,1),nkb2$$,none) .
+
+op kbs1$$ : -> KBSet .
+eq kbs1$$ = doUnitEnvAct(t$,ekb$,evs$) .
+
+--- op kbs3$$ : -> KBSet .
+--- eq kbs3$$ = doEnvAct$(s(t$),nzt$ monus 1,
+---                         timeEffect(evs$,1),nkb2$$,none) .
+
+
+
+
+***** DEBUG doEAct ****
+op nkb1$$$ : -> NatKBBooleanSet .
+eq nkb1$$$ = {i$,ekb$,cond$} .
+
+op a$$ : -> Action .
+--- eq a$$ = (actSnd(v(0), msg(v(0), v(1), hbl2f(v(0), vv(4, "ag0-speed"), loc(vv(0, "ag0-positionX"), vv(1, "ag0-positionY")), (
+    --- atloc(v(1), loc(vv(2, "ag1-positionX"), vv(3, "ag1-positionY"))) @ 0) (platoon(v(0), v(1)) @ 0) speed(v(1), vv(5, "ag1-speed")) @ 0)) @ 0) @ (0).Zero) (
+    --- actSnd(v(1), msg(v(1), v(0), hbf2l(v(1), vv(5, "ag1-speed"), loc(vv(2, "ag1-positionX"), vv(3, "ag1-positionY")))) @ 0) @ (0).Zero) ({u(1/1),actSpeed(v(
+    --- 0), vv(4, "ag0-speed"), vv(4, "ag0-speed"))} @ (0).Zero) {u(1/1),actSpeed(v(1), vv(5, "ag1-speed"), vv(5, "ag1-speed"))} @ (0).Zero .
+
+--- op nkb2$$$ : -> NatKBBooleanSet .
+--- eq nkb2$$$ 
+---  = doEActX(t$,a$$,nkb1$$$,none) .
+
+*** red doEAct(i$,t$,a$$,ekb$,cond$) .
+
+***  doEAct(n,t,actSpeed(id1,ff0,ff1),ekb,cond0)
+ops n$$ : -> Nat .
+ops t$$ : -> Time .
+ops act$$ : -> Action .
+ops ekb$$ : -> KB .
+ops cond0$$ : -> Boolean .
+
+ops dt&& : -> SymTerm .
+ops kbs$$ : -> KBSet .
+ops nkb$$ : -> NatKBBooleanSet .
+
+eq n$$ = 38 .
+eq t$$ = 0 .
+eq act$$ = actSpeed(v(0), vv(4,
+    "ag0-speed"), vv(4, "ag0-speed")) .
+
+ops badAsg badAsg2 badAsg3 : -> SmtCheckResult .
+ops badAsys2 badAsys3 badAsys4 badAsys44 badAsys5 : -> ASystem .
+
+op spec : -> SPSpec .
+
+
+endm
+
+eof
+
+Recall parameters:
+(vellb0 === 2/1) and (velub0 === 10/1) and 
+   (vellb1 === 2/1) and (velub1 === 10/1) and 
+   (maxacc0 === 2/1) and (maxdec0 === - 2/1) and 
+   (maxacc1 === 2/1) and (maxdec1 === - 2/1) and 
+   (safer0 === 3/1) and (safe0 === 2/1) and 
+   (safer1 === 3/1) and (safe1 === 2/1) and 
+   (bad1 === 1/1) and (bad0 === 1/1) and 
+   (dt === 1/10) .
+
+red getAsg("ag1-positionY" "ag0-positionY" "manh-distance" "ag0-speed" "ag1-speed" "tick-size" "ag0-acc" "ag1-acc" "ag0-Nu-positionY" "ag1-Nu-positionY" "ag1-Nu-speed" "ag0-Nu-speed",asg) .
+(r(vvv(1, "ag0-positionY")) |-> (8/1).Real),
+(r(vvv(3,"ag1-positionY")) |-> (101/100).Real),
+(r(vvv(4, "ag0-speed")) |-> (3/1).Real),
+(r(vvv(5, "ag1-speed")) |-> (3/1).Real),
+(r(vvv(30,"tick-size")) |-> (1/10).Real),
+(r(vvv(38, "manh-distance")) |-> (699/100).Real),
+(r(vvv(52, "ag0-acc")) |-> (0/1).Real),
+(r(vvv(54,"ag0-Nu-speed")) |-> (3/1).Real),
+(r(vvv(58, "ag0-Nu-positionY")) |-> (83/10).Real),
+(r(vvv(61, "ag0-positionY")) |-> (83/10).Real),
+(r(vvv(72, "ag1-acc")) |-> (-2/1).Real),
+(r(vvv(75, "ag1-Nu-speed")) |-> (14/5).Real),
+(r(vvv(79, "ag1-Nu-positionY")) |-> (13/10).Real),
+r(vvv(82, "ag1-positionY")) |-> (13/10).Real
+
+

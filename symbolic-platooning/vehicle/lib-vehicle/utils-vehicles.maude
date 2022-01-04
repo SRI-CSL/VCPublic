@@ -1,0 +1,34 @@
+fmod UTILS-VEHICLE is
+  inc MODEL-TASKS .
+
+ var id0 : Id .
+ var lkb : KB .
+
+ op sset : -> SensorSet .
+ op cl : -> Class .
+ eq cl = veh .
+
+ op task : -> Task .
+ eq task = tick .
+
+ op evs : -> EventSet .
+ eq evs = task @ 0 .
+
+ op mkVeh : Id KB -> Agent .
+ op mkPed : Id KB -> Agent .
+ eq mkVeh(id0,lkb) 
+  = [id0 : veh |
+  lkb : (lkb (clock(0))),
+  ckb : none,
+  sensors : sset,
+  evs : ((tick @ 0))] .
+ 
+ eq mkPed(id0,lkb) 
+  = [id0 : pedestrian |
+  lkb : ((clock(0)) lkb),
+  ckb : none,
+  sensors : none,
+  evs : ((tick @ 0))] . 
+
+endfm
+

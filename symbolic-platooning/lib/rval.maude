@@ -1,0 +1,30 @@
+**** rank value
+fmod RVAL is
+  pr BOOL .
+	
+  sort RVal . 
+ 
+  op equivZero : RVal -> Bool .
+  op _<_ : RVal  RVal -> Bool .
+  op _>_ : RVal  RVal -> Bool .
+  op zero : -> RVal [ctor] .
+  eq equivZero(zero) = true .
+  eq zero < rv:RVal = not(equivZero(rv:RVal)) .
+  
+  op one : -> RVal [ctor] .
+  op equivOne : RVal -> Bool .
+  eq equivOne(one) = true .
+  eq rv:RVal < one = not(equivOne(rv:RVal)) .
+  
+  eq equivZero(rv:RVal) = false [owise] .
+  eq equivOne(rv:RVal) = false [owise] .
+  
+****  op _equiv_ : RVal x RVal -> Bool .	
+***(
+  zero
+  one
+  prod
+  sum  
+  )
+endfm
+

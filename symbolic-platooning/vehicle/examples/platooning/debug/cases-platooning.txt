@@ -1,0 +1,29 @@
+Cases:
+
+- 0) red cond1$(0)
+ag0: auxv : [vlb,vub]
+ag1: auxv : [vlb,vub]
+
+This is satisfiable.
+
+- 1) red cond1$(1)
+ag0: auxv < vlb
+ag1: auxv : [vlb,vub]
+
+Not satisfiable.
+auxv < vlb not happen as the acceleration of ag0 is zero.
+Therefore, ag0's speed cannot be lower than vlb.
+
+- 2) red cond1$(2)
+ag0: auxv > vub
+ag1: auxv : [vlb,vub]
+
+Not satisfiable. ditto
+
+- 2) red cond1$(3)
+ag0: auxv : [vlb,vub]
+ag1: auxv < vlb
+
+For some reason, the controller is 
+choosing the action:
+{u(1/1),actSpeed(v(1), vv(5, "ag1-speed"), vv(5, "ag1-speed"))}

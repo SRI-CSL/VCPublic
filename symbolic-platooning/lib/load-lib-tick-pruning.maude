@@ -1,0 +1,25 @@
+load model-checker
+load smt
+load smt-check
+set include BOOL on .
+load symbols
+load time
+load rat2fstr
+load knowledge-lib
+load rval
+load events
+load soft-agents
+load meta-search
+load safetyProps
+load solve-scp
+load meta-conversion
+load sa-rules-tick-pruning
+
+--- load knowledge
+--- load scp-symbolic
+--- load sensor-faults
+--- load tasks
+--- load actions
+--- load constraintTemplates
+--- load scenarios/scenario-template-veh-ped
+--- load scenarios/exp-scenario-crossing

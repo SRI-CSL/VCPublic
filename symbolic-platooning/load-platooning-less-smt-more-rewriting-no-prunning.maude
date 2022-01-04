@@ -1,0 +1,8 @@
+load lib/load-lib-no-pruning
+load vehicle/lib-vehicle/knowledge
+load vehicle/lib-vehicle/scp-symbolic
+load vehicle/lib-vehicle/tickDurationLib
+load vehicle/examples/platooning/decide-4SP-split
+load vehicle/loadPos-timesteps
+load vehicle/examples/platooning/scenario-template-platooning-manh-4SP.maude
+load vehicle/examples/platooning/exp-scenario-platooning-4SP.maude 

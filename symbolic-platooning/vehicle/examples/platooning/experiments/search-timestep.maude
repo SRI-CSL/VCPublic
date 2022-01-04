@@ -1,0 +1,200 @@
+ mod EXPERIMENTS-PLATOONING is
+ inc SCENARIO-PLATOONING .
+
+  var mname : Module .
+  vars asys asysI asys0 : ASystem .
+  vars asyses : ASystemSet .
+  vars safe bad : SP .
+  vars asysT condT : Term .
+  var t : Time .
+
+
+*** Function that checks for all the states that are reachable. 
+op getAllConfs : Module ASystem Time SP SP -> Nat .
+ceq getAllConfs(mname,asys,t,safe,bad)
+   = size(asyses)
+   if asysI := enforceSP(safe,setStopTime(asys,t))
+   /\ asysT := upTerm(asysI)
+   /\ condT := 'checkSP[upTerm(bad),'c:ASystem]
+   /\ asyses := searchAsysAll(mname,asysT,0,condT,unbounded)  .
+endm
+
+eof 
+
+***** Experiments with 4SP timesteps
+
+maudez3 ../load-platooning-manh-4SP-timesteps.maude 
+
+--- rew[1] enforceSP(safeSP,setStopTime(as0(2),2)) .
+
+--- search[1] enforceSP(safeSP,setStopTime(as0(2),2)) =>1 asys:ASystem such that checkSP(badSP,asys:ASystem) .
+
+*** red isSatModel(enforceSP(saferSP,setStopTime(as0(2),2))) .
+
+search enforceSP(safeSP,setStopTime(as0(2),2)) =>* asys:ASystem such that checkSP(badSP,asys:ASystem) .
+No solution.
+states: 63  rewrites: 394686 in 20134ms cpu (20175ms real) (19602
+    rewrites/second)
+
+*** with optimized cases where the leader has only one solution.
+No solution.
+states: 63  rewrites: 235126 in 17377ms cpu (17434ms real) (13530
+    rewrites/second)
+
+**** only-Y
+No solution.
+states: 63  rewrites: 218470 in 13999ms cpu (14016ms real) (15605
+    rewrites/second)
+
+--- rew[1] enforceSP(safeSP,setStopTime(as0(2),3)) .
+
+search enforceSP(safeSP,setStopTime(as0(2),3)) =>* asys:ASystem such that checkSP(badSP,asys:ASystem) .
+
+******** Experiments without isSat in doTask and without in Tick
+maudez3 ../load-platooning-manh-4SP-timesteps.maude 
+search enforceSP(safeSP,setStopTime(as0(2),2)) =>! asys:ASystem such that isSat(asys:ASystem) .
+No more solutions.
+states: 71  rewrites: 86888 in 2507ms cpu (2534ms real) (34649
+    rewrites/second)
+
+search enforceSP(safeSP,setStopTime(as0(2),3)) =>! asys:ASystem such that isSat(asys:ASystem) .
+started: 8:49
+ended: 13:32.
+
+******** Experiments without inSat doTask, but with isSat in Tick
+maudez3 ../load-platooning-manh-4SP-timesteps.maude 
+
+search enforceSP(safeSP,setStopTime(as0(2),2)) =>! asys:ASystem such that isSat(asys:ASystem) .
+No more solutions.
+states: 63  rewrites: 131944 in 8257ms cpu (8315ms real) (15978
+    rewrites/second)
+
+
+search enforceSP(safeSP,setStopTime(as0(2),3)) =>! asys:ASystem such that isSat(asys:ASystem) .
+
+******** Experiments with inSat doTask and with isSat in Tick
+maudez3 ../load-platooning-manh-4SP-timesteps.maude 
+set print attribute on .
+search enforceSP(safeSP,setStopTime(as0(2),2)) =>! asys:ASystem such that isSat(asys:ASystem) .
+No solution.
+states: 63  rewrites: 222776 in 11623ms cpu (11636ms real) (19165 rewrites/second)
+
+search enforceSP(safeSP,setStopTime(as0(2),3)) =>! asys:ASystem such that isSat(asys:ASystem) .
+
+***************** timesteps-split ***************
+maudez3 ../load-platooning-manh-4SP-timesteps-split.maude
+*** with optimized cases where the leader has only one solution.
+search enforceSP(safeSP,setStopTime(as0(2),2)) =>* asys:ASystem such that checkSP(badSP,asys:ASystem) .
+
+No solution.
+states: 485  rewrites: 1777312 in 77567ms cpu (77646ms
+    real) (22913 rewrites/second)
+
+*** No sat in DoTask
+No solution.
+states: 740  rewrites: 2061990 in 53948ms cpu (54094ms
+    real) (38221 rewrites/second)
+
+*** No sat is dotask nor tick
+states: 2036  rewrites: 2770604 in 38782ms cpu (
+    39082ms real) (71439 rewrites/second)
+
+******** Experiments without isSat in doTask and without in Tick
+maudez3 ../load-platooning-manh-4SP-timesteps-split.maude
+set print attribute on .
+*** No sat is dotask nor tick
+search enforceSP(safeSP,setStopTime(as0(2),2)) =>! asys:ASystem such that isSat(asys:ASystem) .
+No more solutions.
+states: 1427  rewrites: 1384846 in 29551ms cpu (29710ms real) (46861 rewrites/second)
+
+*** No sat is dotask nor tick
+search enforceSP(safeSP,setStopTime(as0(2),3)) =>! asys:ASystem such that isSat(asys:ASystem) .
+
+Solution 880 (state 42547)
+states: 42827  rewrites: 54657046 in 3054657ms cpu (3066224ms real) (17893
+    rewrites/second)
+
+
+search enforceSP(safeSP,setStopTime(as0(2),4)) =>! asys:ASystem such that isSat(asys:ASystem) .
+started: 9:46
+stopped: 16:35
+
+******** Experiments without inSat doTask, but with isSat in Tick
+maudez3 ../load-platooning-manh-4SP-timesteps-split.maude
+
+search enforceSP(safeSP,setStopTime(as0(2),2)) =>! asys:ASystem such that isSat(asys:ASystem) .
+No more solutions.
+states: 497  rewrites: 1180776 in 47365ms cpu (47724ms real) (24928
+    rewrites/second)
+
+search enforceSP(safeSP,setStopTime(as0(2),3)) =>! asys:ASystem such that isSat(asys:ASystem) .
+--- Solution 880 (state 3616)
+--- No more solutions.
+--- states: 3617  rewrites: 11740190 in 4427555ms cpu (4443579ms real)
+---     (2651 rewrites/second)
+
+Solution 880 (state 2483)
+No more solutions.
+states: 2484  rewrites: 9262215 in 3389604ms cpu (3412564ms real) (2732
+    rewrites/second)
+
+******** Experiments with inSat doTask and with isSat in Tick
+maudez3 ../load-platooning-manh-4SP-timesteps-split.maude
+set print attribute on .
+search enforceSP(safeSP,setStopTime(as0(2),2)) =>! asys:ASystem such that isSat(asys:ASystem) .
+No more solutions.
+states: 296  rewrites: 956955 in 52670ms cpu (53333ms real) (18168
+    rewrites/second)
+
+search enforceSP(safeSP,setStopTime(as0(2),3)) =>! asys:ASystem such that isSat(asys:ASystem) .
+
+--- Started: 13:06
+Solution 880 (state 1975)
+No more solutions.
+states: 1976  rewrites: 9577883 in 5238472ms cpu (5258331ms real) (1828
+    rewrites/second)
+
+
+***************** timestep ***************
+maudez3 ../load-platooning-manh-4SP.maude 
+
+search enforceSP(safeSP,setStopTime(as0(2),2)) =>* asys:ASystem such that checkSP(badSP,asys:ASystem) .
+
+search enforceSP(safeSP,setStopTime(as0(2),2)) =>! asys:ASystem .
+states: 19  rewrites: 49393 in 2752ms cpu (2800ms real)
+    (17943 rewrites/second)
+
+******** Experiments without isSat in doTask and without in Tick
+maudez3 ../load-platooning-manh-4SP.maude 
+set print attribute on .
+*** No sat is dotask nor tick
+search enforceSP(safeSP,setStopTime(as0(2),2)) =>! asys:ASystem such that isSat(asys:ASystem) .
+No more solutions.
+states: 19  rewrites: 20446 in 277ms cpu (285ms real) (73672
+    rewrites/second)
+
+search enforceSP(safeSP,setStopTime(as0(2),3)) =>! asys:ASystem such that isSat(asys:ASystem) .
+No more solutions
+started: 9:38
+stopped: 12:25
+
+******** Experiments without inSat doTask, but with isSat in Tick
+maudez3 ../load-platooning-manh-4SP.maude 
+
+search enforceSP(safeSP,setStopTime(as0(2),2)) =>! asys:ASystem such that isSat(asys:ASystem) .
+states: 19  rewrites: 32400 in 743ms cpu (752ms real) (43551
+    rewrites/second)
+
+search enforceSP(safeSP,setStopTime(as0(2),3)) =>! asys:ASystem such that isSat(asys:ASystem) .
+started 7:58
+
+
+******** Experiments with inSat doTask and with isSat in Tick
+maudez3 ../load-platooning-manh-4SP.maude 
+set print attribute on .
+search enforceSP(safeSP,setStopTime(as0(2),2)) =>! asys:ASystem such that isSat(asys:ASystem) .
+No more solutions.
+states: 19  rewrites: 56000 in 4167ms cpu (4185ms real) (13437
+    rewrites/second)
+
+search enforceSP(safeSP,setStopTime(as0(2),3)) =>! asys:ASystem such that isSat(asys:ASystem) .

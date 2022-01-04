@@ -1,0 +1,371 @@
+***( Case when there is a crash without specifying 
+explicitly a gap or positions.)
+ mod SCENARIO-PLATOONING is
+ inc SCENARIO-TEMPLATE-PLATOONING .
+ 
+*** Define resolveKB
+*** Scenario where the vehicle in front is in
+*** constant speed, while the vehicle in the back is following.
+ vars numVars stp : Nat .
+vars b1 b2 b3 : Bool .
+var conf : Conf .
+var env : Env .
+var lkb : KB .
+var id0 : Id .
+vars ff0 ff1 ff2 ff3 : SymTerm .
+vars t t1 t2 n t3 t4 k : Nat .
+vars cond cond3 : Boolean . 
+vars smtRes1 smtRes2 smtRes3 : SmtCheckResult .
+
+eq lkb0 = 
+    class(v(0),veh) 
+    (atloc(v(0),loc(v0posx,v0posy)) @ 0) 
+    (atloc(v(1),loc(v1posx,v1posy)) @ 0) 
+    (speed(v(0),v0vel) @ 0) 
+    (speed(v(1), v1vel) @ 0)
+    (accel(v(0),acc0) @ 0)
+    (dir(v(0),loc(v0inix,v0iniy),
+              loc(v0tarx,v0tary),v0mag) @ 0) 
+    --- (accel(v(0),acc0) @ 0) 
+    (mode(v(0), leading(none)) @ 0) 
+    (platoon(v(0),v(1)) @ 0)
+    gapSafety(v(0),safer0,safe0) 
+    velb(v(0),vellb0,velub0)
+    maxAcc(v(0),maxacc0)
+    maxDec(v(0),maxdec0) 
+     .
+
+eq lkb1 = 
+    class(v(1),veh) 
+    (atloc(v(0),loc(v0posx,v0posy)) @ 0) 
+    (atloc(v(1),loc(v1posx,v1posy)) @ 0) 
+    (speed(v(0),v0vel) @ 0) 
+    (speed(v(1), v1vel) @ 0)
+    (accel(v(1),acc1) @ 0)
+    (dir(v(1),loc(v1inix,v1iniy),
+              loc(v1tarx,v1tary),v1mag) @ 0) 
+    --- (accel(v(0),acc0) @ 0) 
+    (mode(v(1), following(v(0))) @ 0)
+    (platoon(v(0),v(1)) @ 0)
+    (gapNext(v(1),gapNxt) @ 0)  
+    gapSafety(v(1),safer1,safe1) 
+    velb(v(1),vellb1,velub1)
+    maxAcc(v(1),maxacc0)
+    maxDec(v(1),maxdec0) .
+
+eq ekb(numVars,cond,stp) =
+    clock(0) stop(stp)
+    tickSize(dt)
+    class(v(0),veh) 
+    class(v(1),veh) 
+    (atloc(v(0),loc(v0posx,v0posy)) @ 0) 
+    (atloc(v(1),loc(v1posx,v1posy)) @ 0) 
+    (speed(v(0),v0vel) @ 0) 
+    (speed(v(1), v1vel) @ 0)
+    (accel(v(0),acc0) @ 0)
+    (accel(v(1),acc1) @ 0)
+    (dir(v(0),loc(v0inix,v0iniy),
+              loc(v0tarx,v0tary),v0mag) @ 0) 
+    (dir(v(1),loc(v1inix,v1iniy),
+              loc(v1tarx,v1tary),v1mag) @ 0) 
+    (platoon(v(0),v(1)) @ 0) 
+    gapSafety(v(0),safer0,safe0) 
+    gapSafety(v(1),safer1,safe1) 
+    velb(v(0),vellb0,velub0)
+    velb(v(1),vellb1,velub1)
+    maxAcc(v(0),maxacc0)
+    maxDec(v(0),maxdec0) 
+    maxAcc(v(1),maxacc0)
+    maxDec(v(1),maxdec0)
+    constraint(numVars,cond) .
+
+*** We assume that the maximum velocity is the initial velocity.
+
+op condTick : -> Boolean .
+
+op basicCond : -> Boolean .
+*** Vehicles in a straight line moving upwards.
+*** Speeds within bounds.
+*** Positive positions
+eq basicCond 
+  = (v0posx === 0/1) and (v1posx === 0/1) and 
+  (v0inix === 0/1) and (v0tarx === 0/1) and
+  (v0iniy === 0/1) and (v0tary === 1/1) and
+  (v0mag === 1/1) and
+  (v1inix === 0/1) and (v1tarx === 0/1) and
+  (v1iniy === 0/1) and (v1tary === 1/1) and
+  (v1mag === 1/1) and 
+  (v0vel >= vellb0) and (v0vel <= velub0) and 
+  (v1vel >= vellb1) and (v1vel <= velub1) and 
+  (v0posy >= 0/1) and (v1posy >= 0/1) and 
+  (v0posy > v1posy) .
+
+op testBounds : -> Boolean .
+eq testBounds 
+ = (vellb0 === 2/1) and (velub0 === 10/1) and 
+   (vellb1 === 2/1) and (velub1 === 10/1) and 
+   (maxacc0 === 2/1) and (maxdec0 === - 2/1) and 
+   (maxacc1 === 2/1) and (maxdec1 === - 2/1) and 
+   (safer0 === 2/1) and (safe0 === 1/1) and 
+   (safer1 === 2/1) and (safe1 === 1/1) and 
+   (dt === 1/10) .
+
+op as0 : Nat -> ASystem .
+eq as0(stp) = asys(33,basicCond and testBounds,stp) .
+
+
+endm
+
+mod TEST-CHECK-DUR is
+  inc SCENARIO-PLATOONING .
+
+var id0 : Id .
+
+***** Test Check Dur ****
+ops asys0 asys1 asys2 asys3 asys4 asys5 asys6 : -> ASystem .
+op dt1 : -> SymTerm .
+ops condDtSP condDt1SPs condIniSP condTime condFinal : -> Boolean .
+
+eq asys0 = fixDynamics(as0(20),getIds(as0(20))) .
+ops checkDurSafer checkDurSafe checkDurUnSafe : -> Bool .
+eq checkDurUnSafe 
+ = checkTimeDurSPtoSP1(unsafeSP,unsafeSP,asys0,getTickSize(asys0)) .
+--- reduce in TEST-CHECK-DUR : checkDurUnSafe .
+--- rewrites: 12228 in 0ms cpu (4324ms real) (~ rewrites/second)
+--- result Bool: (true).Bool
+
+
+eq checkDurSafe 
+ = checkTimeDurSPtoSP1(safeSP,safeSP,asys0,getTickSize(asys0)) .
+--- rewrites: 12657 in 0ms cpu (93ms real) (~ rewrites/second)
+--- result Bool: (true).Bool
+
+eq checkDurSafer 
+ = checkTimeDurSPtoSP1(saferSP,saferSP,asys0,dt) .
+--- rewrites: 12200 in 0ms cpu (1353ms real) (~ rewrites/second)
+--- result Bool: (true).Bool
+
+eq asys1 = enforceSP(saferSP,asys0) .
+eq condIniSP  = getBoolean(asys1) .
+eq asys2 = timeStep(asys1,dt) .
+eq asys3 = enforceSP(saferSP,asys2) .
+eq condDtSP  = getBoolean(asys3) .
+eq dt1 = vv(getSymCounter(asys3) + 1, "tick-size-alternative") .
+eq asys4 = upSymCounter(asys1,getSymCounter(asys3) + 2) .
+eq asys5 = timeStep(asys4,dt1) .
+eq asys6 = enforceNoSP(saferSP safeSP,asys5) .
+eq condDt1SPs  = getBoolean(asys6) .
+eq condFinal = condIniSP and condDtSP 
+            and (dt1 <= dt) and (dt1 > 0/1)
+            and condDt1SPs .
+*** red isSatModel(condFinal) .
+op asg : -> SmtCheckResult [memo] .
+eq asg = isSatModel(condFinal) .
+
+*** 
+op getPosY : Id ASystem -> Nat .
+op getPosY : Id KB -> Nat .
+eq getPosY(id0,asys:ASystem) 
+ = getPosY(id0,envKB(asys:ASystem)) .
+eq getPosY(id0,(atloc(id0,loc(v1:SymTerm,v2:SymTerm)) @ t:Nat) kb:KB) 
+ =  getNat(v2:SymTerm) .
+op getSpd : Id ASystem -> Nat .
+op getSpd : Id KB -> Nat .
+eq getSpd(id0,asys:ASystem) 
+ = getSpd(id0,envKB(asys:ASystem)) .
+eq getSpd(id0,(speed(id0,v2:SymTerm) @ t:Nat) kb:KB) 
+ =  getNat(v2:SymTerm) .
+op getAcc : Id ASystem -> Nat .
+op getAcc : Id KB -> Nat .
+eq getAcc(id0,asys:ASystem) 
+ = getAcc(id0,envKB(asys:ASystem)) .
+eq getAcc(id0,(accel(id0,v2:SymTerm) @ t:Nat) kb:KB) 
+ =  getNat(v2:SymTerm) .
+
+*** Asys0
+ops pos0I pos1I spd0I spd1I acc0 acc1 : -> SatAssignment . 
+eq pos0I = getAsg(getPosY(v(0),asys0),asg) .
+eq pos1I = getAsg(getPosY(v(1),asys0),asg) .
+eq spd0I = getAsg(getSpd(v(0),asys0),asg) .
+eq spd1I = getAsg(getSpd(v(1),asys0),asg) .
+eq acc0 = getAsg(getAcc(v(0),asys0),asg) .
+eq acc1 = getAsg(getAcc(v(1),asys0),asg) .
+
+*** Asys2
+ops pos0Dt pos1Dt spd0Dt spd1Dt : -> SatAssignment . 
+eq pos0Dt = getAsg(getPosY(v(0),asys2),asg) .
+eq pos1Dt = getAsg(getPosY(v(1),asys2),asg) .
+eq spd0Dt = getAsg(getSpd(v(0),asys2),asg) .
+eq spd1Dt = getAsg(getSpd(v(1),asys2),asg) .
+
+*** Asys6
+ops pos0Dt1 pos1Dt1 spd0Dt1 spd1Dt1 dt1Asg : -> SatAssignment . 
+eq pos0Dt1 = getAsg(getPosY(v(0),asys6),asg) .
+eq pos1Dt1 = getAsg(getPosY(v(1),asys6),asg) .
+eq spd0Dt1 = getAsg(getSpd(v(0),asys6),asg) .
+eq spd1Dt1 = getAsg(getSpd(v(1),asys6),asg) .
+eq dt1Asg = getAsg("tick-size-alternative",asg) .
+
+
+endm
+eof
+===============================================
+*** Experiments with
+*** maudez3 load-platooning-manh.maude
+
+*** chosen dt == 1/10 is ok for all properties.
+red checkTimeDur(as0(20)) .
+rewrites: 25733 in 29512ms cpu (29616ms real) (871 rewrites/second)
+result Bool: (true).Bool
+
+red checkTimeDurSPtoSPRel(saferSP,saferSP getRelSP(saferSP,none),asys0,dt) .
+rewrites: 8225 in 14619ms cpu (14647ms real) (562 rewrites/second)
+result Bool: (true).Bool
+
+red checkTimeDurSPtoSPRel(safeSP,safeSP getRelSP(safeSP,none),asys0,dt) .
+rewrites: 11930 in 110ms cpu (110ms real) (107998 rewrites/second)
+result Bool: (true).Bool
+
+red checkTimeDurSPtoSPRel(unsafeSP,unsafeSP getRelSP(unsafeSP,none),asys0,dt) .
+rewrites: 8204 in 20832ms cpu (20922ms real) (393 rewrites/second)
+result Bool: (true).Bool
+
+**** Checking transitions:
+red checkTimeDurSPtoSP1(saferSP,saferSP,asys0,dt) .
+rewrites: 4730 in 1302ms cpu (1311ms real) (3630 rewrites/second)
+result Bool: (true).Bool
+
+red checkTimeDurSPtoSP1(saferSP,safeSP,asys0,dt) .
+rewrites: 4718 in 1450ms cpu (1453ms real) (3253 rewrites/second)
+result Bool: (true).Bool
+
+red checkTimeDurSPtoSP1(safeSP,saferSP,asys0,dt) .
+rewrites: 4886 in 44ms cpu (45ms real) (109096 rewrites/second)
+result Bool: (true).Bool
+
+red checkTimeDurSPtoSP1(safeSP,safeSP,asys0,dt) .
+rewrites: 4807 in 46ms cpu (46ms real) (103977 rewrites/second)
+result Bool: (true).Bool
+
+red checkTimeDurSPtoSP1(safeSP,unsafeSP,asys0,dt) .
+rewrites: 4886 in 38ms cpu (39ms real) (126932 rewrites/second)
+result Bool: (true).Bool
+
+red checkTimeDurSPtoSP1(unsafeSP,safeSP,asys0,dt) .
+rewrites: 4818 in 11503ms cpu (11517ms real) (418 rewrites/second)
+result Bool: (true).Bool
+
+red checkTimeDurSPtoSP1(unsafeSP,unsafeSP,asys0,dt) .
+rewrites: 4709 in 3573ms cpu (3577ms real) (1317 rewrites/second)
+result Bool: (true).Bool
+
+
+
+
+
+
+rew[1] as0(20) .
+*** Reaches clock 5 after some time.
+
+search[1] enforceSP(saferSP,as0(3)) =>+ asys:ASystem such that not (checkSPModel(unsafeSP,asys:ASystem) == false) .
+No solution.
+states: 43  rewrites: 413770 in 0ms cpu (51232ms real) (~ rewrites/second)
+
+search[1] enforceSP(saferSP,as0(4)) =>+ asys:ASystem such that not (checkSPModel(unsafeSP,asys:ASystem) == false) .
+No solution.
+states: 91  rewrites: 1184066 in 0ms cpu (249803ms real) (~ rewrites/second)
+
+search[1] enforceSP(saferSP,as0(5)) =>+ asys:ASystem such that not (checkSPModel(unsafeSP,asys:ASystem) == false) .
+No solution.
+states: 187  rewrites: 3104818 in 0ms cpu (1424550ms real) (~ rewrites/second)
+
+search[1] enforceSP(saferSP,as0(6)) =>+ asys:ASystem such that not (checkSPModel(unsafeSP,asys:ASystem) == false) .
+*** Did not finish after 1 hour.
+
+=======================================
+********* Testing resilience *****
+red isResilient(['SCENARIO-PLATOONING], as0(2), 2, safeSP,unsafeSP,saferSP) .
+rewrites: 212965 in 2179ms cpu (2200ms real) (97711
+    rewrites/second)
+result Bool: (false).Bool
+red setStopTime(as0(2),2) .
+red afterTicksSP(['SCENARIO-PLATOONING],upTerm(enforceSP(safeSP,as0(2))),2,saferSP) .
+rewrites: 124223 in 1356ms cpu (1369ms real) (91591
+    rewrites/second)
+result Bool: (true).Bool
+red checkReachable(['SCENARIO-PLATOONING],upTerm(enforceSP(safeSP,as0(2))),unsafeSP) .
+rewrites: 88856 in 2401ms cpu (2407ms real) (36993
+    rewrites/second)
+result Bool: (true).Bool
+red getImGreater(unsafeSP,spset,none) .
+rewrites: 11 in 0ms cpu (0ms real) (~
+    rewrites/second)
+result SP: safeSP
+red checkImGrSP(['SCENARIO-PLATOONING],upTerm(enforceSP(safeSP,as0(2))),unsafeSP,safeSP,dt) .
+rewrites: 153446 in 1691ms cpu (1694ms real) (90742
+    rewrites/second)
+result Bool: (false).Bool
+
+red isResilient(['SCENARIO-PLATOONING], as0(2), 3, safeSP,unsafeSP,saferSP) .
+rewrites: 503857 in 23863ms cpu (23893ms real) (21113
+    rewrites/second)
+result Bool: (false).Bool
+
+===============================================
+Test timeStep
+red getAsg("ag0-positionX" "ag0-positionY" "ag0-speed" "ag1-positionX" "ag1-positionY" "ag1-speed" "ag1-maxDec", isSatModel(as0(10))) .
+
+Test timeStep
+red timeStep(as0(10),1/10) .
+red getAsg("ag1-positionX" "ag1-positionY" "ag1-speed" "ag1-Nu-speed" "ag1-Nu-positionX" "ag1-Nu-positionY" "ag1-Nu-acc", isSatModel(timeStep(as0(10),1/10))) .
+
+(r(vvv(2, "ag1-positionX")) |-> (0/1).Real),
+(r(vvv(3, "ag1-positionY")) |-> (341/200).Real),
+(r(vvv(5, "ag1-speed")) |-> (3/1).Real),
+(r(vvv(51, "ag1-Nu-speed")) |-> (29/10).Real),
+(r(vvv(52, "ag1-Nu-acc")) |-> (-1/1).Real),
+(r(vvv(54, "ag1-Nu-positionX")) |-> (0/1).Real),
+(r(vvv(55,"ag1-Nu-positionY")) |-> (2/1).Real),
+*** Auxiliary variables
+(r(vvv(57, "ag1-positionX")) |-> (0/1).Real),
+(r(vvv(58, "ag1-positionY")) |-> (2/1).Real),
+(r(vvv(59, "ag1-positionX")) |-> (0/1).Real),
+(r(vvv(60, "ag1-positionY")) |-> (-1/2).Real),
+(r(vvv(61, "ag1-positionX")) |-> (0/1).Real),
+(r(vvv(62, "ag1-positionY")) |-> (-3/4).Real),
+(r(vvv(63, "ag1-positionX")) |-> (0/1).Real),
+(r(vvv(64, "ag1-positionY")) |-> (807/400).Real),
+(r(vvv(65, "ag1-positionX")) |-> (0/1).Real),
+r(vvv(66,  "ag1-positionY")) |-> (2/1).Real
+
+========================
+For 
+maudez3 load-platooning-simplified.maude
+
+*** Using normal timestepY 
+reduce in SCENARIO-PLATOONING : asg .
+rewrites: 6091 in 3353ms cpu (3374ms real) (1816 rewrites/second)
+result Bool: (false).Bool
+
+*** Using normal timestep 
+reduce in SCENARIO-PLATOONING : asg .
+rewrites: 9341 in 0ms cpu (1266ms real) (~ rewrites/second)
+result Bool: (false).Bool
+
+============================
+For 
+maudez3 load-platooning-manh.maude
+
+reduce in SCENARIO-PLATOONING : asg .
+rewrites: 10325 in 0ms cpu (1316ms real) (~ rewrites/second)
+result Bool: (false).Bool
+
+============================
+For 
+maudez3 load-platooning.maude
+reduce in SCENARIO-PLATOONING : asg .
+Does not terminate!
+
+
+
+

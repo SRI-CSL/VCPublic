@@ -1,0 +1,142 @@
+ mod SCENARIO-TEMPLATE-PLATOONING is
+ inc SENSOR-FAULTS .
+ inc SOFT-AGENT-RULES .
+ inc ENV-ACTIONS .
+ inc UTILS-VEHICLE .
+ inc SAFETY-PROPERTIES .
+ inc META-SEARCH .
+ inc TICK-DURATION-PROP .
+
+ vars lkb ekb0 ekb1 kb kb1 : KB .
+ var id0 : Id .
+ var conf : Conf .
+ var env : Env .
+ vars cond cond00 nucond : Boolean . 
+ vars ff0 ff1 ff2 ff3 dis v0 v1 : SymTerm .
+ vars t t0 t1 t2 n t3 t4 k stp : Nat .
+ var numVars : Nat .
+ var b1 : Bool .
+ var smtRes1 : SmtCheckResult .
+ vars l0 l l1 l2 : Loc .
+ vars asys0 asys1 : ASystem .
+ vars gapSafe gapSafer : RealSym .
+
+ op v : Nat -> Id .
+ eq string(v(k:Nat)) = "ag" + string(k:Nat,10) .
+
+ op stopTick : -> Nat .
+
+**** Initial symbols
+ ops v0posx v0posy v1posx v1posy v0vel v1vel
+     maxacc0 maxdec0 maxacc1 maxdec1 vellb0 velub0
+     vellb1 velub1 v0inix v0iniy v0tarx v0tary v0mag
+     v1inix v1iniy v1tarx v1tary v1mag 
+     safer0 safe0 safer1 safe1 gapNxt dt : -> SymTerm .
+ 
+ eq v0posx = vv(0,"ag0-positionX") .
+ eq v0posy = vv(1,"ag0-positionY") .
+ eq v1posx = vv(2,"ag1-positionX") .
+ eq v1posy = vv(3,"ag1-positionY") .
+ eq v0vel = vv(4,"ag0-speed") .
+ eq v1vel = vv(5,"ag1-speed") .
+ eq maxacc0 = vv(7,"ag0-maxAcc") .
+ eq maxdec0 = vv(8,"ag0-maxDec") .
+ eq maxacc1 = vv(9,"ag1-maxAcc") .
+ eq maxdec1 = vv(10,"ag1-maxDec") .
+ eq vellb0 = vv(11,"ag0-speed-lower-bound") .
+ eq velub0 = vv(12,"ag0-speed-upper-bound") .
+ eq vellb1 = vv(13,"ag1-speed-lower-bound") .
+ eq velub1 = vv(14,"ag1-speed-upper-bound") .
+ eq v0inix = vv(15,"ag0-inix") .
+ eq v0iniy = vv(16,"ag0-iniy") .
+ eq v0tarx = vv(17,"ag0-tarx") .
+ eq v0tary = vv(18,"ag0-tary") .
+ eq v0mag = vv(19,"ag0-dir-mag") .
+ eq v1inix = vv(20,"ag1-inix") .
+ eq v1iniy = vv(21,"ag1-iniy") .
+ eq v1tarx = vv(22,"ag1-tarx") .
+ eq v1tary = vv(23,"ag1-tary") .
+ eq v1mag = vv(24,"ag1-dir-mag") .
+ eq safer0 = vv(25,"ag0-safer") .
+ eq safe0 = vv(26,"ag0-safe") .
+ eq safer1 = vv(27,"ag1-safer") .
+ eq safe1 = vv(28,"ag1-safe") .
+ eq gapNxt = vv(29,"ag1-gap-next") .
+ eq dt = vv(30,"tick-size") .
+ 
+*** Safety Properties
+ops safeSP saferSP unsafeSP : -> SP .
+eq spset = safeSP saferSP unsafeSP .
+eq unsafeSP < safeSP = true .
+eq safeSP < saferSP = true .
+
+**** Safer property
+ceq mkSPCond(saferSP, { conf env })
+  = {k + 1,dis,cond00,nucond}
+  if [id0 | kb] := env
+  /\ (atloc(v(0),l0) @ t0)
+     (atloc(v(1),l1) @ t1)
+     (speed(v(0),v0) @ t2) 
+     (speed(v(1),v1) @ t3)
+     (gapSafety(v(1),gapSafer,gapSafe)) 
+     (constraint(n,cond)) kb1 := kb
+  /\ {k,dis,cond00} := yldist(n,l1,l0)
+  /\ nucond := ((dis >= (1/1 + gapSafer) * v1 - v0)) .
+
+**** Safe property
+ceq mkSPCond(safeSP, { conf env })
+  = {k + 1,dis,cond00, nucond}
+  if [id0 | kb] := env
+  /\ (atloc(v(0),l0) @ t0)
+     (atloc(v(1),l1) @ t1)
+     (speed(v(0),v0) @ t2) 
+     (speed(v(1),v1) @ t3)
+     (gapSafety(v(1),gapSafer,gapSafe)) 
+     (constraint(n,cond)) kb1 := kb
+  /\ {k,dis,cond00} := yldist(n,l1,l0)
+  /\ nucond := ((dis < (1/1 + gapSafer) * v1 - v0)) and 
+               ((dis >= (1/1 + gapSafe) * v1 - v0)) .
+
+**** unsafe property
+ceq mkSPCond(unsafeSP, { conf env })
+  = {k + 1,dis,cond00,nucond}
+  if [id0 | kb] := env
+  /\ (atloc(v(0),l0) @ t0)
+     (atloc(v(1),l1) @ t1)
+     (speed(v(0),v0) @ t2) 
+     (speed(v(1),v1) @ t3)
+     (gapSafety(v(1),gapSafer,gapSafe)) 
+     (constraint(n,cond)) kb1 := kb
+  /\ {k,dis,cond00} := yldist(n,l1,l0)
+  /\ nucond := ((dis < (1/1 + gapSafe) * v1 - v0)) .
+
+*** Initial LKBs
+ ops lkb0 lkb1 lkbPed : -> KB .
+ op ekb : Nat Boolean Nat -> KB .
+
+ eq tickDelay = 1 .
+
+ op stop : Nat -> PKItem .
+ eq updateConf(conf [ eId | clock(t) stop(t) lkb])
+ = [eId | clock(t) lkb] .
+
+**** SENSORS
+ eq sset = (locS speedS gapS) .
+
+*** Environment and Agent IDs and initial configurations
+*** Use functions in UTILS-VEHICLE
+ op eId : -> Id .
+ ops veh1 veh0 : -> Agent .
+ eq veh0 = mkVeh(v(0),lkb0) .
+ eq veh1 = mkVeh(v(1),lkb1) .
+
+ op scenario : Nat Boolean Nat -> Conf .
+ eq scenario(numVars,cond,stp) = veh0 veh1
+               [eId | ekb(numVars,cond,stp) ] .
+
+ op asys : Nat Boolean Nat -> ASystem .
+ eq asys(numVars,cond,stp) = { scenario(numVars,cond,stp) } .
+
+endm
+
+eof

@@ -1,0 +1,4 @@
+load ../lib/load-lib
+load lib-vehicle/knowledge
+load lib-vehicle/scp-symbolic
+load lib-vehicle/tickDurationLib

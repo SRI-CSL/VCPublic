@@ -1,0 +1,219 @@
+**** load time.maude
+
+fmod ID-SET is
+  inc STRING .
+  sorts Id IdList IdSet .
+  subsort Id < IdSet .
+  subsort Id < IdList .
+  op none : -> IdSet [ctor] .
+  op __ : IdSet IdSet -> IdSet [ctor assoc comm id: none] .
+  op nil : -> IdList [ctor] .
+  op _;_ : IdList IdList -> IdList [ctor assoc  id: nil] .
+  op string : Id -> String .
+
+  var id : Id .  var ids : IdSet .
+  
+  op member : Id IdSet -> Bool .
+  eq member(id, id ids) = true .
+  eq member(id, ids) = false [owise] .
+  
+  op eltOf : Id IdList -> Bool .
+  eq eltOf(id,idL0:IdList ; id ; idL1:IdList) = true .
+  eq eltOf(id,idL:IdList) = false [owise] .
+  
+endfm
+
+**** Knowledge data types
+fmod KNOWLEDGE is
+  pr ID-SET .
+  pr NAT-TIME-INF .
+*****  pr TIME-INF .
+  sort KB . 
+  subsort KItem < KB .
+  op none : -> KB [ctor] .
+  op __ : KB KB -> KB [ctor assoc comm id: none] .
+  op sizeKB : KB -> Nat .
+  eq sizeKB(none) = 0 .
+  eq sizeKB(kbitem:KItem kb:KB)
+   = 1 + sizeKB(kb:KB) .
+
+  sort KBSet .
+  subsort KB < KBSet .
+  op noKBs : -> KBSet .
+  op _ ; _ : KBSet KBSet -> KBSet [comm assoc id: noKBs] .
+
+  op sizeKB : KBSet -> Nat .
+  eq sizeKB(noKBs) = 0 .
+  eq sizeKB(kb:KB ; kbs:KBSet)
+   = 1 + sizeKB(kbs:KBSet) .
+
+  sorts PKItem TKItem KItem .
+  subsort PKItem TKItem < KItem .  **** Persistent, Timed   
+
+  sort Class .
+  op class : Id Class -> PKItem .
+
+  sort Info .
+  op _@_ : Info Time -> TKItem .
+
+  sort InfoSet .  
+  subsort Info < InfoSet .
+  op none : -> InfoSet [ctor] .
+  op __ : InfoSet InfoSet -> InfoSet [ctor assoc comm id: none] .
+
+  op _<<_ : KItem KItem -> Bool .  ************* Knowledge PO
+  eq ki << ki' = false [owise] .
+
+  sort KBPair .
+  op {_,_} : KB KB -> KBPair [ctor] .
+
+  sort KBPairSet .
+  subsort KBPair < KBPairSet .
+  op none : -> KBPairSet [ctor] .
+  op __ : KBPairSet KBPairSet -> KBPairSet [ctor assoc comm id: none] .
+
+  var id : Id .  var cl : Class .  vars ki ki' : KItem .
+  vars kb kb0 kb1 kb2 kb2' kfresh lkb lkb' rcvk : KB .
+  
+  op getClass : Id KB -> [Class] .
+  eq getClass(id, class(id,cl) kb) = cl .
+
+  --- {kb2',fresh} new kb2 and elements of kb1 fresh for kb2 (fresh subset kb2')
+  op share : KB KB KB -> KBPair .  
+  eq share(none,kb2,kb0) = {kb2,kb0} .
+ ceq share(ki kb1,kb2,kb0) = share(kb1,kb2',kb0 kfresh)
+    if {kfresh,kb2'} := freshen(ki,kb2)  [owise] .
+  
+  op freshen : KItem KB  -> KBPair .  --- {ki or none, freshened kb2}
+ ceq freshen(ki, ki' kb2) = freshen(ki,kb2)  if ki' << ki .  --- remove replaceable
+ ceq freshen(ki, ki' kb2) = {none,ki' kb2} if ki << ki' .    --- nothing to add
+  eq freshen(ki, ki  kb2) = {none,ki kb2}  .
+  eq freshen(ki ,    kb2) = {ki,ki kb2} [owise] .   --- add ki
+  
+  op addK : KB KB -> KB .   --- resolving <=
+  eq addK(lkb,none) = lkb .
+ ceq addK(lkb,ki rcvk) = addK(lkb', rcvk)
+    if {kfresh,lkb'} := freshen(ki,lkb)  .  --- kfresh allready in lkb'
+
+  ***** agent class spec must define equations for additional KITems
+  op hasId : Id KItem -> Bool .
+  eq hasId(id,class(id,cl)) = true .
+  eq hasId(id,ki) = false [owise] .
+  
+  op restrictKB : Id KB -> KB . **** info specific to id
+  eq restrictKB(id, ki kb) =
+       (if hasId(id,ki) then ki else none fi) restrictKB(id,kb) .
+  eq restrictKB(id,none) = none  .
+  
+  op restrictKBNot : Id KB -> KB .
+  eq restrictKBNot(id, ki kb) =
+       (if hasId(id,ki) then none else ki fi) restrictKBNot(id,kb) .
+  eq restrictKBNot(id,none) = none .
+endfm
+
+
+fmod CLOCK-KNOWLEDGE is
+  inc KNOWLEDGE .
+  inc SYM-REAL .
+
+  var kb : KB . vars t t' : Time .
+
+  op clock : Time -> KItem [ctor] .
+  op getTime : KB -> TimeInf .
+  eq getTime(clock(t) kb) = t .
+  eq getTime(kb) = infty [owise] .
+
+  eq clock(t) << clock(t') = t lt t' .
+
+  *** knowledge item specifying the duration of a logical tick.
+  op tickSize : SymTerm -> PKItem .
+  *** knowledge item specifying a bound on the clock.
+  op stop : Nat -> PKItem .
+  
+endfm
+
+
+**** For mobility and communication need a general notion of 
+**** location/distance.
+fmod LOCATION-KNOWLEDGE is
+  inc KNOWLEDGE .
+  pr NAT .
+ 
+  sort Loc .
+  op noLoc : -> Loc [ctor] .
+  op atloc : Id Loc -> Info [ctor] .
+
+  sort LocSet .
+  subsort Loc < LocSet .
+  op none : -> LocSet [ctor] .
+  op __ : LocSet LocSet -> LocSet [ctor assoc comm id: none] .
+
+  var id : Id .  var kb : KB .  var t t0 t1 : Time .
+  vars loc loc0 loc1 loc' : Loc .  var locs : LocSet .
+
+  ***op hasId : Id KItem -> Bool .
+  eq hasId(id, atloc(id,loc) @ t) = true .
+
+  op getLoc : Id KB -> Loc .
+  eq getLoc(id,(atloc(id,loc) @ t) kb) = loc . --- assume at most one atloc fact for id
+  eq getLoc(id,kb) = noLoc [owise] .
+  
+  op rmLoc : Id KB -> KB .
+  eq rmLoc(id,(atloc(id,loc) @ t) kb) = kb .
+  eq rmLoc(id,kb) = kb [owise] .
+
+  op distance : Loc Loc -> Nat [comm] . 
+  eq distance(loc,loc) = 0 .
+
+  op member : Loc LocSet -> Bool .
+  eq member(loc, loc locs) = true .
+  eq member(loc, locs) = false [owise] .
+
+***** partial order
+  eq (atloc(id,loc0) @ t0) << (atloc(id,loc1) @ t1) = t0 < t1 .
+
+endfm
+
+fmod SENSOR-KNOWLEDGE is
+  inc KNOWLEDGE .
+
+  var i : Nat .
+  vars kb1 kb2 : KB .
+  var cond : Boolean .
+
+  sort Sensor .
+  op locS : -> Sensor [ctor] .
+  sort SensorSet .  subsort Sensor < SensorSet .
+  op none : -> SensorSet [ctor] .
+  op __ : SensorSet SensorSet -> SensorSet [ctor assoc comm id: none] .
+
+sorts NatKBKBBoolean NatKBKBBooleanSet .
+subsort NatKBKBBoolean < NatKBKBBooleanSet .
+op {_,_,_,_} : Nat KB KB Boolean -> NatKBKBBoolean .
+op none : -> NatKBKBBooleanSet [ctor] .
+op __ : NatKBKBBooleanSet NatKBKBBooleanSet -> NatKBKBBooleanSet [ctor assoc comm id: none] .
+
+
+op getNat : NatKBKBBoolean -> Nat .
+op getKB1 : NatKBKBBoolean -> KB .
+op getKB2 : NatKBKBBoolean -> KB .
+op getBoolean : NatKBKBBoolean -> Boolean .
+
+eq getNat({i,kb1,kb2,cond}) = i .
+eq getKB1({i,kb1,kb2,cond}) = kb1 .
+eq getKB2({i,kb1,kb2,cond}) = kb2 .
+eq getBoolean({i,kb1,kb2,cond}) = cond .
+
+**** used by doTask rule
+  op readSensors : Nat Id SensorSet KB -> NatKBKBBoolean .
+
+*** For symbolic search to work, one needs the following function to identify which vehicles are *expected* to be ahead.
+op getNextVeh : Id KB -> Id .
+
+endfm
+
+fmod SA-KNOWLEDGE is
+  inc CLOCK-KNOWLEDGE .
+  inc LOCATION-KNOWLEDGE .
+  inc SENSOR-KNOWLEDGE .
+endfm  

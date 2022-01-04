@@ -1,0 +1,168 @@
+mod SOFT-AGENT-RULES is
+  inc SOFT-AGENTS .
+  inc META-CONVERSION .
+  
+var t : Time .
+var nzt : NzTime . 
+vars a a1 a2 id id1 id2 eid id0 : Id .
+vars cl cl1 cl2 : Class .
+var ids : IdSet .
+var ki : KItem .
+vars kb kb1 lkb lkb1 lkb2 ckb ckb' ckb1 ckb2 ekb ekb' ekb0 ekb1 ekb2 skb : KB .
+vars kekset kekset0 : KBEventsKBSet .
+vars ckb1' ckb2' rcvk rcvk1 rcvk2 lkb' newkb oldkb : KB .
+vars evs evs' evs1 evs2 ievs devs devs1 : EventSet .
+var ev : Event .
+var b : Bool .
+var info : Info .
+var act : Action . 
+var env : Env .
+var iset : InfoSet .
+vars conf aconf aconf0 aconf1 aconf2 aconf3 aconf4 : Conf .
+var task  : Task .
+var tasks  : TaskSet .
+vars ats ats1 ats2 : AttributeSet . 
+var sset : SensorSet .
+vars i j k n : Nat .
+vars cond cond1 cond2 : Boolean .
+vars skbevkbset skbevkbset0 : SKBEventsKBSet .
+var smtids : SMTVarIds .
+vars bexp1 bexp bexp2 : BooleanExpr .
+var nkbkbbools : NatKBKBBooleanSet .
+
+
+op mkRgCons : Nat Boolean -> Boolean .
+eq mkRgCons(s(i),cond)
+ = mkRgCons(i,(vv(s(i)) >= 0/1) 
+               and cond) .
+eq mkRgCons(0,cond) 
+ = (vv(0) >= 0/1) and cond .
+
+
+op shareKnowledge : Conf -> Conf .
+op shareKnowledge1 : Agent Conf Conf -> Conf .
+
+eq shareKnowledge([id1 : cl1 | ckb : ckb1, evs : evs1, ats1] aconf) =
+    shareKnowledge1([id1 : cl1 | ckb : ckb1, evs : evs1, ats1], aconf,none) .
+
+**** no more agents to share
+eq shareKnowledge(aconf) = aconf [owise] .
+
+ceq shareKnowledge1([id1 : cl1 | ckb : ckb1, evs : evs1, ats1], 
+                   [id2 : cl2 | ckb : ckb2, evs : evs2, ats2] [eid | ekb] aconf,
+		     					 aconf0)  
+    = shareKnowledge1([id1 : cl1 | ckb : ckb1', evs : addRcv(evs1,rcvk1), ats1], 
+                      [eid | ekb] aconf,
+						        aconf0 [id2 : cl2 | ckb : ckb2', evs : addRcv(evs2, rcvk2), ats2])
+  if  inContact(id1,id2,ekb) 
+  /\ {ckb1', rcvk1} := share(ckb2,ckb1,none)   --- from ckb2 to ckb1
+  /\ {ckb2', rcvk2} := share(ckb1,ckb2,none)   --- from ckb1 to ckb2
+.
+
+**** no more sharing for id1
+eq shareKnowledge1([id1 : cl1 | ckb : ckb1, evs : evs1, ats1], aconf, aconf0) 
+  = shareKnowledge(aconf0 aconf) [id1 : cl1 | ckb : ckb1, evs : evs1, ats1] [owise] .
+
+
+**** assuming 0 or 1 rcv(kb) in evs, this collects all shared knowledge in one lump
+op addRcv : EventSet KB -> EventSet .
+eq addRcv(rcv(rcvk1) evs1, rcvk2) = rcv(addK(rcvk1,rcvk2)) evs1 .
+eq addRcv(evs1, rcvk2) =  rcv(rcvk2) evs1 [owise] .
+
+**** Agents have class specific knowledge handling rules
+**** The agent can update its local kb.  
+****  posting assumes the agent has acted on the info 
+**** NOTE: clock info should be in lkb. 
+**** doTask gets result of reading sensors nameed in sensors attr
+***                             ievs      devs   skb lkb
+*** op doTask : Class Id Task EventSet EventSet KB  KB -> KBEvents .
+
+var doTaskRes : DoTaskResults .
+
+crl[doTasks]:
+[id : cl | lkb : lkb, evs : ((task @ 0) evs), ckb : ckb, 
+           sensors : sset, ats] [eid | ekb ]
+=>
+[id : cl | lkb : lkb', evs : evs',  ckb : ckb', sensors : sset, ats]
+[eid | ekb2 ]
+if t := getTime(lkb)
+/\ constraint(i,cond) ekb0 := ekb
+/\ {ievs,devs} := splitEvents(evs,none)
+/\ {tasks,devs1} := splitTasks0(devs,none)
+/\ {j,skb,ekb',cond1} nkbkbbools := readSensors(i,id,sset,ekb)
+/\ {k,skbevkbset} doTaskRes := 
+        doTasks(cl,id,j,task tasks,ievs,devs1,skb,lkb,cond and cond1) 
+/\ {lkb',evs',kb,cond2} skbevkbset0 := selectKeK(lkb,skbevkbset)
+/\ isSat(cond2) 
+/\ ckb' := addK(ckb,kb)
+/\ ekb2 := ekb0 constraint(k,cond2) 
+[print "\ndoTasks: " t ] .
+
+op toPrintKBL : Id KB -> KB .
+eq toPrintKBL(id,kb) = none [owise] .
+
+op toPrintEvs : KBEventsKBSet -> EventSet .
+eq toPrintEvs(kekset) = none [owise] .
+
+op toPrintKB : KB -> KB .
+eq toPrintKB(kb) = none [owise] .
+
+crl[timeStep]:
+{ aconf } 
+=> 
+{ aconf2 }
+if nzt := mte(aconf)
+/\ ekb := envKB(aconf)
+/\ t := getTime(ekb)
+/\ i := getVarNat(ekb)
+/\ cond := getBoolean(ekb)
+/\ evs := effActs(aconf)
+/\ {j,ekb0,cond1} nkb:NatKBBooleanSet 
+          := doEnvAct(i,t, nzt, ekb, evs,cond)
+/\ isSat(cond1) 
+/\ ekb' := resolveKB(getEnvId(aconf), ekb0, ekb)
+/\ aconf0 := updateEKB(ekb',timeEffect(aconf,nzt))
+/\ aconf1 := shareKnowledge(aconf0)
+/\ aconf4 := processNet(aconf1)
+/\ aconf3 := updateLog(aconf4, t,nzt,evs)
+/\ aconf2 := updateConf(aconf3)
+[print "\ntimeStep: " t ] 
+--- /\ evs1 := getRankedEvs(evs)
+--- /\ ekb1 := toPrintKB(envKB(aconf4))
+--- [print "\ntimeStep: " t  "\n\t" evs "\n\t" ekb1] 
+--- **** [print "\ntimeStep: " t  "\n\t" evs1 "\n\t" ekb1] 
+.
+
+
+endm 
+
+
+eof
+
+**** Old timestep
+
+crl[timeStep]:
+{ aconf } 
+=> 
+{ aconf2 }
+if nzt := mte(aconf)
+/\ constraint(i,cond) ekb := envKB(aconf) 
+/\ t := getTime(ekb)
+/\ evs := effActs(aconf)
+/\ {j,ekb0,cond1} nkb:NatKBBooleanSet 
+          := doEnvAct(i,t, nzt, ekb, evs,cond)
+/\ isSat(cond1) 
+/\ ekb' := resolveKB(getEnvId(aconf), ekb0, ekb)
+/\ aconf0 := updateEnv(ekb',timeEffect(aconf,nzt),j,cond1)
+/\ aconf1 := shareKnowledge(aconf0)
+/\ aconf4 := processNet(aconf1)
+/\ aconf3 := updateLog(aconf4, t,nzt,evs)
+/\ aconf2 := updateConf(aconf3) 
+--- /\ evs1 := getRankedEvs(evs)
+--- /\ ekb1 := toPrintKB(envKB(aconf4))
+--- [print "\ntimeStep: " t  "\n\t" evs "\n\t" ekb1] 
+--- **** [print "\ntimeStep: " t  "\n\t" evs1 "\n\t" ekb1] 
+.
+
+
+

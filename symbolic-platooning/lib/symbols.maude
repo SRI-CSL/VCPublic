@@ -1,0 +1,641 @@
+fmod SYM-REAL is 
+  pr REAL .
+  pr REAL-INTEGER .
+  inc NAT .
+  inc STRING .
+
+  vars tt1 tt2 tt3 : RealSym .
+  vars tr1 tr2 tr0 : SymTerm .
+  var r : Real .
+  vars b b0 b1 b2 b3 cb0 cb1 cb2 : Boolean .
+  var n  n0 : Nat .
+  vars bs bs0 bs1 : Booleans .
+  vars str strAcc : String .
+  var strs : Strings .
+
+  sort Strings .
+  subsort String < Strings .
+  op none : -> Strings [ctor] .
+  op __ : Strings Strings -> Strings [ctor comm assoc id: none format (d ni d)] . 
+  op toSet : Strings -> Strings .
+  eq toSet(str str strs) 
+   = toSet(str strs) .
+  eq toSet(strs) = strs [owise] .
+
+  op mem : String Strings -> Bool .
+  eq mem(str,str strs) = true .
+  eq mem(str,strs) = false [owise] .
+
+  op mergeStrings : Strings String -> String .
+  eq mergeStrings(none,strAcc) = strAcc .
+  eq mergeStrings(str strs,strAcc)
+   = mergeStrings(strs,strAcc + str + "\n") .
+
+  sort RealSym SymTerm .
+  op vv : Nat -> RealSym .
+  op vv : Nat String -> RealSym .
+  op uv : Nat -> RealSym .
+
+  op getNat : RealSym -> Nat .
+  eq getNat(vv(n:Nat)) = n:Nat .
+  eq getNat(vv(n:Nat,str:String)) = n:Nat .
+  eq getNat(uv(n:Nat)) = n:Nat .
+
+  --- subsort NzNat < SymTerm .
+  subsort Real < SymTerm .
+  subsort RealSym < SymTerm . 
+  op _<=_ : SymTerm SymTerm -> Boolean  [ditto] .
+  op _>=_ : SymTerm SymTerm -> Boolean  [ditto] .
+  op _>_ : SymTerm SymTerm -> Boolean [ditto] .
+  op _<_ : SymTerm SymTerm -> Boolean [ditto] .
+  op _===_ : SymTerm SymTerm -> Boolean [ditto] .
+  op _=/==_ : SymTerm SymTerm -> Boolean [ditto] .
+
+  op -_ : SymTerm -> SymTerm [ditto] .
+  op _+_ : SymTerm SymTerm -> SymTerm [ditto] .
+  op _*_ : SymTerm SymTerm -> SymTerm [ditto] .
+  op _-_ : SymTerm SymTerm -> SymTerm [ditto] .
+  op _/_ : SymTerm SymTerm -> SymTerm [ditto] .
+  op _?_:_ : Boolean SymTerm SymTerm -> SymTerm [ditto] .
+  --- These functions are SMT specific which converts from Real to Int and Int to Real.
+  op toReal : RealSym -> SymTerm [ctor] .
+  op toInt : SymTerm -> RealSym [ctor] .
+
+  op tsubr : RealSym SymTerm SymTerm -> SymTerm .
+  op tsubb : RealSym SymTerm Boolean -> Boolean .
+
+  eq tsubb(tt1,tr0,b) = b [owise] .
+  eq tsubb(tt1,tr0,tr1 < tr2) = 
+   tsubr(tt1,tr0,tr1) < tsubr(tt1,tr0,tr2) .
+  eq tsubb(tt1,tr0,tr1 <= tr2) = 
+   tsubr(tt1,tr0,tr1) <= tsubr(tt1,tr0,tr2) .
+  eq tsubb(tt1,tr0,tr1 >= tr2) = 
+   tsubr(tt1,tr0,tr1) >= tsubr(tt1,tr0,tr2) .
+  eq tsubb(tt1,tr0,tr1 > tr2) = 
+   tsubr(tt1,tr0,tr1) > tsubr(tt1,tr0,tr2) .
+  eq tsubb(tt1,tr0,tr1 === tr2) = 
+   tsubr(tt1,tr0,tr1) === tsubr(tt1,tr0,tr2) .
+  eq tsubb(tt1,tr0,tr1 =/== tr2) = 
+   tsubr(tt1,tr0,tr1) =/== tsubr(tt1,tr0,tr2) .
+
+  eq tsubr(tt1,tr0,tt1) = tr0 .
+  eq tsubr(tt1,tr0,tr1) = tr1 [owise] .
+  eq tsubr(tt1,tr0,- tr1) = - tsubr(tt1,tr0,tr1) .
+  eq tsubr(tt1,tr0,tr1 + tr2) = 
+       tsubr(tt1,tr0,tr1) + tsubr(tt1,tr0,tr2) .
+  eq tsubr(tt1,tr0,tr1 * tr2) = 
+       tsubr(tt1,tr0,tr1) * tsubr(tt1,tr0,tr2) .
+  eq tsubr(tt1,tr0,tr1 - tr2) = 
+       tsubr(tt1,tr0,tr1) - tsubr(tt1,tr0,tr2) .
+  eq tsubr(tt1,tr0,tr1 / tr2) = 
+       tsubr(tt1,tr0,tr1) / tsubr(tt1,tr0,tr2) .
+  eq tsubr(tt1,tr0,b ? tr1 : tr2) = 
+       tsubb(tt1,tr0,b) ?
+         tsubr(tt1,tr0,tr1) : tsubr(tt1,tr0,tr2) .
+  eq tsubr(tt1,tr0,toReal(toInt(tr1))) = 
+     toReal(toInt(tsubr(tt1,tr0,tr1))) .
+
+--- Assuming that r is positive!
+op simplify : Boolean -> Boolean .
+eq simplify(false and b) = false .
+eq simplify((tt1 > tt1 + r) and b) = false .
+eq simplify((tt1 >= tt1 + r) and b) = false .
+eq simplify((tt1 + r < tt1) and b) = false .
+eq simplify((tt1 + r <= tt1) and b) = false .
+eq simplify((tt1 === tt1 + r) and b) = false .
+eq simplify((tt1 <= tt1 + r) and b) = simplify(b) .
+eq simplify((tt1 < tt1 + r) and b) = simplify(b) .
+eq simplify((tt1 + r > tt1) and b) = simplify(b) .
+eq simplify((tt1 + r >= tt1) and b) = simplify(b) .
+eq simplify((tt1 === tt1) and b) = simplify(b) .
+eq simplify((tt1 === tt2 + 0/1) and b) = simplify((tt1 === tt2) and b) .
+eq simplify((tt1 >= tt2 + 0/1) and b) = tt1 >= tt2 and b .
+eq simplify((tt1 > tt2 + 0/1) and b) = tt1 > tt2 and b .
+eq simplify((tt1 >= tt2 + r) and (tt1 >= tt2) and b) = 
+           (tt1 >= tt2 + r) and b .
+eq simplify((tt1 >= tt2) and (tt1 >= tt2 + r) and b) = 
+           (tt1 >= tt2 + r) and b .
+
+eq simplify(b) = b [owise] .
+
+op toCNF : Boolean -> Boolean .
+**** and across or from left
+op toCNFX : Boolean Boolean -> Boolean .
+****  left is single clause, to be ored with right which is cnf 
+op toCNFXX : Boolean Boolean -> Boolean .
+
+op toNNF : Boolean -> Boolean .
+eq toNNF(b1 and b2) 
+  = (toNNF(b1) and toNNF(b2)) .
+eq toNNF(b1 or b2) 
+  = (toNNF(b1) or toNNF(b2)) .
+eq toNNF(not (b1 and b2)) 
+  = (toNNF(not b1) or toNNF(not b2)) .
+eq toNNF(not (b1 or b2)) 
+  = (toNNF(not b1) and toNNF(not b2)) .
+eq toNNF(not (not b1)) 
+  = toNNF(b1) .
+eq toNNF(not true) = false .
+eq toNNF(not false) = true .
+eq toNNF(b1) = b1 [owise] .
+
+ceq toCNF(b0 and b1) =
+   (if ((cb0 == false) or (cb1 == false)) 
+    then false
+    else (if cb0 == true
+          then cb1 
+          else (if cb1 == true 
+                then cb0
+                else cb0 and cb1 fi) fi) fi)
+  if cb0 := toCNF(b0)
+  /\ cb1 := toCNF(b1) .
+
+eq toCNF(b0 or b1) = toCNFX(toCNF(b0), toCNF(b1)) .
+
+eq toCNF(b0) = b0 [owise] .
+
+**** cb is either true, false, an or of 1 or more literas or
+**** a conjuction of clauses
+
+eq toCNFX(cb0 and cb1,cb2) = toCNFX(cb0,cb2) and toCNFX(cb1,cb2) .
+eq toCNFX(true,cb2) = true .
+eq toCNFX(false,cb2) = cb2 .
+eq toCNFX(cb1,cb2) = toCNFXX(cb1,cb2) [owise] .  --- cb1 is an or/clause
+
+**** cb0 is a clause 
+eq toCNFXX(cb0,cb1 and cb2) 
+         = toCNFXX(cb0,cb1) and toCNFXX(cb0,cb2) .
+eq toCNFXX(cb0,true) = true .
+eq toCNFXX(cb0,false) = cb0 .
+eq toCNFXX(cb0,cb2) = cb0 or cb2 [owise] .  
+
+sort Booleans .
+subsort Boolean < Booleans .
+op none : -> Booleans [ctor] .
+op __ : Booleans Booleans -> Booleans [ctor comm assoc id: none format (d ni d)] . 
+
+op getClauses : Boolean -> Booleans .
+eq getClauses(b0 and b1)
+ = getClauses(b0) getClauses(b1) .
+eq getClauses(b0 or b1) = b0 or b1 .  
+eq getClauses(true) = true .  
+eq getClauses(false) = false .
+eq getClauses(b) = b [owise] .
+
+****clt tinkering
+op getL : Boolean -> Boolean .
+op getR : Boolean -> Boolean .
+
+eq getL(b0 and b1) = b0 .
+eq getL(b0 or b1) = b0 .
+eq getL(b0) = b0 [owise] .
+
+eq getR(b0 and b1) = b1 .
+eq getR(b0 or b1) = b1 .
+eq getR(b0) = b0 [owise] .
+
+op bsize : Booleans -> Nat .
+op bsizeX : Booleans Nat -> Nat .
+eq bsize(bs) = bsizeX(bs,0) .
+eq bsizeX(b bs,n) = bsizeX(bs,s n) .
+eq bsizeX(none,n) = n  .
+
+**** subseq starting with n0 for n
+op getB : Booleans Nat  Nat -> Booleans .
+op getBX : Booleans Nat Booleans -> Booleans .
+
+eq getB(bs,0,n) = getBX(bs,n,none) .
+eq getB(b bs,s n0,n) = getB(bs,n0,n) .
+eq getB(bs,s n,n0) = none [owise] .
+
+eq getBX(bs,0,bs0) = bs0 . 
+eq getBX(b bs,s n,bs0) = getBX(bs,n,bs0 b) .
+eq getBX(none,s n,bs0) = bs0 .
+
+endfm
+
+*** Module for translating our constraints to the constraints defined in the MaudeSE paper ***
+*** see papers folder ***
+fmod CONSTRAINTS-TO-MAUDESE is
+ inc BOOLEAN-EXPR .
+ inc REAL-INTEGER-EXPR .
+ inc SYM-REAL .
+ inc SMT-CHECK .
+
+ var i : Nat .
+ var str : String .
+ vars tt1 tt2 tt3 : RealSym .
+ vars tr1 tr2 tr0 : SymTerm .
+ vars b b1 b2 cond : Boolean .
+ var r : Real .
+ vars id smtid : SMTVarId .
+ vars ids ids1 ids2 ids3 ids4 smtids : SMTVarIds .
+ vars bexp bexp1 bexp2 : BooleanExpr .
+ vars rexp1 rexp2 : RealExpr .
+ 
+op isSat : Boolean -> Bool .
+ ceq isSat(cond) 
+ = smtCheck(bexp1)
+  if bexp1 := toSMTSE(cond) .
+
+op isSatModel : Boolean -> SmtCheckResult .
+ ceq isSatModel(cond) 
+ = smtCheck(bexp1,true)
+  if bexp1 := toSMTSE(cond) .
+
+*** All SMTVarIds are reals.
+op mkRangeConsB : SMTVarIds BooleanExpr -> BooleanExpr .
+eq mkRangeConsB(smtid smtids,bexp)
+ = mkRangeConsB(smtids,
+   (r(smtid) >= 0/1 and bexp)) .
+eq mkRangeConsB(none,bexp) = bexp .
+
+ op vvv : Nat -> SMTVarId .
+ op vvv : Nat String -> SMTVarId .
+ op toSMTSE : Boolean -> BooleanExpr .
+ op toSMTSE : SymTerm -> RealExpr .
+
+ eq toSMTSE(vv(i)) = r(vvv(i)) .
+ eq toSMTSE(vv(i,str)) = r(vvv(i,str)) .
+ eq toSMTSE(tr1 - tr2) 
+  = toSMTSE(tr1) - toSMTSE(tr2) .
+ eq toSMTSE(tr1 + tr2) 
+  = toSMTSE(tr1) + toSMTSE(tr2) .
+ eq toSMTSE(tr1 * tr2) 
+  = toSMTSE(tr1) * toSMTSE(tr2) .
+ eq toSMTSE(tr1 / tr2) 
+  = toSMTSE(tr1) / toSMTSE(tr2) .
+ eq toSMTSE(- tr1) = - toSMTSE(tr1) .
+ eq toSMTSE(r) = r .
+
+ eq toSMTSE(tr1 <= tr2) 
+  = toSMTSE(tr1) <= toSMTSE(tr2) .
+ eq toSMTSE(tr1 < tr2) 
+  = toSMTSE(tr1) < toSMTSE(tr2) .
+ eq toSMTSE(tr1 > tr2) 
+  = toSMTSE(tr1) > toSMTSE(tr2) .
+ eq toSMTSE(tr1 >= tr2) 
+  = toSMTSE(tr1) >= toSMTSE(tr2) .
+ eq toSMTSE(tr1 === tr2) 
+  = toSMTSE(tr1) === toSMTSE(tr2) .
+ eq toSMTSE(tr1 =/== tr2) 
+  = toSMTSE(tr1) =/== toSMTSE(tr2) .
+ eq toSMTSE(b ? tr1 : tr2) 
+  = toSMTSE(b) ? toSMTSE(tr1) : toSMTSE(tr2) .
+ eq toSMTSE(not b1) = not toSMTSE(b1) .
+ eq toSMTSE(b1 and b2) = 
+  toSMTSE(b1) and toSMTSE(b2) .
+ eq toSMTSE(b1 xor b2) = 
+  toSMTSE(b1) xor toSMTSE(b2) .
+ eq toSMTSE(b1 or b2) = 
+  toSMTSE(b1) or toSMTSE(b2) .
+ eq toSMTSE(b1 implies b2) = 
+  toSMTSE(b1) implies toSMTSE(b2) .
+ eq toSMTSE(true) = true .
+ eq toSMTSE(false) = false .
+
+ sort SMTVarIds . 
+ subsort SMTVarId < SMTVarIds .
+ op none : -> SMTVarIds [ctor] .
+ op __ : SMTVarIds SMTVarIds -> SMTVarIds [ctor assoc comm id: none] .
+
+ op mem : SMTVarId SMTVarIds -> Bool .
+ eq mem(id,id ids) = true .
+ eq mem(id,ids) = false [owise] .
+
+ op toSet : SMTVarIds -> SMTVarIds .
+  eq toSet(id id ids) 
+   = toSet(id ids) .
+  eq toSet(ids) = ids [owise] .
+
+ op getVVVs : BooleanExpr SMTVarIds -> SMTVarIds .
+ op getVVVs : RealExpr SMTVarIds -> SMTVarIds .
+ 
+ eq getVVVs(r(id),ids) 
+  = if mem(id,ids) then ids else id ids fi .
+ ceq getVVVs(rexp1 - rexp2,ids) = ids3 
+  if ids1 := getVVVs(rexp1,none) 
+  /\ ids2 := getVVVs(rexp2,none) 
+  /\ ids3 := toSet(ids1 ids2 ids) . 
+ ceq getVVVs( - rexp1,ids) = ids3 
+  if ids1 := getVVVs(rexp1,none) 
+  /\ ids3 := toSet(ids1 ids) . 
+ ceq getVVVs(rexp1 + rexp2,ids) = ids3 
+  if ids1 := getVVVs(rexp1,none) 
+  /\ ids2 := getVVVs(rexp2,none) 
+  /\ ids3 := toSet(ids1 ids2 ids) .
+ ceq getVVVs(rexp1 * rexp2,ids) = ids3 
+  if ids1 := getVVVs(rexp1,none) 
+  /\ ids2 := getVVVs(rexp2,none) 
+  /\ ids3 := toSet(ids1 ids2 ids) .
+ ceq getVVVs(rexp1 / rexp2,ids) = ids3 
+  if ids1 := getVVVs(rexp1,none) 
+  /\ ids2 := getVVVs(rexp2,none) 
+  /\ ids3 := toSet(ids1 ids2 ids) .
+ ceq getVVVs(b ? rexp1 : rexp2,ids) = ids3 
+  if ids1 := getVVVs(rexp1,none) 
+  /\ ids2 := getVVVs(rexp2,none) 
+  /\ ids4 := getVVVs(b,none)
+  /\ ids3 := toSet(ids1 ids2 ids4 ids) .
+ eq getVVVs(r,ids) = ids .
+
+ eq getVVVs(b(id),ids) 
+  = if mem(id,ids) then ids else id ids fi .
+ ceq getVVVs(rexp1 <= rexp2,ids) = ids3 
+  if ids1 := getVVVs(rexp1,none) 
+  /\ ids2 := getVVVs(rexp2,none) 
+  /\ ids3 := toSet(ids1 ids2 ids) .
+ ceq getVVVs(rexp1 < rexp2,ids) = ids3 
+  if ids1 := getVVVs(rexp1,none) 
+  /\ ids2 := getVVVs(rexp2,none) 
+  /\ ids3 := toSet(ids1 ids2 ids) .
+ ceq getVVVs(rexp1 > rexp2,ids) = ids3 
+  if ids1 := getVVVs(rexp1,none) 
+  /\ ids2 := getVVVs(rexp2,none) 
+  /\ ids3 := toSet(ids1 ids2 ids) .
+ ceq getVVVs(rexp1 >= rexp2,ids) = ids3 
+  if ids1 := getVVVs(rexp1,none) 
+  /\ ids2 := getVVVs(rexp2,none) 
+  /\ ids3 := toSet(ids1 ids2 ids) .
+ ceq getVVVs(rexp1 === rexp2,ids) = ids3 
+  if ids1 := getVVVs(rexp1,none) 
+  /\ ids2 := getVVVs(rexp2,none) 
+  /\ ids3 := toSet(ids1 ids2 ids) .
+ ceq getVVVs(rexp1 =/== rexp2,ids) = ids3 
+  if ids1 := getVVVs(rexp1,none) 
+  /\ ids2 := getVVVs(rexp2,none) 
+  /\ ids3 := toSet(ids1 ids2 ids) .
+ ceq getVVVs(not bexp1,ids) = ids3
+  if ids1 := getVVVs(bexp1,none)
+  /\ ids3 := toSet(ids1 ids) .
+ ceq getVVVs(bexp1 and bexp2,ids) = ids3 
+  if ids1 := getVVVs(bexp1,none) 
+  /\ ids2 := getVVVs(bexp2,none) 
+  /\ ids3 := toSet(ids1 ids2 ids) .
+ ceq getVVVs(bexp1 or bexp2,ids) = ids3 
+  if ids1 := getVVVs(bexp1,none) 
+  /\ ids2 := getVVVs(bexp2,none) 
+  /\ ids3 := toSet(ids1 ids2 ids) .
+ ceq getVVVs(bexp1 xor bexp2,ids) = ids3 
+  if ids1 := getVVVs(bexp1,none) 
+  /\ ids2 := getVVVs(bexp2,none) 
+  /\ ids3 := toSet(ids1 ids2 ids) .
+ ceq getVVVs(bexp1 implies bexp2,ids) = ids3 
+  if ids1 := getVVVs(bexp1,none) 
+  /\ ids2 := getVVVs(bexp2,none) 
+  /\ ids3 := toSet(ids1 ids2 ids) .
+ eq getVVVs(true,ids) = ids .
+ eq getVVVs(false,ids) = ids .
+
+ eq toSMTSE(not b1) = not toSMTSE(b1) .
+ eq toSMTSE(b1 and b2) = 
+  toSMTSE(b1) and toSMTSE(b2) .
+ eq toSMTSE(b1 xor b2) = 
+  toSMTSE(b1) xor toSMTSE(b2) .
+ eq toSMTSE(b1 or b2) = 
+  toSMTSE(b1) or toSMTSE(b2) .
+ eq toSMTSE(b1 implies b2) = 
+  toSMTSE(b1) implies toSMTSE(b2) .
+
+ op getAsg : Strings SmtCheckResult -> SatAssignmentSet .
+ eq getAsg(str:String strs:Strings, 
+     {(r(vvv(i:Nat, str:String)) |-> r:Real), ssa:SatAssignmentSet}) 
+  = (r(vvv(i:Nat, str:String)) |-> r:Real) , 
+    getAsg(str:String strs:Strings, { ssa:SatAssignmentSet }) . 
+ eq getAsg(str:String strs:Strings, { ssa:SatAssignmentSet }) = empty .
+
+ op getAsg : Nat SmtCheckResult -> SatAssignment .
+ eq getAsg(i:Nat, 
+     {(r(vvv(i:Nat, str:String)) |-> r:Real), ssa:SatAssignmentSet}) 
+  = (r(vvv(i:Nat, str:String)) |-> r:Real) . 
+
+ eq getAsg(i:Nat, 
+     {(r(vvv(i:Nat)) |-> r:Real), ssa:SatAssignmentSet}) 
+  = (r(vvv(i:Nat)) |-> r:Real) . 
+
+ op getAsg : SymTerm SmtCheckResult -> SatAssignment .
+ eq getAsg(vv(i:Nat,str:String), 
+     {(r(vvv(i:Nat, str:String)) |-> r:Real), ssa:SatAssignmentSet}) 
+  = (r(vvv(i:Nat, str:String)) |-> r:Real) . 
+
+ eq getAsg(vv(i:Nat), 
+     {(r(vvv(i:Nat)) |-> r:Real), ssa:SatAssignmentSet}) 
+  = (r(vvv(i:Nat)) |-> r:Real) . 
+ 
+
+
+*** Testing
+*** select CONSTRAINTS-TO-MAUDESE .
+*** red toSMTSE(vv(0)) .
+*** red toSMTSE(vv(0) > 0/1) .
+*** red toSMTSE((vv(0) > 0/1) and (vv(1) < 0/1) and true).
+*** red getVVVs(toSMTSE((vv(0) > 0/1) and (vv(1) < 0/1) and true),none) .
+*** red getVVVs(toSMTSE((vv(0) > 0/1) and (vv(0) < 0/1) and true),none) .
+
+*** red smtCheck(toSMTSE(vv(0) > 0/1)) .
+*** red smtCheck(toSMTSE(vv(0) > 0/1),true) .
+*** red smtCheck(toSMTSE(vv(0, "test") > 0/1),true) .
+endfm
+
+fmod CONSTRAINTS-TO-SMT2 is
+  inc SYM-REAL .
+  inc CONVERSION .
+  inc REAL-INTEGER . 
+  inc META-LEVEL .
+
+  var i : Nat .
+  vars tr1 tr2 tr0 : SymTerm .
+  vars b b1 b2 : Boolean .
+  var r : Real .
+  var nz : NzNat .
+  vars str strAcc str3 str2 str1 : String .
+  vars strs strs1 strs2 strs3 strs4 : Strings .
+  vars bs : Booleans .
+
+  op getVVs : Boolean Strings -> Strings .
+  op getVVs : SymTerm Strings -> Strings .
+
+  *** For constants
+  eq getVVs(tr1,strs) = strs [owise] .
+  eq getVVs(true,strs) = strs .
+  eq getVVs(false,strs) = strs .
+  ceq getVVs(vv(i),strs) 
+   = if mem(str,strs) then strs else str strs fi
+   if str := "vv" +  string(i,10) .
+  ceq getVVs(vv(i,str1),strs) 
+   = if mem(str,strs) then strs else str strs fi
+   if str := "vv" +  string(i,10) + str1 .
+  ceq getVVs(b1 and b2,strs) 
+   = strs3
+   if strs1 := getVVs(b1,none) 
+   /\ strs2 := getVVs(b2,none) 
+   /\ strs3 := toSet(strs1 strs2 strs) .
+  ceq getVVs(b1 or b2,strs) 
+   = strs3
+   if strs1 := getVVs(b1,none) 
+   /\ strs2 := getVVs(b2,none) 
+   /\ strs3 := toSet(strs1 strs2 strs) .
+  ceq getVVs(not b1,strs) 
+   = strs3
+   if strs1 := getVVs(b1,none) 
+   /\ strs3 := toSet(strs1 strs) .
+  ceq getVVs(tr1 <= tr2,strs) 
+   = strs3
+   if strs1 := getVVs(tr1,none) 
+   /\ strs2 := getVVs(tr2,none) 
+   /\ strs3 := toSet(strs1 strs2 strs) .
+  ceq getVVs(tr1 >= tr2,strs) 
+   = strs3
+   if strs1 := getVVs(tr1,none) 
+   /\ strs2 := getVVs(tr2,none) 
+   /\ strs3 := toSet(strs1 strs2 strs) .
+  ceq getVVs(tr1 > tr2,strs) 
+   = strs3
+   if strs1 := getVVs(tr1,none) 
+   /\ strs2 := getVVs(tr2,none) 
+   /\ strs3 := toSet(strs1 strs2 strs) .
+  ceq getVVs(tr1 < tr2,strs) 
+   = strs3
+   if strs1 := getVVs(tr1,none) 
+   /\ strs2 := getVVs(tr2,none) 
+   /\ strs3 := toSet(strs1 strs2 strs) .
+  ceq getVVs(tr1 === tr2,strs) 
+   = strs3
+   if strs1 := getVVs(tr1,none) 
+   /\ strs2 := getVVs(tr2,none) 
+   /\ strs3 := toSet(strs1 strs2 strs) .   
+  ceq getVVs(tr1 =/== tr2,strs) 
+   = strs3
+   if strs1 := getVVs(tr1,none) 
+   /\ strs2 := getVVs(tr2,none) 
+   /\ strs3 := toSet(strs1 strs2 strs) .   
+  ceq getVVs(- tr1,strs) 
+   = strs3
+   if strs1 := getVVs(tr1,none) 
+   /\ strs3 := toSet(strs1 strs) .   
+  ceq getVVs(tr1 + tr2,strs) 
+   = strs3
+   if strs1 := getVVs(tr1,none) 
+   /\ strs2 := getVVs(tr2,none) 
+   /\ strs3 := toSet(strs1 strs2 strs) .   
+  ceq getVVs(tr1 * tr2,strs) 
+   = strs3
+   if strs1 := getVVs(tr1,none) 
+   /\ strs2 := getVVs(tr2,none) 
+   /\ strs3 := toSet(strs1 strs2 strs) .   
+  ceq getVVs(tr1 - tr2,strs) 
+   = strs3
+   if strs1 := getVVs(tr1,none) 
+   /\ strs2 := getVVs(tr2,none) 
+   /\ strs3 := toSet(strs1 strs2 strs) .
+  ceq getVVs(tr1 / tr2,strs) 
+   = strs3
+   if strs1 := getVVs(tr1,none) 
+   /\ strs2 := getVVs(tr2,none) 
+   /\ strs3 := toSet(strs1 strs2 strs) .
+  ceq getVVs(b ? tr1 : tr2,strs) 
+   = strs3
+   if strs1 := getVVs(tr1,none) 
+   /\ strs2 := getVVs(tr2,none) 
+   /\ strs4 := getVVs(b,none)
+   /\ strs3 := toSet(strs1 strs2 strs4 strs) .  
+  ceq getVVs(toReal(toInt(tr1)),strs) 
+   = strs3
+   if strs1 := getVVs(tr1,none) 
+   /\ strs3 := toSet(strs1 strs) .  
+
+  op vvDecl : Strings -> String .
+  eq vvDecl(str) = "(declare-fun " + str + " () Real)" . 
+  eq vvDecl(str strs) 
+   = "(declare-fun " + str + " () Real)" + "\n" + vvDecl(strs) .
+
+  op vvDecl : Nat -> String .
+  eq vvDecl(0) = "(declare-fun vv0 () Real)" .
+  eq vvDecl(s(i)) = "(declare-fun vv" + string(s(i),10) + " () Real)" + "\n" +  vvDecl(i) .
+
+  op uvDecl : Nat -> String .
+  eq uvDecl(0) = "(declare-fun uv0 () Real)" .
+  eq uvDecl(s(i)) = "(declare-fun uv" + string(s(i),10) + " () Real)" + "\n" + uvDecl(i) .
+
+  op toSMT2$ : SymTerm -> String .
+  *** Code to convert reals into strings.
+  ceq toSMT2$(r) = str1
+   if str := string(getName(upTerm(r)))
+   /\ i := find(str,"/",0) 
+   /\ str1 := substr(str,0,i) .
+  eq toSMT2$(vv(i)) = "vv" +  string(i,10) .
+  eq toSMT2$(vv(i,str)) = "vv" +  string(i,10) + str .
+  eq toSMT2$(uv(i)) = "uv" +  string(i,10) .
+  eq toSMT2$(- tr1) 
+    = "( - " + toSMT2$(tr1) +  ")" .
+  eq toSMT2$(tr1 + tr2) 
+    = "( + " + toSMT2$(tr1) + " " + 
+      toSMT2$(tr2) +  ")" .
+  eq toSMT2$(tr1 * tr2) 
+    = "( * " + toSMT2$(tr1) + " " + 
+      toSMT2$(tr2) +  ")" .
+  eq toSMT2$(tr1 - tr2) 
+    = "( - " + toSMT2$(tr1) + " " + 
+      toSMT2$(tr2) +  ")" .
+  eq toSMT2$(tr1 / tr2) 
+    = "( / " + toSMT2$(tr1) + " " + 
+      toSMT2$(tr2) +  ")" .
+
+  op toSMT2 : Nat Booleans Strings -> Strings .
+  eq toSMT2(i,none,strs) = strs .
+  eq toSMT2(i,b bs,strs) 
+   = toSMT2(i + 1 ,bs,toSMT2(i,b) strs)  .
+
+  op toSMT2 : Nat Boolean -> String .
+  eq toSMT2(i, b1) 
+   = "(assert (! " + toSMT2$(b1) + " :named a" + string(i,10) + ") )" .
+
+  op toSMT2$ : Boolean -> String .
+  eq toSMT2$(true) = "true" .
+  eq toSMT2$(false) = "false" .
+  eq toSMT2$(not b1) = "( not " + 
+   toSMT2$(b1) + " )" . 
+  eq toSMT2$(b1 and b2) 
+   = "( and " + toSMT2$(b1) 
+     + " " + toSMT2$(b2) + " )" .
+  eq toSMT2$(b1 or b2) 
+   = "( or " + toSMT2$(b1) 
+     + " " + toSMT2$(b2) + " )" .
+  eq toSMT2$(tr1 <= tr2) 
+   = "( <= " + toSMT2$(tr1) + " " + toSMT2$(tr2) + " )" .
+  eq toSMT2$(tr1 >= tr2) 
+   = "( >= " + toSMT2$(tr1) + " " + toSMT2$(tr2) + " )" .
+  eq toSMT2$(tr1 > tr2) 
+   = "( > " + toSMT2$(tr1) + " " + toSMT2$(tr2) + " )" .
+  eq toSMT2$(tr1 < tr2) 
+   = "( < " + toSMT2$(tr1) + " " + toSMT2$(tr2) + " )" .
+  eq toSMT2$(tr1 === tr2) 
+   = "( = " + toSMT2$(tr1) + " " + toSMT2$(tr2) + " )" .
+  eq toSMT2$(tr1 =/== tr2) 
+   = "( not ( = " + toSMT2$(tr1) + " " + toSMT2$(tr2) + " ) )" .
+endfm
+
+eof
+op toSMT2$old : String Boolean -> String .
+  eq toSMT2$old(str,true) = "true" .
+  eq toSMT2$old(str,false) = "false" .
+  eq toSMT2$old(str,not b1) = "( not " + 
+   toSMT2$old(str,b1) + " )" . 
+  eq toSMT2$old(str,b1 and b2) 
+   = "( and " + toSMT2$old(str + "0",b1) 
+     + " " + toSMT2$old(str + "1", b2) + " )" .
+  eq toSMT2$old(str, b1 or b2) 
+   = "( or " + toSMT2$old(str + "0", b1) 
+     + " " + toSMT2$old(str + "1",b2) + " )" .
+  eq toSMT2$old(str,tr1 <= tr2) 
+   = "( ! ( <= " + toSMT2$old(tr1) + " " + toSMT2$old(tr2) + " ) :named ass" + str + " )" .
+  eq toSMT2$old(str,tr1 >= tr2) 
+   = "( ! ( >= " + toSMT2$old(tr1) + " " + toSMT2$old(tr2) + " ) :named ass" + str + " )" .
+  eq toSMT2$old(str,tr1 > tr2) 
+   = "( ! ( > " + toSMT2$old(tr1) + " " + toSMT2$old(tr2) + " ) :named ass" + str + " )" .
+  eq toSMT2$old(str,tr1 < tr2) 
+   = "( ! ( < " + toSMT2$old(tr1) + " " + toSMT2$old(tr2) + " ) :named ass" + str + " )" .
+  eq toSMT2$old(str,tr1 === tr2) 
+   = "( ! ( = " + toSMT2$old(tr1) + " " + toSMT2$old(tr2) + " ) :named ass" + str + " )" .
+  eq toSMT2$old(str,tr1 =/== tr2) 
+   = "( ! ( not ( = " + toSMT2$old(tr1) + " " + toSMT2$old(tr2) + " ) ) :named ass" + str + " )" .

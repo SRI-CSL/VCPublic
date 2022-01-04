@@ -1,0 +1,5 @@
+load ../../loadPre
+load decide
+load ../../loadPos
+load scenario-template-platooning-simplified.maude
+load exp-scenario-platooning.maude 

@@ -1,0 +1,127 @@
+ --- load load .
+
+ mod TEST-SCP-SYMBOLIC is
+   inc VAL-SAFETY-PEDESTRIAN .
+   inc CONSTRAINTS-TO-MAUDESE .
+  
+   op v : Nat -> Id .
+  eq string(v(k:Nat)) = "veh" + string(k:Nat,10) .
+   ops id eid id1 : -> Id .
+ eq id = v(1) .
+ eq id1 = v(0) .
+ op i : -> Nat .
+ eq i = 15 .
+  ops vposx vposy pposx pposy
+     vvel pvel maxacc maxdec
+     pinix piniy ptarx ptary 
+     vmin vmax caution : -> SymTerm .
+ eq vposx = vv(0,"vehx-position") .
+ eq vposy = vv(1,"vehy-position") .
+ eq pposx = vv(2,"pedx-position") .
+ eq pposy = vv(3,"pedy-position") .
+ eq vvel = vv(4,"veh-speed") .
+ eq pvel = vv(6,"ped-speed") .
+ eq maxacc = vv(7,"maxAcc") .
+ eq maxdec = vv(8,"maxDec") .
+ eq pinix = vv(9,"pinix") .
+ eq piniy = vv(10,"piniy") .
+ eq ptarx = vv(11,"ptarx") .
+ eq ptary = vv(12,"ptary") .
+ eq vmin = vv(13,"vmin") .
+ eq vmax = vv(14,"vmax") .
+ eq caution = vv(15,"caution") .
+
+ops l l0 l1 l2 : -> Loc .
+eq l = loc(vposx,vposy) .
+eq l0 = loc(pposx,pposy) .
+eq l1 = loc(pinix,piniy) .
+eq l2 = loc(ptarx,ptary) .
+
+op ped : -> KB .
+eq ped 
+ = (ped(id1,loc(pposx,pposy),pvel,
+        loc(pinix,piniy),loc(ptarx,ptary)) @ 0) .
+
+  op kb : -> KB .
+  eq kb = 
+   class(id,veh)
+   (atloc(id,loc(vposx,vposy)) @ 0)
+   (speed(id, vvel) @ 0) 
+   (maxAcc(id,maxacc)) 
+   (maxDec(id,maxdec))
+   (mode(id, leading(none)) @ 0) 
+   (pedCaution(id,caution) @ 0) 
+   ped .
+
+  ops cond cond1 : -> Boolean .
+  eq cond
+   = vposx === 5/1 and
+     vposy === 12/1 and
+     pposx === 6/1 and
+     pposy === 25/1 and
+     vvel === 3/1 and
+     pvel === 1/1 and
+     maxacc === 2/1 and
+     maxdec === 2/1 and
+     pinix === 0/1 and
+     piniy === 25/1 and
+     ptarx === 10/1 and
+     ptary === 25/1 and
+     caution === 10/1 .
+
+  op val-safetyTest : -> NatSymSegments .
+  eq val-safetyTest 
+   = val-safety(id,i,kb,actSpeed(id,vmin,vmax),cond) .
+
+  op segSaf : -> SymSegments .
+  eq segSaf = getSymSegs(val-safetyTest) .
+  op condSaf : -> Boolean .
+  eq condSaf = getBoolean(segSaf) .
+  
+ops vminAct uminAct vmaxAct vc 
+       umaxAct time dcc spd accmin disTar : -> SymTerm .
+eq vminAct = mkNuVar(i,id,"vminAct") .
+eq uminAct = mkNuVar(i + 1,id,"uminAct") .
+eq vmaxAct = mkNuVar(i + 2,id,"vmaxAct") .
+eq umaxAct = mkNuVar(i + 3,id,"umaxAct") .
+
+op peds : -> KB .
+eq peds = getPedestrians(kb,none) .
+
+endm
+
+eof
+
+*** works with Yices2, but not with CVC4!
+*** Z3 works as well.
+
+red isSatModel(condSaf) .
+rewrites: 910 in 0ms cpu (101ms real) (~ rewrites/second)
+ {(r(vvv(18)) |-> (10/1).Real),
+ (r(vvv(22)) |-> (10/1).Real),
+ (r(vvv(0, "vehx-position")) |-> (5/1).Real),
+ (r(vvv(1, "vehy-position")) |-> (0/1).Real),
+ (r(vvv(2, "pedx-position")) |-> (0/1).Real),
+ (r(vvv(3,"pedy-position")) |-> (10/1).Real),
+ (r(vvv(4, "veh-speed")) |-> (5/1).Real),
+ (r(vvv(6, "ped-speed")) |-> (1/1).Real),
+ (r(vvv(7, "maxAcc")) |-> (2/1).Real),
+ (r(vvv(8, "maxDec")) |-> (2/1).Real),
+ (r(vvv(9, "pinix")) |-> (0/1).Real),
+ (r(vvv(10, "piniy")) |-> (10/1).Real),
+ (r(vvv(11, "ptarx")) |-> (10/1).Real),
+ (r(vvv(12, "ptary")) |-> (10/1).Real),
+ (r(vvv(13, "vmin")) |-> (3/1).Real),
+ (r(vvv(14, "vmax")) |-> (7/1).Real),
+ (r(vvv(15, "veh1vminAct")) |-> (3/1).Real),
+ (r(vvv(16, "veh1uminAct")) |-> (1/1).Real),
+ (r(vvv(17, "veh1vmaxAct")) |-> (29/5).Real),
+ (r(vvv(18, "veh1umaxAct")) |-> (1/1).Real),
+ (r(vvv(19, "veh1time-to-cross")) |-> (10/1).Real),
+ (r(vvv(20, "veh1accmin")) |-> (4/5).Real),
+ r(vvv(21, "veh1v-collision")) |-> (1/1).Real} 
+
+
+
+
+

@@ -1,0 +1,145 @@
+ mod TEST-TIMESTEP is
+   inc SENSOR-FAULTS .
+   inc ENV-ACTIONS .
+   inc UTILS-VEHICLE .
+   inc SAFETY-PROPERTIES .
+   inc META-SEARCH .
+   inc TICK-DURATION-PROP .
+   inc SOFT-AGENT-RULES .
+
+   op asys$ : -> ASystem .
+
+   op aconf$ : -> Conf .
+   eq aconf$ = getConf(asys$) .
+   op nzt$ : -> Nat .
+   eq nzt$ = mte(aconf$) .
+   op ekb$ : -> KB .
+   eq ekb$ = envKB(aconf$) .
+   op t$ : -> Nat .
+   eq t$ = getTime(ekb$) .
+   op i$ : -> Nat .
+   eq i$ = getVarNat(ekb$) .
+   op cond$ : -> Boolean .
+   eq cond$ = getBoolean(ekb$) .
+   op evs$ : -> EventSet .
+   eq evs$ = effActs(aconf$) .
+   op envActSet$ : -> NatKBBooleanSet .
+   op envKBSet$ : -> KBSet .
+*** red size(envActSet$) .
+   eq envActSet$ = doEnvAct(i$,t$,nzt$,ekb$,evs$,cond$) .
+
+   eq envKBSet$ = doEnvAct(t$,nzt$,evs$,ekb$) .
+*** red envKBSet$ .
+*** red sizeKB(envKBSet$) .
+
+   sort NatKBBooleanList .
+   subsort NatKBBoolean < NatKBBooleanList .
+   op nil : -> NatKBBooleanList .
+   op _;_ : NatKBBooleanList NatKBBooleanList -> NatKBBooleanList .
+   op toListNKB : NatKBBooleanSet -> NatKBBooleanList .   
+   eq toListNKB(none) = nil .
+   eq toListNKB(nkb:NatKBBoolean nkbs:NatKBBooleanSet) 
+    = nkb:NatKBBoolean ; toListNKB(nkbs:NatKBBooleanSet) .
+
+   op envActList$ : -> NatKBBooleanList .
+   eq envActList$ 
+    = toListNKB(envActSet$) . 
+
+   op getNKB : Nat NatKBBooleanList -> NatKBBoolean .
+   eq getNKB(s(i:Nat),nkb:NatKBBoolean ; nkbs:NatKBBooleanList)
+    = getNKB(i:Nat,nkbs:NatKBBooleanList) .
+   eq getNKB(0,nkb:NatKBBoolean ; nkbs:NatKBBooleanList)
+    = nkb:NatKBBoolean .
+   
+*** red getNKB(0,envActList$) .
+*** red getNKB(2,envActList$) .
+*** red getNKB(8,envActList$) .
+*** red getNKB(2,envActList$) == getNKB(8,envActList$) .
+   op envAct$ : Nat -> NatKBBoolean .
+   eq envAct$(i:Nat) = getNKB(i:Nat,envActList$) .
+
+   op j$ : -> Nat .
+   op ekb0$ : Nat -> KB .
+   op cond1$ : Nat -> Boolean .
+   eq j$(i:Nat) = getNat(envAct$(i:Nat)) .
+   eq ekb0$(i:Nat) = getKB(envAct$(i:Nat)) .
+   eq cond1$(i:Nat) = getBoolean(envAct$(i:Nat)) .
+   op isSatCond$ : Nat -> Bool .
+   eq isSatCond$(i:Nat) = isSat(cond1$(i:Nat)) .
+   op ekb'$ : Nat -> KB .
+   eq ekb'$(i:Nat) 
+    = resolveKB(getEnvId(aconf$),ekb0$(i:Nat), ekb$) .
+   ops aconf0$ aconf1$ aconf4$ aconf3$ aconf2$ : Nat -> Conf .
+   eq aconf0$(i:Nat) 
+    = updateEKB(ekb'$(i:Nat),timeEffect(aconf$,nzt$)) .
+   eq aconf1$(i:Nat) = shareKnowledge(aconf0$(i:Nat)) . 
+   eq aconf4$(i:Nat) = processNet(aconf1$(i:Nat)) .
+   eq aconf3$(i:Nat) = updateLog(aconf4$(i:Nat),t$,nzt$,evs$) .
+   eq aconf2$(i:Nat) = updateConf(aconf3$(i:Nat)) .
+   
+   --- red aconf2$(0) .
+--- red aconf2$(2) == aconf2$(8) .
+*** red envKB(aconf0$(0)) .
+*** red envKB(aconf1$(0)) .
+*** red envKB(aconf2$(0)) .
+
+   op filterIsSatNKB : NatKBBooleanSet NatKBBooleanSet -> NatKBBooleanSet .
+   eq filterIsSatNKB(none,nkbsAcc:NatKBBooleanSet) = nkbsAcc:NatKBBooleanSet .
+   eq filterIsSatNKB({j:Nat,ekb0:KB,cond1:Boolean} nkbs:NatKBBooleanSet,nkbsAcc:NatKBBooleanSet)
+    = if isSat(cond1:Boolean) then 
+       filterIsSatNKB(nkbs:NatKBBooleanSet,{j:Nat,ekb0:KB,cond1:Boolean} nkbsAcc:NatKBBooleanSet)
+      else 
+       filterIsSatNKB(nkbs:NatKBBooleanSet,nkbsAcc:NatKBBooleanSet) fi .
+--- red size(filterIsSatNKB(envActSet$,none)) .
+
+*** search asys$ =>1 asys:ASystem .
+
+var i : Nat .
+
+   op checkAllConfs : -> Nat .
+   op checkAllConfs$ : Nat -> Nat .
+   ceq checkAllConfs 
+    = checkAllConfs$(i)
+    if s(i) := size(envActSet$) .
+   eq checkAllConfs$(0) = 1000 .
+   ceq checkAllConfs$(s(i)) 
+    = checkAllConfs$(i) 
+   if ekb'$(s(i)) :: KB
+   /\ checkConsistentConf(aconf0$(s(i)))
+   /\ checkConsistentConf(aconf1$(s(i)))
+   /\ checkConsistentConf(aconf4$(s(i)))
+   /\ checkConsistentConf(aconf3$(s(i)))
+   /\ checkConsistentConf(aconf2$(s(i))) .
+   eq checkAllConfs$(s(i)) = s(i) [owise] .
+
+   var conf : Conf .
+
+   vars t t1 : Time .
+
+   op checkConsistentConf : Conf -> Bool .
+   ceq checkConsistentConf(conf)
+    = true 
+    if conf :: Conf
+    /\ clock(t) (atloc(id:Id,loc1:Loc) @ t1) kb:KB 
+       := envKB(conf)
+    /\ t1 == t .
+
+endm
+
+eof
+
+red ekb'$(0) :: KB .
+red aconf0$(0) :: Conf .
+red aconf1$(0) :: Conf .
+red aconf4$(0) :: Conf .
+red aconf3$(0) :: Conf .
+red aconf2$(0) :: Conf .
+
+red aconf2$(4) .
+red aconf0$(8) .
+red aconf2$(8) .
+
+
+
+
+

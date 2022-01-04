@@ -1,0 +1,178 @@
+
+fmod SENSOR-FAULTS is
+*** inc FAULT-MODEL .
+  inc MODEL-KNOWLEDGE .
+ 
+
+  vars t t0 t1 t2 t3 t4 t5 t6 : Time .
+  var n i j k j0 j1 n0 n1 e e0 e1 e2 : Nat .
+  vars x y x1 y1 x0 y0 xll 
+       xur yll yur i0 i1 i2 : Int .
+  vars id id0 id1 : Id .
+	var cl : Class .
+  vars l l0 l1 l2 l3 loc : Loc .
+  vars ekb ekb0 ekb1 kb  lkb kb1 lkb0 kb0 kb2 :  KB .
+  vars  ff ff0 ff1 fp0 mag
+        fp1 rp0 rp1 ff2 ff3 dist 
+        ffx1 ffx2 ffy1 ffy2 spd dis : SymTerm .
+	vars act act0 act1 : Action .
+  var ff?  : [Rat] .
+  var nkbbools : NatKBBooleanSet .
+  vars nkbkbbools nkbkbbools1 nkbkbbools2 : NatKBKBBooleanSet .
+
+***(
+  var ftype : FType .
+  var fpars : FPars .
+)
+  var sen : Sensor .
+  vars cond cond1 cond2  cond00 : Boolean .
+
+
+***(
+**** Sensor faults
+op sF : Id Sensor FType FPars -> Info .
+
+op getSF : Id Sensor KB -> KB .
+eq getSF(id,sen,(sF(id,sen,ftype,fpars) @ t) kb) = 
+             (sF(id,sen,ftype,fpars) @ t)  .
+eq getSF(id,sen, kb) = none [owise] .
+)
+*********** reading sensors
+
+op readSensor : Nat Id Sensor KB KB Boolean -> NatKBKBBooleanSet . 
+op readSensorsX : Id SensorSet NatKBKBBooleanSet -> NatKBKBBooleanSet .
+
+eq readSensors(i,id,ss:SensorSet,ekb) =
+ readSensorsX(id,ss:SensorSet,{i,none,ekb,true}) .
+
+eq readSensorsX(id,none,nkbkbbools) = nkbkbbools .
+ceq readSensorsX(id,s:Sensor ss:SensorSet,nkbkbbools) 
+ = readSensorsX(id,ss:SensorSet,nkbkbbools1)
+ if nkbkbbools1 := readSensorX(id,s:Sensor,nkbkbbools,none) .
+
+op readSensorX : Id Sensor NatKBKBBooleanSet NatKBKBBooleanSet -> NatKBKBBooleanSet .
+eq readSensorX(id,s:Sensor,none,nkbkbbools) 
+ = nkbkbbools .
+ceq readSensorX(id,s:Sensor,{i,kb,ekb,cond} nkbkbbools,nkbkbbools1)
+ = readSensorX(id,s:Sensor,nkbkbbools,nkbkbbools2 nkbkbbools1)
+ if nkbkbbools2 := readSensor(i,id,s:Sensor,ekb,kb,cond) .
+
+ceq readSensor(i,id,s:Sensor,ekb,kb,cond)
+ = addKBBool(nkbbools,ekb,kb,cond,none)
+ if nkbbools := getSensorKI(i,id,s:Sensor,ekb) .
+
+op addKBBool : NatKBBooleanSet KB KB Boolean NatKBKBBooleanSet 
+               -> NatKBKBBooleanSet .
+eq addKBBool(none,ekb,kb,cond1,nkbkbbools) = nkbkbbools .
+eq addKBBool({j,kb1,cond} nkbbools,ekb,kb,cond1,nkbkbbools) 
+ = addKBBool(nkbbools,ekb,kb,cond1,
+            {j,addK(kb,kb1),ekb,cond1 and cond} nkbkbbools) . 
+
+--- (sensor item or none)
+--- we may need to erase a pedestrian info once the vehicle
+--- has passed it. 
+op getSensorKI : Nat Id Sensor KB -> NatKBBooleanSet . 
+eq getSensorKI(i,id,locS, (atloc(id,l) @ t) kb) 
+     = {i,(atloc(id,l) @ t),true} .
+eq getSensorKI(i,id,speedS, (speed(id,ff) @ t) kb) 
+     = {i,(speed(id,ff) @ t),true} .
+ceq getSensorKI(i,id,pedS(dist),kb clock(t)) 
+ = {s(i),
+     (ped(id1,loc(ffx2,ffy2),spd,l1,l2) @ t), cond1} 
+   {s(i),none,cond2} 
+ if (class(id1,pedestrian))
+    (atloc(id,loc(ffx1,ffy1)) @ t0)
+    (atloc(id1,loc(ffx2,ffy2)) @ t1) 
+    (speed(id1,spd) @ t2)
+    (dir(id1,l1,l2,mag) @ t3)
+    kb0 := kb 
+ /\ cond1 := (ffy2 - ffy1 <= dist) and (ffy2 >= ffy1) 
+ /\ cond2 := not cond1 .
+
+ceq getSensorKI(i,id,gapS,kb clock(t)) 
+ = {k + 1,(gapNext(id,dis) @ t),cond00} 
+ if id1 := getNextVeh(id,kb)
+ /\ (atloc(id,l0) @ t0)
+   (atloc(id1,l1) @ t1) kb0 := kb 
+ /\ {k,dis,cond00} := ldist(i,l1,l0) .
+
+eq getSensorKI(i,id,s:Sensor,kb) = {i,none,true} [owise] .
+
+
+***(
+ceq readSensor(id,s:Sensor,kb) =
+    (if kb1 == none 
+    then {kb0,kb} 
+    else applySensorF(id,s:Sensor,kb0,kb1,kb) fi)
+if kb0 := getSensorKI(id,s:Sensor,kb)
+/\ kb1 := getSF(id,s:Sensor,kb)
+.
+)
+
+
+***(
+****                       sget fault ekb
+op applySensorF : Id Sensor KB KB KB -> KBPair .
+ceq applySensorF(id,locS,atloc(id,l) @ t0, 
+                 (sF(id,locS,simpleFT,sFP(fp0,fp1,ptV(pt0))) @ t1),
+                 (rand(id,i,j) @ t4 ) ekb)
+    = {atloc(id,l1) @ t3, ekb  (rand(id,i,s s j) @ t)}
+  if (fence(id,ll,ur) @ t2) clock(t) randInc(n) ekb0
+     := ekb
+  /\ rp0 := (random( (n * j) + i) / randMax)
+  /\ rp1 := (random( (n * (j + 1)) + i) / randMax )
+  /\ dl0 := if rp0 < fp0 then pt(0,0) else l fi
+  /\ dl1 := if rp1 < fp1 then pt0 else pt(0,0) fi
+  /\ l0 := sum(l,dl1)
+  /\ l1 := (if (rp0 < fp0) 
+            then noLoc 
+            else (if inBounds(l0,ll,ur) then l0 else l fi) fi) 
+   /\ t3 := 
+***    t
+       (if (l1 == l) then t0 else t fi)
+            .
+
+ceq applySensorF(id,energyS,energy(id,e) @ t0,
+          (sF(id,energyS,simpleFT,sFP(fp0,fp1,intV(i0))) @ t1),
+          (rand(id,i,j) @ t4 ) ekb)
+   = {energy(id,e2) @ t, ekb (rand(id,i,s s j) @ t)}
+  if clock(t) randInc(n)  ekb0 := ekb
+  /\ rp0 := (random( (n * j) + i) / randMax)
+  /\ rp1 := (random( (n * (j + 1)) + i) / randMax)
+  /\ j0 := if rp0 < fp0 then 0 else 1 fi
+  /\ i1 := if rp1 < fp1 then i0 else 0 fi
+  /\ i2 := e + i1
+  /\ e2 := j0 * (if i2 >= 0 then i2 else 0 fi)
+*** /\ t3 := (if (e2 == e) then t0 else t fi)
+    .
+
+
+ceq applySensorF(id,obstacleS,kb0,
+                (sF(id,obstacleS,boolFT,bFP(fp0)) @ t1),
+                (rand(id,i,j) @ t4 ) ekb) =
+        {kb1, (rand(id,i, s j) @ t)  ekb}
+  if (fence(id,ll,ur) @ t2) clock(t) randInc(n)  ekb0
+     := ekb
+  /\ rp0 := (random( (n * j) + i) / randMax)
+  /\ kb1 := if rp0 < fp0 then none else kb0 fi .
+  
+eq applySensorF(id,s:Sensor,kb0,kb1,ekb) = {kb0, ekb} [owise] .
+
+
+ceq applySensorF(id,treatS,treatStage(l,j) @ t0,
+          (sF(id,treatS,simpleFT,sFP(fp0,fp1,intV(i0))) @ t1),
+          (rand(id,i,j) @ t4 ) ekb)
+   = {treatStage(l,j1) @ t, ekb (rand(id,i,s s j) @ t)}
+  if clock(t) randInc(n)  ekb0 := ekb
+  /\ rp0 := (random( (n * j) + i) / randMax)
+  /\ rp1 := (random( (n * (j + 1)) + i) / randMax)
+  /\ j0 := if rp0 < fp0 then 0 else 1 fi
+  /\ i1 := if rp1 < fp1 then i0 else 0 fi
+  /\ i2 := j + i1
+  /\ j1 := j0 * (if i2 >= 0 then i2 else 0 fi)
+*** /\ t3 := (if (j1 == j) then t0 else t fi)
+    .
+
+****TODO supply treatStage faults, 
+)
+endfm

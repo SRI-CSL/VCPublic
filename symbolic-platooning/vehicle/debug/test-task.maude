@@ -1,0 +1,64 @@
+ load test-scp-symbolic . 
+ 
+ fmod TEST-TASK is
+   inc TEST-SCP-SYMBOLIC .
+   inc MODEL-TASKS .
+  
+   op v : Nat -> Id .
+
+   op symRacts : -> SymRActSet .
+   ops sr1 sr2 sr3 : -> SymRAct .
+   ops a1 a2 a3 : -> Action .
+   ops u1 u2 u3 : -> UVal .
+   ops c0 c1 c2 c3 : -> Boolean .
+
+   eq sr1 = {u1,a1,c1} .
+   eq sr2 = {u2,a2,c2} .
+   eq sr3 = {u3,a3,c3} .
+
+   *** output of actSCP
+   eq symRacts = sr1 sr2 sr3 .
+
+   op id : -> Id .
+   eq id = v(1) .
+   
+   ops devsHB devs devs0 : -> EventSet .
+   eq devsHB = hbComm(id,kb) .
+
+   ops lkb2 lkb3 : -> KB .
+   eq lkb2 = timeouts(id,kb) .
+
+   op j : -> Nat .
+   eq j = 8 .
+
+   ops kbevkbset kbevkbset0 : -> SKBEventsKBSet .
+   ops nkbevkbset nkbevkbset1 nkbevkbset2 : -> NatKBEventsKBSet .
+
+   eq kbevkbset = mkKBEvSets(lkb2,devs devsHB (tick @ tickDelay),c0,symRacts,none) .
+
+   eq nkbevkbset2 = 
+     doTasks(veh,id,10,tick,none,none,none,kb,c0) .
+
+   eq nkbevkbset = 
+     doTask(veh,id,1,tick,none,none,none,kb,c0) .
+
+   eq nkbevkbset1 = 
+     doTasks$(veh,id,1,tick,none,kb,devs0,none,c0) .
+
+   ops skbevs skbevs0 : -> SKBEventsKBSet .
+
+   eq skbevs0 
+    = getKBEventsKBSet(nkbevkbset) .
+
+   op size : -> Nat .
+   eq size = size(skbevs0) .
+    --- result NzNat: (12).NzNat
+
+   eq skbevs 
+    = add(devs,kb,
+      {lkb3,devs0,none,c1} {lkb3,devs0,none,c1},none) .
+
+endfm
+
+eof
+

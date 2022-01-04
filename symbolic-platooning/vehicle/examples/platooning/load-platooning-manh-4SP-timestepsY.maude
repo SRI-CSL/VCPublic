@@ -1,0 +1,5 @@
+load ../../loadPre
+load decide-4SP
+load ../../loadPos-timestepsY
+load scenario-template-platooning-manh-4SP.maude
+load exp-scenario-platooning-4SP.maude 

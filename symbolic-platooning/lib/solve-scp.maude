@@ -1,0 +1,70 @@
+
+fth VALUATION is
+  pr BOOL .
+  inc SOFT-AGENTS .
+	
+**** RVal RAct RActSet from RVAL and EVENTS  
+****  op equivZero : RVal -> Bool .
+****  op _<_ : RVal RVal -> Bool .
+ 
+  op val : Id KB Action  -> RVal .
+  op val : Id KB  -> RVal .
+
+endfth
+
+
+fmod SOLVE-SCP{Z :: VALUATION} is
+   inc SOFT-AGENTS .
+
+  vars v v0 v1 : RVal .
+	vars acts acts0 actset : ActSet .
+	vars act1 act act0 : Action .
+  vars rks rks1 rks0 : RActSet .
+	var id : Id .
+	var kb : KB .
+		
+****  op solveSCP : Id KB RActSet -> RActSet .
+  eq solveSCP(id,kb,acts) = solveSCP$(id,kb,acts,none) .
+
+  op solveSCP$ : Id KB ActSet RActSet -> RActSet .
+  eq solveSCP$(id,kb,none,rks) = rks .
+  ceq solveSCP$(id,kb,act actset,rks) = solveSCP$(id,kb,actset,rks1) 
+   if v0 := val(id,kb,act)
+   /\ rks1 := updateRks(rks,act,v0) .
+****  rks (if equivZero(v0) then none else {v0,act} fi) .
+
+  op updateRks : RActSet Action RVal -> RActSet .
+***(
+  eq updateRks(rks,act,v) = updateRksAll(rks,act,v) .
+  eq updateRks(rks,act,v) = updateRksMx(rks,act,v) .
+)
+
+  op updateRksAll : RActSet Action RVal -> RActSet .
+  eq updateRksAll(rks,act,v0) =  rks (if equivZero(v0) then none else {v0,act} fi) .
+
+**** returns acts w maximal ranks
+**** if (v0,act) (v1,act) in result then not(v0 < v1) and not(v1 < v0)
+  op updateRksMx : RActSet Action RVal -> RActSet .
+  eq updateRksMx(none,act1,v1) = {v1,act1} .
+
+  ceq updateRksMx({v0,act0} rks,act1,v1) = {v0,act0} rks if v1 < v0 .
+
+  ceq updateRksMx({v0,act0} rks,act1,v1) =  {v1,act1} pruneRks(rks,v1,none)
+   if v0 < v1 .
+  ceq updateRksMx({v0,act0} rks,act1,v1) =  {v0,act0} rks 
+   if v1 < v0 or equivZero(v1) .
+
+  ceq updateRksMx({v0,act0} rks,act1,v1) =  {v0,act0} {v0,act1} rks 
+   if v1 = v0 .
+
+**** v0 # v1 -- not related
+  eq updateRksMx({v0,act0} rks,act1,v1)
+         = {v0,act0} updateRksMx(rks,act1,v1) [owise] .
+	
+  op pruneRks : RActSet RVal RActSet -> RActSet .
+  eq pruneRks(none,v1,rks)   = rks .
+  ceq pruneRks({v0,act0} rks0,v1,rks) = pruneRks(rks0,v1,rks1)
+    if rks1 := (if (v0 < v1) then rks else (rks {v0,act0}) fi) .
+    
+endfm
+

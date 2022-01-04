@@ -1,0 +1,116 @@
+
+**************** BALANCED *************************
+************** ALL PRUNING ************
+*** Run Command in prompt
+maudez3 load-platooning-balanced-all-prunning.maude
+
+search enforceSP(safeSP,setStopTime(as0(2),2)) =>! asys:ASystem such that isSat(asys:ASystem) .
+No solution.
+states: 63  rewrites: 222776 in 11623ms cpu (11636ms real) (19165 rewrites/second)
+
+search enforceSP(safeSP,setStopTime(as0(2),3)) =>! asys:ASystem such that isSat(asys:ASystem) .
+
+************** NO PRUNING ************
+*** Run Command in prompt
+maudez3 load-platooning-balanced-no-prunning.maude
+
+search enforceSP(safeSP,setStopTime(as0(2),2)) =>! asys:ASystem such that isSat(asys:ASystem) .
+No more solutions.
+states: 71  rewrites: 86888 in 2507ms cpu (2534ms real) (34649
+    rewrites/second)
+
+search enforceSP(safeSP,setStopTime(as0(2),3)) =>! asys:ASystem such that isSat(asys:ASystem) .
+
+************** TICK PRUNING ************
+*** Run Command in prompt
+maudez3 load-platooning-balanced-tick-prunning.maude
+
+search enforceSP(safeSP,setStopTime(as0(2),2)) =>! asys:ASystem such that isSat(asys:ASystem) .
+No more solutions.
+states: 63  rewrites: 131944 in 8257ms cpu (8315ms real) (15978
+    rewrites/second)
+
+search enforceSP(safeSP,setStopTime(as0(2),3)) =>! asys:ASystem such that isSat(asys:ASystem) .
+
+**************** LESS SMT and MORE REWRITING ********
+************** ALL PRUNING ************
+*** Run Command in prompt
+maudez3 load-platooning-less-smt-more-rewriting-all-prunning.maude
+
+search enforceSP(safeSP,setStopTime(as0(2),2)) =>! asys:ASystem such that isSat(asys:ASystem) .
+No more solutions.
+states: 296  rewrites: 956955 in 52670ms cpu (53333ms real) (18168
+    rewrites/second)
+
+search enforceSP(safeSP,setStopTime(as0(2),3)) =>! asys:ASystem such that isSat(asys:ASystem) .
+Solution 880 (state 1975)
+No more solutions.
+states: 1976  rewrites: 9577883 in 5238472ms cpu (5258331ms real) (1828
+    rewrites/second)
+
+
+************** NO PRUNING ************
+*** Run Command in prompt
+maudez3 load-platooning-less-smt-more-rewriting-no-prunning.maude
+
+search enforceSP(safeSP,setStopTime(as0(2),2)) =>! asys:ASystem such that isSat(asys:ASystem) .
+No more solutions.
+states: 1427  rewrites: 1384846 in 29551ms cpu (29710ms real) (46861 rewrites/second)
+
+*** No sat is dotask nor tick
+search enforceSP(safeSP,setStopTime(as0(2),3)) =>! asys:ASystem such that isSat(asys:ASystem) .
+
+Solution 880 (state 42547)
+states: 42827  rewrites: 54657046 in 3054657ms cpu (3066224ms real) (17893
+    rewrites/second)
+
+search enforceSP(safeSP,setStopTime(as0(2),4)) =>! asys:ASystem such that isSat(asys:ASystem) .
+
+************** TICK PRUNING ************
+*** Run Command in prompt
+maudez3 load-platooning-less-smt-more-rewriting-tick-prunning.maude
+
+search enforceSP(safeSP,setStopTime(as0(2),2)) =>! asys:ASystem such that isSat(asys:ASystem) .
+No more solutions.
+states: 497  rewrites: 1180776 in 47365ms cpu (47724ms real) (24928
+    rewrites/second)
+
+search enforceSP(safeSP,setStopTime(as0(2),3)) =>! asys:ASystem such that isSat(asys:ASystem) .
+Solution 880 (state 2483)
+No more solutions.
+states: 2484  rewrites: 9262215 in 3389604ms cpu (3412564ms real) (2732
+    rewrites/second)
+
+**************** MORE SMT and LESS REWRITING ********
+************** ALL PRUNING ************
+*** Run Command in prompt
+maudez3 load-platooning-more-smt-less-rewriting-all-prunning.maude
+
+search enforceSP(safeSP,setStopTime(as0(2),2)) =>! asys:ASystem such that isSat(asys:ASystem) .
+No more solutions.
+states: 19  rewrites: 56000 in 4167ms cpu (4185ms real) (13437
+    rewrites/second)
+
+search enforceSP(safeSP,setStopTime(as0(2),3)) =>! asys:ASystem such that isSat(asys:ASystem) .
+
+************** NO PRUNING ************
+*** Run Command in prompt
+maudez3 load-platooning-more-smt-less-rewriting-no-prunning.maude
+
+search enforceSP(safeSP,setStopTime(as0(2),2)) =>! asys:ASystem such that isSat(asys:ASystem) .
+No more solutions.
+states: 19  rewrites: 20446 in 277ms cpu (285ms real) (73672
+    rewrites/second)
+
+search enforceSP(safeSP,setStopTime(as0(2),3)) =>! asys:ASystem such that isSat(asys:ASystem) .
+
+
+************** TICK PRUNING ************
+*** Run Command in prompt
+maudez3 load-platooning-more-smt-less-rewriting-tick-prunning.maude
+
+search enforceSP(safeSP,setStopTime(as0(2),2)) =>! asys:ASystem such that isSat(asys:ASystem) .
+states: 19  rewrites: 32400 in 743ms cpu (752ms real) (43551
+    rewrites/second)
+
+search enforceSP(safeSP,setStopTime(as0(2),3)) =>! asys:ASystem such that isSat(asys:ASystem) .
