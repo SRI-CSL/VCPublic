@@ -1,0 +1,219 @@
+fmod ENV-ACTIONS is
+  inc MODEL-ACTIONS .
+	inc RANDOM .
+  inc FAULT-MODEL .
+  
+  vars t t' t0 t1 t2 t3 : Time .
+  var nzt : NzTime .
+  vars id id' id0 : Id .
+  vars l0 l1 l2 l3 loc home : Loc .
+  vars lkb ekb ekb' ekb0 ekb1 ekb2 kb' kb1 : KB .
+  var dir : Dir .
+  var b b0 b1 b2 : Bool .
+  var evs : EventSet .
+	var n u alt zmax i j : Nat .
+  vars act act1 : Action .
+  vars x y x0 y0 x1 y1 z0  z1 fx0 fx1 fy0 fy1 : Int .
+  vars rp0 rp1 rp2 rp3 rp4 rp fp fp0 fp1 alt1 : Rat .
+  vars ffx ffy ffz ffx1 ffy1 ffz1 ffx0 ffy0 ffz0 ffa  : FiniteFloat .
+  vars e e0 v sgn : FiniteFloat .
+  vars dx dy dz d dv dt sp sp0 dur : FiniteFloat .
+  var rv : RVal .
+  
+**** implicit that id =/= id' 
+**** since shouldn't be two class facts for id
+**** using same t means locs are refreshed at each time step
+ eq okEnv(class(id,Bot)  (atloc(id, l1) @ t) 
+                 class(id',Bot) (atloc(id',l1) @ t) ekb) = false .
+ eq okEnv(ekb) = true [owise] .
+
+ **** Action failures  need action names to avoid param specific
+ sort Act .
+ ops goToA  takeOffA landA stopA  : -> Act [ctor] .
+ op aF : Id Act FType FPars -> Info .
+ ***(
+ gotoW fault  is vector defined by angle and len to be added to
+ to regular vector
+  aF(id,goToA,simpleFT,sFP(fp0, fp1, ffV(fp))) 
+ if r0/rmax > fp0 then goTo stalls
+ if r1/rmax > fp1 then generate wind
+sgn = if r3/rmax < .5 then -1.0 else 1.0 fi 
+ffx = (r2/rmax - .5) * 2.0 *** (sin theta)
+ffy = sqrt(1 - ffx * ffx) * sgn
+wsp = r4/rmax * fp
+wvec = dir(ffx * wsp, ffy * wsp, 0.0 )
+
+  aF(id,takeOffA,simpleFT,sFP(fp0, fp1, ffV(p)))  
+  aF(id,landA,simpleFT,sFP(fp0, fp1, ffV(p)))  
+ p is % change in increment of altitude
+ if r0/rmax > fp0 then stall
+ if r1/rmax > fp1 then decrease increment -- sgn * p * inc
+ sgn = if r3/rmax < .5 then -1.0 else 1.0 fi 
+ 
+)  
+ 
+ sort ActKB .
+ op `{_,_`} : Action KB -> ActKB [ctor] .
+**** {newact, ekbupdate} 
+ op transformAct : Time Action KB -> ActKB .
+ceq transformAct(t, goToW(id,ffx,ffy,ffz,dt),
+       (aF(id,goToA,simpleFT,sFP(fp0, fp1, ffV(fp))) @ t0) ekb)
+   = {act1,(rand(id,i,j + 5) @ s t)}
+if (rand(id,i,j) @ t1 ) randInc(n) ekb0 
+    := ekb
+   /\ rp0 := random( (n * j) + i) / randMax
+   /\ rp1 := random( (n * (j + 1)) + i) / randMax
+   /\ rp2 := random( (n * (j + 2)) + i) / randMax
+   /\ rp3 := random( (n * (j + 3)) + i) / randMax
+   /\ rp4 := random( (n * (j + 4)) + i) / randMax
+   /\ act1 :=
+        (if (rp0 <= fp0)
+         then goToW(id,0.0,0.0,0.0,dt)
+         else (if rp1 > fp1 
+               then goToW(id,ffx,ffy,ffz,dt)
+               else transformGoToW(id,ffx,ffy,ffz,dt,
+                                      float(rp4 * fp),rp2,rp3) 
+               fi) fi) .
+
+  op transformGoToW : Id FiniteFloat FiniteFloat FiniteFloat 
+                         FiniteFloat FiniteFloat Rat Rat -> Action .
+ ceq  transformGoToW(id,ffx,ffy,ffz,dt,sp,rp2,rp3) 
+    = goToW(id,ffx + (dx * sp),ffy + (dy * sp),ffz,dt)
+   if dx := float(rp2 - 1/2) * 2.0
+   /\ dy := sqrt(1.0 - dx * dx) * randSgn(rp3)
+   .  
+
+  ceq transformAct(t,land(id,dz),
+        (aF(id,landA,simpleFT,sFP(fp0, fp1, ffV(fp))) @ t0)  ekb)
+    =
+    {act1, (rand(id,i,j + 3) @ s t )}
+if (rand(id,i,j) @ t1 ) randInc(n)  ekb0 := ekb
+   /\ rp0 := random( (n * j) + i) / randMax
+   /\ rp1 := random( (n * (j + 1)) + i) / randMax
+   /\ rp2 := random( (n * (j + 2)) + i) / randMax
+   /\ act1 := 
+     (if rp0 <= fp0
+      then land(id,0.0)
+      else (if rp1 > fp1
+            then land(id,dz)
+            else land(id,dz * (1.0 + (randSgn(rp2) * float(fp))))
+            fi)
+      fi) .
+
+ceq transformAct(t, takeOff(id,alt,dz),
+       (aF(id,takeOffA,simpleFT,sFP(fp0, fp1, ffV(fp))) @ t0) ekb)
+   = {act1, (rand(id,i,j + 3) @ s t )}
+ if (rand(id,i,j) @ t1 ) randInc(n)  ekb0 := ekb
+   /\ rp0 := random( (n * j) + i) / randMax
+   /\ rp1 := random( (n * (j + 1)) + i) / randMax
+   /\ rp2 := random( (n * (j + 2)) + i) / randMax
+   /\ act1 := 
+     (if rp0 <= fp0
+      then takeOff(id,alt,0.0)
+      else (if rp1 > fp1
+            then takeOff(id,alt,dz)
+            else takeOff(id,alt, 
+                          dz * (1.0 + (randSgn(rp2) * float(fp))))
+            fi)
+      fi) .
+   
+
+ eq transformAct(t,act,ekb) = {act, ekb} [owise] .
+
+
+**** t is the clock at current time unit
+**** ekb should not have a clock
+**** op doUnitEnvAct : Time KB EventSet -> KB .
+**** eq doUnitEnvAct(t, ekb, evs) = ekb [owise] .
+
+ op doEAct : Time Action KB -> KB .
+ op doUnitEnvActX : Time KB KB EventSet -> KB .
+
+  eq doUnitEnvAct(t,ekb, evs) = doUnitEnvActX(t,ekb,none,evs) .
+
+**** ekb1 is just rand counter update, ekb2 actual env update
+  ceq doUnitEnvActX(t,ekb, ekb0, (a:Action @ 0) evs) =
+         doUnitEnvActX(t,ekb,addK(ekb1 ekb2,ekb0),evs)
+  if {a1:Action, ekb1} := transformAct(t,a:Action,ekb) 
+  /\ ekb2 := doEAct(t,a1:Action,ekb) .
+
+  ceq doUnitEnvActX(t,ekb, ekb0, ({rv, a:Action} @ 0) evs) =
+         doUnitEnvActX(t,ekb,addK(ekb1 ekb2,ekb0),evs)
+  if {a1:Action, ekb1} := transformAct(t,a:Action,ekb) 
+  /\ ekb2 := doEAct(t,a1:Action,ekb) .
+
+  eq doUnitEnvActX(t,ekb, ekb0, none) = ekb0 .
+
+
+ **** for 1 sec  -- defined in scenario   
+ op costMv : FiniteFloat -> FiniteFloat .
+ op costMvZ : FiniteFloat FiniteFloat ->  FiniteFloat .
+
+ op fenceLimit : Int Int Int -> Int .
+**** x0 < x1 
+ eq fenceLimit(x0,x1,x) =
+       (if (x < x0) 
+        then x0
+        else (if (x1 < x) then x1 else x fi) fi) .
+        
+************ sitl like unit actions
+**** goToW(id,ffx1 * sp,ffy1 * sp,ffz1 * sp, dur)
+**** if computed sp = 0 then don't update velicty???
+  ceq doEAct(t, goToW(id,ffx,ffy,ffz, dur), ekb) = 
+       (energy(id,e0) @ s t) (atloc(id,l3) @ s t) (vel(id,sp) @ s t) kb'
+  if (atloc(id,l0) @ t0) (energy(id,e) @ t1) 
+     (fence(id,fx0,fy0,fx1,fy1,zmax) @ t2)  (vel(id,v) @ t3) 
+     ekb0 := ekb
+  /\ pt(x0,y0,z0) := l0
+  /\ sp0 := sqrt((ffx * ffx) + (ffy * ffy) + (ffz * ffz))
+  /\ sp := (if (sp0 < minSpeed) then v else sp0 fi)
+  /\ x1 := x0 + round(ffx / gridStepX)
+  /\ y1 := y0 + round(ffy / gridStepY)
+  /\ z1 := z0 + round(ffz / gridStepZ)
+  /\ l1 := pt(fenceLimit(fx0,fx1,x1),fenceLimit(fy0,fy1,y1), 
+               min(z1,zmax))
+  /\ e0 := energyGoToW(e,sp)
+  /\ l3 := (if occupied(l1,ekb) then l0 else l1 fi)
+  /\ kb' := if e0 > 0.0 
+            then none
+            else (crashed(id,l3,float(t)) @ s(t)) fi
+  .
+
+**** costMv horizontal motion as sp for 1 unit
+  op energyGoToW : FiniteFloat FiniteFloat  -> FiniteFloat .
+  eq energyGoToW(e,v) = max(e - costMv(v),0.0) .  
+
+***  dz := takeOffInc(float(z0) * gridStepZ,float(alt),vlift)
+ ceq doEAct(t, takeOff(id,alt,dz), ekb)
+   = (atloc(id,l1) @ s(t)) (energy(id,e0) @ s(t)) (vel(id,dz) @ s t)
+  if (atloc(id,l0) @ t0) (energy(id,e) @ t1) 
+     (fence(id,fx0,fy0,fx1,fy1,zmax) @ t2) 
+     ekb0 := ekb
+  /\ pt(x0,y0,z0) := l0
+  /\ l1 := pt(x0,y0,min(zmax,z0 + round(dz / gridStepZ)))
+  /\ e0 := energyTakeOffU(e,vlift,dz / vlift)
+  .
+
+ **** cost of vertical move at speed v for dt.
+ op energyTakeOffU : FiniteFloat FiniteFloat FiniteFloat 
+            -> FiniteFloat .
+ eq energyTakeOffU(e,v,dt) = max(e - costMvZ(v,dt),0.0) .  
+ 
+
+ ceq doEAct(t, land(id,dz), ekb)
+  = (atloc(id,l1) @ s(t)) (energy(id,e0) @ s(t)) (vel(id,dz) @ s t)
+ if (atloc(id,loc) @ t0) (energy(id,e) @ t1) 
+    ekb0 := ekb
+ /\ pt(x0,y0,z0) := loc
+ /\ l1 := pt(x0,y0,max(0,z0 - round(dz * gridStepZ)))
+ /\ e0 := energyLandU(e,vland, dz / vland)
+  .
+
+
+ op energyLandU : FiniteFloat FiniteFloat FiniteFloat -> FiniteFloat .
+ eq energyLandU(e,v,dt) = max(e - costMvZ(- v,dt),0.0) .  
+
+ eq doEAct(t, stop(id), ekb) = none .
+
+endfm
+

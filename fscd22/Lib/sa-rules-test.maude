@@ -1,0 +1,73 @@
+mod SA-RULES-TEST is
+  inc SOFT-AGENT-RULES .
+
+ops dId pId xId : -> Id .
+ops dCl pCl xCl : -> Class .
+ops loc0 loc1 loc2 : -> Loc .
+
+op iS0 : -> InfoSet .
+eq iS0 = atloc(dId,loc0) atloc(pId,loc1) .
+
+ops lKB0 lKB1 : -> KB .
+eq lKB0 = tstamp(iS0,1) .
+eq lKB1 = tstamp(iS0,3) .
+
+ops evS0 evS1 : -> EventSet .
+eq evS0 = (tick @ 1) .
+eq evS1 = (tick @ 0) rcv(atloc(xId,loc2) @ 1) .
+
+ops ag0 ag1 ag00 ag10 : Time -> Agent .
+eq ag0(t) = [dId : dCl | lkb : (clock(t) lKB0), ckb : lKB0, evs : evS0 ] .
+eq ag1(t) = [pId : pCl | lkb : (clock(t) lKB0), ckb : lKB0, evs : evS1 ] .
+
+eq ag00(t) = [dId : dCl | lkb : (clock(t) atloc(dId,loc0) @ 1), ckb : (atloc(dId,loc0) @ 1), evs : (tick @ 2)] .
+eq ag10(t) = [pId : pCl | lkb : (clock(t) atloc(pId,loc1) @ 1), ckb : (atloc(pId,loc1) @ 1), evs : (tick @ 1)] .
+
+
+op eId : -> Id .
+ops env2 env4 : -> Env .
+eq env2 = [eId | clock(2) lKB0] .
+eq env4 = [eId | clock(4) lKB1] .
+
+var t : Time .
+var nzt : Time .
+vars id id0 id1 : Id .
+vars cl : Class .
+vars kb kb0 kb1 lkb ekb : KB .
+vars t0 t1 : Nat .
+vars l0 l1 loc : Loc .
+vars evs ievs devs : EventSet .
+
+
+eq atloc(id,l0) @ t0 << atloc(id,l1) @ t1 = t0 < t1 .
+
+ceq doTask(cl, id, tick, ievs, devs, ekb, lkb) =
+    {addK(lkb, atloc(id,loc) @ t), devs (tick @ 1), atloc(id,loc) @ t} 
+if t := getTime(lkb)
+/\ loc := getLoc(id,ekb) .
+
+eq distance(loc0, loc1) = 1 .
+eq inContact(id0,id1,kb) = distance(getLoc(id0,kb),getLoc(id1,kb)) <= 2 .
+
+ops ic0 ic1 : Time -> Conf .
+eq ic0(t) = ag0(t) ag1(t) .
+eq ic1(t) = ag00(t) ag10(t) .
+
+eq doEnvAct(t, nzt,ekb,none) = none .
+ 
+endm
+
+eof
+
+red doEnvAct(2, 1, clock(2) (atloc(dId, loc0) @ 1) atloc(pId, loc1) @ 1, none) .
+
+set print attribute on .
+rew [10] {ic0(1) env2 } .
+
+rew [10] {ic1(4) env4} .
+
+red getTime(clock(2) lKB0) .
+red getLoc(dId,clock(2) lKB0) .
+red doTask(dCl,dId,tick,none,none, clock(1) lKB0,  clock(2) lKB0) .		
+		
+timeEffect(rcv(atloc(xId, loc2)  @ 1), 1)

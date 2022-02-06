@@ -1,0 +1,11 @@
+load ../../Lib/load-sa
+
+load knowledge
+load tasks
+load actions
+load scp
+load sensor-faults
+load scenario-params-scp
+
+load scenario
+

@@ -1,0 +1,295 @@
+mod META-SOFT-AGENT-STATS is
+  inc META-SOFT-AGENT .
+
+var ctl : Control .
+var wait4s : Wait4Set .
+var reqQ reqQ' reqQ0 reqQ1 : RequestQ .
+vars log log'  : Log .
+vars es0 es es' es'' es1 : ESet .
+
+vars InQ outQ toks toks' rids : QidList .
+vars q modname initname amodname mname maudename
+     g2dname g2dvname  pyname qc sname statsOp
+     alpha delta pval minrounds maxrounds rate
+     epsilon  nq
+     threshold rounds
+     : Qid .
+vars asysT asysT0 asysT1 bT t nT nT1 xT : Term .
+
+vars mod agentMod amod module : Module .
+vars res? res?? res1? res1?? res0? res0?? res2??  : [ResultPair?] .
+var res4? : [Result4Tuple] .
+
+vars ?string  str createSOExp : String .
+vars bindings bnds : TBinds .
+
+****************************************************************
+**** assume initAgetnEset has initialized
+****  maudename,g2dname,g2dvname, amodname,initname, randInc
+
+***(initAgentEsetStats 299 Patrol  GenericApprox .25 .25) 
+**** set statsName 
+**** init g2d which will start runs
+
+****************************************************************
+op initAgentEsetStats : ESet Qid Qid -> ESet .
+eq initAgentEsetStats(es, qc,sname) =
+        addEntry(
+          addEntry(es, 'qval, 'statsName,  ql(sname)),
+                       'qval, 'runCount,  ql(qc)) .
+
+eq isReq('initAgentEsetStats) = true .
+eq enabled(wait4s,
+           req('initAgentEsetStats, ql(sname qc statsOp toks),reqQ)) = true .
+
+
+**** also initializes g2d actor
+crl[initAgentEsetStats]:
+   [nil, 
+    st(processing(req('initAgentEsetStats,
+                      ql(sname qc statsOp toks),reqQ')),
+       wait4s,reqQ,es,log),
+     outQ]
+   =>
+   [nil, 
+    st(ready, 
+       (wait4s !
+  			 wait4(sname,nil, req('graphreq,ql(g2dvname),nil)) !
+         wait4(g2dvname,sname,
+               req('logreq,ql('initStats g2dvname sname),reqQ'))), 
+  		reqQ,
+			es',
+    	log), 
+  		outQ  g2dvname '\n mname '\n toks' maudePrompt ]
+ if es' := initAgentEsetStats(es,qc,sname)
+ /\ ql(mname) := getVal(es,'qval,'maudeName,ql('maude))
+ /\ ql(g2dvname) := getVal(es,'qval,'g2dVName,ql('unKnown))
+ /\ str := mkInitStatsExp(mname,g2dvname, sname, statsOp,toks)
+ /\ toks' := str2toks(str) .
+
+
+op initStatsTemplate : -> String [ctor] .
+eq initStatsTemplate =
+"(let ((statsObj %createSOExp))\n\
+   (sinvoke \"g2d.util.ActorMsg\" \"send\" %maudename %g2dname \"OK\")\n\
+   (apply doStats %sname)\n\
+)"  .
+
+op mkInitStatsExp : Qid Qid  Qid Qid QidList -> String .
+ceq mkInitStatsExp(maudename, g2dname, sname, statsOp,toks) =
+ fillTemplate(initStatsTemplate,bindings)
+if createSOExp := mkSOExp(statsOp,sname,toks) 
+/\ bindings := (
+    ("%maudename" :~ sqquote(maudename)), 
+    ("%g2dname" :~ sqquote(g2dname)), 
+    ("%sname" :~ sqquote(sname)), 
+    ("%createSOExp" :~ createSOExp)) .
+
+**** BlackboxApprox
+op mkSOExp : Qid Qid QidList -> String .
+eq mkSOExp(statsOp,sname, toks) =
+  (if (statsOp == 'GenericApprox) 
+	 then mkGenericApproxSOExp(sname,toks)
+	 else (if (statsOp == 'nGenericApprox) 
+      	 then mknGenericApproxSOExp(sname,toks)
+   else (if (statsOp == 'BlackboxApprox)
+	       then mkBlackboxApproxSOExp(sname,toks) 
+	 else (if (statsOp == 'QAApprox)
+	       then mkQAApproxSOExp(sname,toks) 
+       	 else "(apply mkDefaultStatsObject)"
+	 fi) fi) fi) fi) .
+
+
+op genericApproxTemplate : -> String [ctor] .
+eq genericApproxTemplate =
+"(object (\"g2d.stats.GenericApprox\" %sname (double %epsilon) (double %delta)))" .
+
+op mkGenericApproxSOExp : Qid QidList -> String .
+eq mkGenericApproxSOExp(sname,epsilon delta toks) =
+   fillTemplate(genericApproxTemplate,
+             	 (("%sname" :~ sqquote(sname)),
+							 ("%epsilon" :~ string(epsilon)),
+                ("%delta" :~ string(delta)) )) .
+
+eq mkGenericApproxSOExp(sname,toks) =
+   fillTemplate(genericApproxTemplate,
+             	 (("%sname" :~ sqquote(sname)),
+							  ("%epsilon" :~ ".25"),
+                ("%delta" :~ ".25") )) [owise] .
+
+
+op ngenericApproxTemplate : -> String [ctor] .
+eq ngenericApproxTemplate =
+"(object (\"g2d.stats.nGenericApprox\" %sname (double %epsilon) (double %delta) (int %n)))" .
+
+op mknGenericApproxSOExp : Qid QidList -> String .
+eq mknGenericApproxSOExp(sname,epsilon delta nq toks) =
+   fillTemplate(ngenericApproxTemplate,
+             	 (("%sname" :~ sqquote(sname)),
+							 ("%n" :~ string(nq)),
+							 ("%epsilon" :~ string(epsilon)),
+                ("%delta" :~ string(delta)) )) .
+
+eq mknGenericApproxSOExp(sname,toks) =
+   fillTemplate(ngenericApproxTemplate,
+             	 (("%sname" :~ sqquote(sname)),
+							  ("%n" :~ "1"),
+							  ("%epsilon" :~ ".25"),
+                ("%delta" :~ ".25") )) [owise] .
+
+
+op blackboxApproxTemplate : -> String [ctor] .
+eq blackboxApproxTemplate =
+"(object (\"g2d.stats.BlackboxApprox\" %sname (double %threshold) (int  %rounds)))" .
+****    threshold .75     rounds 30
+
+op mkBlackboxApproxSOExp : Qid QidList -> String .
+eq mkBlackboxApproxSOExp(sname,threshold rounds toks) =
+   fillTemplate(blackboxApproxTemplate,
+             	 (("%sname" :~ sqquote(sname)),
+							  ("%threshold" :~ string(threshold)),
+                ("%rounds" :~ string(rounds)) )) .
+
+eq mkBlackboxApproxSOExp(sname,toks) =
+   fillTemplate(blackboxApproxTemplate,
+             	 (("%sname" :~ sqquote(sname)),
+							  ("%threshold" :~ ".75"),
+                ("%rounds" :~ "30") )) [owise] .
+
+
+***(
+  ;; alpha: error bound, delta: confidence interval, pval: pvalue for JB test
+  ;; minsize: minimum rounds, maxsize: maximum rounds, rate: % of sample (=rounds) increase  
+  (object ("g2d.stats.QAApprox" "qaApprox"  (double 0.25) (double 0.35) (double 0.75) (int 20) (int 1000) (double 0.45)))
+)
+
+op mkQAApproxTemplate : -> String [ctor] .
+eq mkQAApproxTemplate =
+"(object (\"g2d.stats.QAApprox\" %sname (double %alpha) (double %delta) (double %pval) (int  %minrounds) (int  %maxrounds) (double %rate)))" .
+
+
+op mkQAApproxSOExp : Qid QidList -> String .
+eq mkQAApproxSOExp(sname,alpha delta pval minrounds maxrounds rate toks) =
+   fillTemplate(mkQAApproxTemplate,
+             	 (("%sname" :~ sqquote(sname)),
+							  ("%alpha" :~ string(alpha)),
+							  ("%delta" :~ string(delta)),
+							  ("%pval" :~ string(pval)),
+							  ("%minrounds" :~ string(minrounds)),
+							  ("%maxrounds" :~ string(maxrounds)),
+                ("%rate" :~ string(rate)) )) .
+
+eq mkQAApproxSOExp(sname,toks) =
+   fillTemplate(mkQAApproxTemplate,
+             	 (("%sname" :~ sqquote(sname)),
+							  ("%alpha" :~ ".25"),
+							  ("%delta" :~ ".25"),
+							  ("%pval" :~ ".05"),
+							  ("%minrounds" :~ "20"),
+							  ("%maxrounds" :~ "1000"),
+                ("%rate" :~ ".5") ))  [owise] .
+
+
+***********************************************************************
+***** (doRun Patrol g2d)
+**** doRun--set agentSys, rewrite runCount rounds, 
+**** update randix, send result
+***********************************************************************
+
+ eq isReq('doRun) = true .
+ eq enabled(wait4s,req('doRun,ql(sname g2dvname toks),reqQ)) = 
+    not(waiting4(wait4s,g2dvname)) .
+
+crl[doRun]:
+   [nil,
+    st(processing(req('doRun, ql(sname g2dvname toks),reqQ')), 
+       wait4s,reqQ,es,log), 
+    outQ]
+     =>
+   [nil,  
+    st(ready, wait4s,(reqQ reqQ0), es',log), 
+		outQ  ] 
+if ql(amodname) := getVal(es,'qval, 'agentModName, ql('BOOL))
+/\ tm(amodname, asysT) := 
+        getVal(es,'tval, 'initASys, tm(amodname,'`{_`}['none.Conf]))
+/\ tm(amodname, nT) := getVal(es,'tval, 'randIx, tm(amodname,'0.Zero))
+/\ res?? := metaReduce([amodname], 'upDateRand[asysT,nT])
+/\ asysT0 := (if res?? :: ResultPair
+               then getTerm(res??)
+               else asysT fi)
+/\ es' := addEntry(es,'tval,'agentSys, tm(amodname,asysT0))
+/\ ql(qc) := getVal(es,'qval, 'runCount, ql('0))
+/\ reqQ0 := req('doRoundAux, ql(qc), 
+                          req('runOd,ql(g2dvname sname), reqQ'))
+.
+
+
+ eq isReq('runOd) = true .
+ eq enabled(wait4s,req('runOd,ql(g2dvname sname toks),reqQ)) = 
+    not(waiting4(wait4s,g2dvname)) .
+
+crl[runOd]:
+   [nil,
+    st(processing(req('runOd, ql(g2dvname sname toks),reqQ')), 
+       wait4s,reqQ,es,log), 
+    outQ]
+     =>
+   [nil,  
+    st(ready,
+      (wait4s ! 
+       wait4(g2dvname,sname,
+             req('logreq,ql('runOd g2dvname sname),reqQ'))), 
+       reqQ ,
+       es',
+       log), 
+    		outQ  g2dvname '\n mname '\n toks' maudePrompt ]
+if ql(amodname) := getVal(es,'qval, 'agentModName, ql('BOOL))
+/\ tm(amodname, asysT) := 
+        getVal(es,'tval, 'agentSys, tm(amodname,'`{_`}['none.Conf]))
+/\ res?? := metaReduce([amodname], 'getObs[asysT])
+/\ bT := (if (res?? :: ResultPair)
+               then getTerm(res??)
+							 else 'false.Bool fi)
+/\ tm(amodname, nT) := getVal(es,'tval, 'randIx, tm(amodname,'0.Zero))
+/\ tm(amodname, xT) := getVal(es,'tval, 'randInc, tm(amodname,'0.Zero))
+/\ res1?? := metaReduce([amodname], '_+_[nT,xT])
+/\ nT1 := (if res1?? :: ResultPair 
+           then getTerm(res1??) else nT fi)							 
+/\ es' := addEntry(es,'tval,'randIx,tm(amodname,nT1))
+/\ ql(mname) := getVal(es,'qval,'maudeName,ql('maude))
+/\ str := mkRunReplyExp(sname, bT)
+/\ toks' := str2toks(str) .
+
+
+op runReplyTemplate : -> String .
+eq runReplyTemplate =
+     "(apply runResult %sname (apply makeDouble  %obs))" .
+
+op runReplyNTemplate : -> String .
+eq runReplyNTemplate = 
+   "(apply runResult %sname (array double %obs))"  .
+
+***(
+op runReplyErrTemplate : -> String .
+eq runReplyErrTemplate = 
+ "(seq \
+   (invoke java.lang.System.err "\""println"\"" "\"" Done MaudeError"\"")\
+   (invoke java.lang.System.err "\""println"\"" (fetch %sname))\
+   )"
+     .
+)
+op mkRunReplyExp : Qid Term -> String .
+**** true -- multi obs fill array template, false single obs
+eq mkRunReplyExp(sname, 'br[bT, t]) =
+  fillTemplate((if bT == 'true.Bool 
+                then runReplyNTemplate
+                else runReplyTemplate fi),
+	            (("%sname" :~ sqquote(sname)), 
+               ("%obs" :~ downTerm(t,"")))  ) .
+
+***(
+eq mkRunReplyExp(sname, bT) = 
+  fillTemplate(runReplyErrTemplate,("%sname" :~ sqquote(sname)) )
+  [owise] .
+)
+endm

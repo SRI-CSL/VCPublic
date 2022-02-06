@@ -1,0 +1,201 @@
+  (targetL(b(i),locs) @ 0) 
+
+
+New Info 
+
+op target : -> Sensor .
+
+
+**** single update and sets of updates
+sorts TgtUpdate TgtUpdateS .
+subsort TgtUpdate < TgtUpdateS .
+op none : -> TgtUpdateS [ctor] .
+op __ : TgtUpdateS TgtUpdateS -> TgtUpdateS 
+        [ctor assoc comm id: none] .
+
+op updatePool : TgtUpdateS -> Info .
+op curUpdate : Id TgtUpdateS -> Info .  *** 0 or 1
+
+
+op drop : -> TgtUpdate [ctor] .
+op drop : Loc  -> TgtUpdate [ctor] .
+
+op add : Loc  -> TGtUpdate [ctor] .
+
+****    loc as offset
+op mv : Loc  -> TgtUpdate [ctor] .
+****   init  final
+op mv : Loc  Loc -> TgtUpdate [ctor] .
+
+ 
+---------------------------
+  
+var tgtUps :  tgtUpdateS .  **** 0 or 1
+
+add to ekb construction in scenario
+  targetL(id0,locl0) @ 0 for each drone 
+  curUpdate(id,none) @ 0
+  updatePool(tgtUps) @ 0
+  
+add target to drone sensors  
+
+eq readSensor(id,target,
+              (targetL(id,locl) @ t0) 
+              (curUpdate(id,tgtUps) @ t1) ekb) 
+ = {ekb, (targetL(id,locl) @ t0) (curUpdate(id,tgtUps) @ t1)}
+  .
+
+
+
+---------------------------
+add to scenario  
+
+**** if there is a drop pending, drop something from
+**** the list of one of the drones
+crl[drop]:
+{ aconf [eid | ekb clock(t) 
+               (targetL(id,locl) @ t0) 
+               (curUpdate(id,none) @ t1)
+               (updatePool(tgtUps drop) @ t2) } 
+  =>                   
+{ aconf [eid | ekb  clock(t)
+                   (targetL(id,locl0 ; locl1) @ t) 
+                   (curUpdate(id,drop(loc)) @ t)
+                   (updatePool(tgtUps) @ t) } 
+if locl0 ; loc ; locl1 := locl .
+
+**** add a location to one of the drones lists
+crl[add]:
+{ aconf [eid | ekb clock(t) 
+               (targetL(id,locl) @ t0) 
+               (curUpdate(id,none) @ t1)
+               (updatePool(tgtUps add(loc)) @ t2) } 
+  =>                   
+{ aconf [eid | ekb (targetL(id,locl0 ; loc ; loc1) @ t) 
+                   curUpdate(id,add(loc)) @ t
+                   updatePool(tgtUps) @ t] } 
+if locl0  ; locl1 := locl .
+
+
+**** displace an existing location of one of the drones
+crl[mv]:
+{ aconf [eid | ekb clock(t)
+               (fence(id,x0,y0,x1,y1,zmax) @ t3)
+               (targetL(id,locl) @ t0) 
+               (curUpdate(id,none) @ t1)
+               (updatePool(tgtUps mv(disp)) @ t2) } 
+  =>                   
+{ aconf [eid | ekb clock(t)
+               (fence(id,x0,y0,x1,y1,zmax) @ t3)
+               (targetL(id,locl0 ; loc1 ; locl1) @ t) 
+               (curUpdate(id,mv(loc,loc1)) @ t)
+               (updatePool(tgtUps) @ t) } 
+if locl0 ; loc ; locl1 := locl
+/\ loc1 := fDisplace(loc,disp,          
+                     (fence(id,x0,y0,x1,y1,zmax) @ t3))
+ .   
+
+**** fkDisplace keeps resulting loc inside the fence
+*** VN: Implemented in Knowledge.
+
+
+------------------------
+Adapt updateConf in scenario-params
+
+The current updates must be cleared after time passes -- resetUpdats.
+
+The drone removes loc from its target list when it selects
+that loc.   The env should remove it when the drone is close to its target -- checkVisited  
+
+
+eq updateConf([ eid | ekb ] aconf) = 
+     [eid | checkVisited(resetUpdates(ekb),none)] aconf .
+
+
+op resetUpdates : KB -> KB .
+eq resetUpdates(ekb clock(t) (curUpdate(id,tgtUps) @ t0))
+   = resetUpdates(ekb clock(t) (curUpdate(id,none) @ t)) .
+eq resetUpdates(ekb) = ekb [owise] .
+
+op checkVisited : KB KB -> KB .
+ceq checkVisited(kb clock(t)
+                   (targetL(id,loc ; locl) @ t0) 
+                   (atloc(id,loc1) @ t1), kb0 )
+  = checkVisited(kb clock(t), kb0 
+                        (targetL(id,loc0 ; locl) @ t) 
+                        (atloc(id,loc1) @ t1) )
+if loc0 := (if close(loc,loc1)  then nil else loc fi) .                                   
+eq checkVisited(kb,kb0) = kb kb0 [owise] .
+
+*************************************
+drone behavior
+
+in tasks.maude
+recall that target sensor reads the current target set for id and the current update for id.
+
+in actsBasic  FIX
+
+replace
+
+  else (if notDone(pact,loc) 
+        then {one, continue(id)}
+by
+  else (if notDone(pact,loc) 
+        then (if not isTgt(pact,home) **** add
+              then {one, continue(id)}
+              else checkUpdate(id,loc,getLoc(pact),kb)
+              fi)
+
+op checkUpdate : Id Loc Loc KB -> RAct .
+**** the following should be called checkUpdateSimple
+**** to allow for other strategies for nextLoc
+eq checkUpdate(id,tgtloc,loc,kb (curUpdate(id,none) @ t0) )
+   = {one,continue(id)}
+
+eq checkUpdate(id,tgtloc,loc,kb (curUpdate(id,drop(loc0)) @ t0) )
+  = (if tgtloc == loc0
+     then nextLoc(id,kb)
+     else {one,continue(id)}
+     fi) .
+  
+**** if there is a new target to visit, it will be 
+**** handled when its turn comes up in the Simple case  
+eq checkUpdate(id,tgtloc,loc,kb (curUpdate(id,add(loc0)) @ t0))
+  = {one, continue(id)} .
+
+
+**** if the update moves the current target, update it
+ceq checkUpdate(id,tgtloc,loc,kb (curUpdate(mv(loc0,loc1)) @ t0))
+  = (if tgtloc == loc0
+     then {one, goToW(id,loc1,v)}
+     else {one, continue(id)}
+     fi)
+ if kb0 (targetVel(id,v) @ t1) := kb .
+  
+
+-------------- EXPERIMENTS -----------------
+
+Number of Points
+Number of Updates per type
+Time Bound
+SCP versus simple
+
+
+
+
+----------------------------------------------
+
+
+For future experiments  we can define new location chooser
+op newLocClosest : Id KB -> RActSet .
+ceq newLocClosest(id,kb (atloc(id,loc) @ t0) (targetL(id,locl) @ t1)
+(targetVel(id,v) @ t2))
+= {one, goToW(id,loc1,v)}
+if loc1 := closestLoc(loc,locl,nil,nan)
+
+
+Who is right if drone and envt disagree?
+Maybe drone sensor visited reports when drone has just visted
+an existing target (and the env has removed it from the targetlist)
+
+

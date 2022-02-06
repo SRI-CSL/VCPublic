@@ -1,0 +1,325 @@
+mod SCENARIO is
+  inc SCENARIO-PARAMETERS .
+
+vars l loc loc0 loc1  ll ur disp : Loc .
+vars n i j nbots cdist : Nat .
+vars locs locs0 locs1 locl 
+     locl0 locl1 : LocList .
+vars x0 y0 z0 x1 y1 zmax a a0 a1 : Int .
+vars t t0 t3 t1 t2 : Time .
+vars rp0 rp1 rp : Rat .
+vars e vel tvel caution : FiniteFloat .
+vars id eid : Id .
+vars conf aconf : Conf .
+vars kb ekb kb1 : KB .
+var tgtUps : TgtUpdateS .
+var attrs : AttributeSet .
+var bId : Id .
+
+***(
+op mkVisitTimes : Nat LocList -> KB .
+eq mkVisitTimes(n,l ; locs) 
+ = (visitTimes(b(n),l,nil) @ 0) mkVisitTimes(n,locs) .
+eq mkVisitTimes(n,nil) = none .
+)
+op mkFence : Id Loc Loc Nat -> KItem .
+eq mkFence(id,pt(x0,y0,z0), pt(x1,y1,zmax),t)
+    = (fence(id,x0,y0,x1,y1,zmax) @ t).
+
+******* instantiating fault models
+**** use to add an obstacle ob(j:Nat) at loc:Loc
+op obst : Nat Loc -> KB .
+eq obst(j,loc) =  (class(ob(j),Obstacle)  (atloc(ob(j),loc)  @ 0)) .
+
+
+******                       dead? off?  mag?
+***** (sF(id,locS,simpleFT,sFP(fp0,fp1,ptV(fp))) @ t1),
+**** bot 0 location sensor is dead w prob rp0 and offset rp1 rand angle 
+**** sp given by rp * random from Unit
+***** example 0/1 1/10 1/5 1
+op locsf : Nat Rat Rat Rat -> KB .
+eq locsf(j,rp0,rp1,rp) = (sF(b(j),locS,simpleFT,sFP(rp0,rp1,ffV(rp))) @ 0) .
+
+**** w prob rp0 the energy sensor returns 0, ow with prob rp1 it adds 
+**** (+/-) rp to the actual energy reading for bot j
+**** example 0/1, 1/10 1/5 10
+op ensf : Nat Rat Rat Rat -> KB .
+eq ensf(j,rp0,rp1,rp) = (sF(b(j),energyS,simpleFT,sFP(rp0,rp1,intV(rp))) @ 0) .
+
+***** see actions.maude transformAct for how this works
+***(
+   (aF(id,goToA,simpleFT,sFP(fp0, fp1, ffV(fp))) @ t0)
+  --- fp0 prob of 0 move, fp1 prob of diversion by vector scaled by fp
+  --- whose angle/sign is determined randomly
+  --- could be composition of wind 1,pw,(i,j)
+  --- and faulty wheel/motor pr0,1,(0,0)
+ )
+**** action faults for b(j) 
+**** example 0/1 1/10 1/5 -1
+**** ops goToA  takeOffA landA stopA  : -> Act [ctor] .
+op gotoaf : Nat Rat Rat Rat -> KB .
+eq gotoaf(j,rp0,rp1,rp) = (aF(b(j),goToA,simpleFT,sFP(rp0,rp1, ffV(rp))) @ 0)  .
+
+op takeoffaf : Nat Rat Rat Rat -> KB .
+eq takeoffaf(j,rp0,rp1,rp) = 
+        (aF(b(j),takeOffA,simpleFT,sFP(rp0,rp1, ffV(rp))) @ 0)  .
+
+op landaf : Nat Rat Rat Rat -> KB .
+eq landaf(j,rp0,rp1,rp) = 
+        (aF(b(j),landA,simpleFT,sFP(rp0,rp1, ffV(rp))) @ 0)  .
+
+ op addEkb : ASystem KB -> ASystem .
+ op addEkb : Conf KB -> Conf .
+ eq addEkb({conf},kb) = { addEkb(conf,kb) } .
+ eq addEkb(conf [eid | ekb],kb) = conf [eid | addK(ekb,kb)] .
+
+ op offsetRand : ASystem Nat -> ASystem .
+ op offsetRand : KB Nat -> KB .
+ eq offsetRand({conf [eid | ekb]},n) 
+     = {conf [eid | offsetRand(ekb,n)]} .
+ eq offsetRand({conf},n) = {conf} [owise] .
+ eq offsetRand((kb rand(id,i,j) @ t),n)
+     = (rand(id,i,j + n) @ t) offsetRand(kb,n) .
+ eq offsetRand(kb,n) = kb [owise] .
+
+
+**** op addFaults : ASystem KB -> ASystem .
+
+**** nat is rand offset
+ op addFaultsR : ASystem KB Nat -> ASystem .
+ op addFaultsR : Conf KB Nat -> Conf .
+ eq addFaultsR({conf},kb,n) = { addFaultsR(conf,kb,n) } .
+ eq addFaultsR(conf [eid | ekb],kb,n) 
+      = conf [eid | offsetRand(addK(ekb,kb),n)] .
+
+****** SCENARIO RULES FOR TARGET UPDATES *****
+crl[dropTgt]:
+{ aconf [eid | ekb clock(t) 
+               (targetL(id,locl) @ t0) 
+               (curUpdate(id,none) @ t1)
+               (updatePool(tgtUps dropTgt) @ t2)] } 
+  =>                   
+{ aconf [eid | ekb  clock(t)
+                   (targetL(id,locl0 ; locl1) @ t) 
+                   (curUpdate(id,dropTgt(loc)) @ t)
+                   (updatePool(tgtUps) @ t)] } 
+if locl0 ; loc ; locl1 := locl .
+
+**** add a location to one of the drones lists
+crl[add]:
+{ aconf [eid | ekb clock(t) 
+               (targetL(id,locl) @ t0) 
+               (curUpdate(id,none) @ t1)
+               (updatePool(tgtUps addTgt(loc)) @ t2)] } 
+  =>                   
+{ aconf [eid | ekb (targetL(id,locl0 ; loc ; locl1) @ t) 
+                   (curUpdate(id,addTgt(loc)) @ t)
+                   (updatePool(tgtUps) @ t)] } 
+if locl0  ; locl1 := locl .
+
+**** displace an existing location of one of the drones
+crl[mv]:
+{ aconf [eid | ekb clock(t)
+               (fence(id,x0,y0,x1,y1,zmax) @ t3)
+               (targetL(id,locl) @ t0) 
+               (curUpdate(id,none) @ t1)
+               (updatePool(tgtUps mvTgt(disp)) @ t2)] } 
+  =>                   
+{ aconf [eid | ekb clock(t)
+               (fence(id,x0,y0,x1,y1,zmax) @ t3)
+               (targetL(id,locl0 ; loc1 ; locl1) @ t) 
+               (curUpdate(id,mvTgt(loc,loc1)) @ t)
+               (updatePool(tgtUps) @ t)] } 
+if locl0 ; loc ; locl1 := locl
+/\ loc1 := fDisplace(loc,disp,          
+               (fence(id,x0,y0,x1,y1,zmax) @ t3)) .   
+
+**** initial drone kb
+****       id      a    tvel       caution     ll  ur
+op iDlkb : Nat Loc Int FiniteFloat FiniteFloat Loc Loc LocList 
+             -> KB .
+eq iDlkb(i,loc,a,tvel,caution,ll,ur,locs) =
+  (clock(0)
+  class(b(i),Bot)
+  myAlt(b(i),a) 
+  myHome(b(i),loc)
+  (mkFence(b(i),ll,ur,0))
+  (caution(b(i),caution) @ 0)
+  (targetVel(b(i),tvel) @ 0) 
+  (targetL(b(i),locs) @ 0) 
+  (visitLT(b(i),none) @ 0)
+ )
+.
+
+op iDekb : Nat Loc FiniteFloat FiniteFloat Loc Loc -> KB .
+eq iDekb(i,loc,e,vel,ll,ur ) =
+  (class(b(i),Bot)
+   (atloc(b(i),loc) @ 0)
+   (energy(b(i),e) @ 0)
+   (vel(b(i),vel) @ 0)
+   (mkFence(b(i),ll,ur,0))
+   (rand(b(i),i,0) @ 0) )
+.
+
+*** with target locs
+op iDekb : Nat Loc FiniteFloat FiniteFloat 
+           Loc Loc LocList -> KB .
+eq iDekb(i,loc,e,vel,ll,ur,locs)
+ = iDekb(i,loc,e,vel,ll,ur)
+   (targetL(b(i),locs) @ 0)
+   (curUpdate(b(i),none) @ 0)
+.
+
+op iEkb : Id Nat Nat -> KB .
+eq iEkb(eid,nbots,cdist) =
+    clock(0)
+    randInc(s nbots)
+    comDist(cdist)
+    (rand(eid,nbots,0) @ 0) 
+***    (timeElapsed(0.0) @ 0)
+.
+
+**** with updates
+op iEkb : Id Nat Nat TgtUpdateS  -> KB .
+eq iEkb(eid,nbots,cdist,tgtUps) =
+    iEkb(eid,nbots,cdist)
+    (updatePool(tgtUps) @ 0) .
+
+**** with updates and timebound
+op iEkb : Id Nat Nat TgtUpdateS Time -> KB .
+eq iEkb(eid,nbots,cdist,tgtUps,t) =
+    iEkb(eid,nbots,cdist)
+    (updatePool(tgtUps) @ 0)
+    (timeBound(t)) .
+
+
+op mkBot : Nat Loc Int FiniteFloat FiniteFloat Loc Loc LocList 
+           -> Agent .
+eq mkBot(i,loc,a,tvel,caution,ll,ur,locs) =
+  [b(i) : Bot | lkb : iDlkb(i,loc,a,tvel,caution,ll,ur,locs),
+                sensors : (locS energyS  obstacleS speedS targetS),
+                evs : (tick @ 0), 
+                ckb : none]
+  .  
+*** teS
+
+***** loc = home tvel -- target vel,  init vel = 0.0
+op iC1 : Id FiniteFloat FiniteFloat FiniteFloat Loc Loc Nat
+         Int Loc LocList -> Conf .
+eq iC1(eid,e,tvel,caution,ll,ur,cdist,a,loc,locs) =
+   [eid | iEkb(eid,1,cdist) iDekb(0,loc,e,0.0,ll,ur)]
+    mkBot(0,loc,a,tvel,caution,ll,ur,locs)
+.
+
+*** With tgt updates
+op iC1 : Id FiniteFloat FiniteFloat FiniteFloat Loc Loc Nat
+         Int Loc LocList TgtUpdateS -> Conf .
+eq iC1(eid,e,tvel,caution,ll,ur,cdist,a,loc,locs,tgtUps) =
+   [eid | iEkb(eid,1,cdist,tgtUps) 
+          iDekb(0,loc,e,0.0,ll,ur,locs)]
+    mkBot(0,loc,a,tvel,caution,ll,ur,locs)
+.
+
+op iC1 : Id FiniteFloat FiniteFloat FiniteFloat Loc Loc Nat
+         Int Loc LocList TgtUpdateS Time -> Conf .
+eq iC1(eid,e,tvel,caution,ll,ur,cdist,a,loc,locs,tgtUps,t) =
+   [eid | iEkb(eid,1,cdist,tgtUps,t) 
+          iDekb(0,loc,e,0.0,ll,ur,locs)]
+    mkBot(0,loc,a,tvel,caution,ll,ur,locs)
+.
+
+op iC2 : Id FiniteFloat FiniteFloat FiniteFloat Loc Loc Nat
+         Int Loc LocList Int Loc LocList -> Conf .
+eq iC2(eid,e,vel,caution,ll,ur,cdist,a0,loc0,locs0,a1,loc1,locs1) 
+   =
+   [eid | iEkb(eid,2,cdist) 
+          iDekb(0,loc0,e,0.0,ll,ur)  iDekb(1,loc1,e,0.0,ll,ur)]
+    mkBot(0,loc0,a0,vel,caution,ll,ur,locs0)
+    mkBot(1,loc1,a1,vel,caution,ll,ur,locs1)
+.
+
+*** definition of goal achieved as all target points are reached within some time.
+
+op goalAchieved : Time ASystem  -> Bool .
+ceq goalAchieved(t,{[eI | clock(t0) (targetL(id, locl) @ t1) kb] aconf} ) 
+ = false
+ if t0 >= t and not (locl == nil) . 
+
+ceq goalAchieved(t,
+     {[eI | clock(t0) (targetL(id, locl) @ t1) kb] 
+      [bId : Bot | (lkb : ((pending(bId, stop(bId)) @ t2)
+                    kb1)), attrs]
+       aconf  } ) 
+ = false
+ if t0 < t and not (locl == nil) .
+
+eq goalAchieved(t,{ aconf } ) = true [owise] .
+
+op goalAchievedBefore : Time ASystem -> Bool .
+eq goalAchievedBefore(t,{[eI | clock(t0) (targetL(id, locl) @ t1) kb] aconf}) 
+ = t0 < t and (locl == nil) .
+
+eq updateConf([ eid | 
+     (timeBound(t1)) (clock(t)) ekb ] aconf) = 
+     if t >= t1 or goalAchievedBefore(t1, {[ eid | 
+     (timeBound(t1)) (clock(t)) ekb ] aconf}) then 
+      [ eid | (timeBound(t1)) (clock(t)) ekb ] 
+     else 
+     [eid | checkVisited(resetUpdates((timeBound(t1)) (clock(t)) ekb),none)] aconf fi .
+
+
+*******************************************************
+
+endm
+
+eof
+
+red {iC1(eI,100.0,5.0,20.0,pt(0,0,0),pt(100,100,30), 50,20,pt(0,0,0),pt(50,50,30), dropTgt)} .
+
+***(
+rew [30] {iC1(eI,100.0,5.0,20.0,pt(0,0,0),pt(100,100,30), 50,20,pt(0,0,0),pt(50,50,30))} .
+
+
+rew [10] {iC1(eI,100.0,5.0,20.0,pt(0,0,0),pt(100,100,30), 50,20,pt(0,0,0),(pt(75,25,30) ; pt(25,75,20)))} .
+
+**** locsf(0,1/15,1/10,1) 
+**** gotoaf(0,1/12,1/12,1)
+ 
+rew [40] {addFaultsR(iC1(eI,100.0,5.0,20.0,pt(0,0,0),pt(100,100,30), 50,20,pt(0,0,0),pt(50,50,30)), locsf(0,1/15,1/10,1),0) } .
+
+rew [10] {addFaultsR(iC1(eI,100.0,5.0,20.0,pt(0,0,0),pt(100,100,30), 50,20,pt(0,0,0),pt(50,50,30)), gotoaf(0,1/12,1/12,1),0) } .
+
+**** with two points
+
+rew [10] {addFaultsR(iC1(eI,100.0,5.0,20.0,pt(0,0,0),pt(100,100,30), 50,20,pt(0,0,0),(pt(75,25,30) ; pt(25,75,20))), locsf(0,1/15,1/10,1),0) } .
+stops at 60
+
+rew [10] {addFaultsR(iC1(eI,100.0,5.0,20.0,pt(0,0,0),pt(100,100,30), 50,20,pt(0,0,0),(pt(75,25,30) ; pt(25,75,20))), gotoaf(0,1/12,1/12,1),0) } .
+
+**** with two drones, two points each 
+b0 @ 2,2,0 alt 25 points 10,80,25 80,10,25
+b1 @ 98,98,0 alt 35 points 90,20,35  20,90,35
+
+rew [12] {iC2(eI,100.0,5.0,20.0,pt(0,0,0),pt(100,100,40),50,25,pt(2,2,0),pt(10,80,25) ; pt(80,20,25),35,pt(98,98,0),pt(90,29,35) ; pt(20,90,35))} .
+
+stop clock 69
+
+rew [209] {iC2(eI,100.0,5.0,20.0,pt(0,0,0),pt(100,100,40),50,25,pt(2,2,0),pt(10,80,25) ; pt(80,20,25),35,pt(98,98,0),pt(90,29,35) ; pt(20,90,35))} .
+
+
+**** scp  1 drone two points
+rew [10] {iC1(eI,100.0,5.0,20.0,pt(0,0,0),pt(100,100,30), 50,20,pt(0,0,0),(pt(75,25,30) ; pt(25,50,20)))} .
+
+stop by 52
+
+rew [50] {iC1(eI,100.0,5.0,20.0,pt(0,0,0),pt(100,100,30), 50,20,pt(0,0,0),(pt(75,25,30) ; pt(25,50,20)) ; (pt(75,25,30) ; pt(25,50,20)) )} .
+
+rew [200] {iC1(eI,100.0,5.0,20.0,pt(0,0,0),pt(100,100,30), 50,20,pt(0,0,0),(pt(75,25,30) ; pt(25,50,20)) ; (pt(75,25,30) ; pt(25,50,20)) )} .
+
+stops at clock 68
+
+
+rew [240] {iC2(eI,100.0,5.0,20.0,pt(0,0,0),pt(100,100,40),50,25,pt(2,2,0),pt(10,80,25) ; pt(80,20,25),35,pt(98,98,0),pt(90,29,35) ; pt(20,90,35))} .
+
+stops @ clock 69
+)

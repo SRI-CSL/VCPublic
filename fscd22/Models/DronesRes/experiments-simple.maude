@@ -1,0 +1,337 @@
+mod EXPERIMENTS-SIMPLE is
+inc SCENARIO .
+
+ops mvLow mvMed mvHigh : -> TgtUpdate .
+eq mvLow = mvTgt(pt(10,10,0)) .
+eq mvMed = mvTgt(pt(25,25,0)) . 
+eq mvHigh = mvTgt(pt(50,50,0)) . 
+
+*** See experiments below that justify these numbers.
+ops tightDeadline okDeadline easyDeadline : -> Time .
+eq tightDeadline = 55 .
+eq okDeadline = 65 .
+eq easyDeadline = 75 .
+
+ops easyTargets okTargets hardTargets : -> LocList .
+eq easyTargets = pt(30,30,30) ; pt(70,50,30) ; pt(20,40,30) .
+
+eq okTargets = pt(30,30,30) ; pt(70,50,30) ; 
+               pt(50,60,30) ; pt(20,40,30) .
+*** On the edges.
+eq hardTargets = pt(20,20,30) ; pt(70,70,30) ; 
+                 pt(80,20,30) ; pt(10,90,30) .
+
+op iC : LocList TgtUpdateS Time -> Conf .
+eq iC(tar:LocList,tgtUps:TgtUpdateS,t:Time) =
+   iC1(eI,100.0,5.0,20.0,pt(0,0,0),pt(100,100,30), 
+        50,20,pt(0,0,0),tar:LocList, tgtUps:TgtUpdateS,t:Time) .
+
+endm
+eof
+*** Justify a tight deadline:
+With no update and the hard targets, the drone needs at least 55 time units.
+
+search [1] {iC(hardTargets,none,50)} =>+ asys:ASystem such that not goalAchieved(50,asys:ASystem) .
+*** was not able.
+
+search [1] {iC(hardTargets,none,55)} =>+ asys:ASystem such that not goalAchieved(55,asys:ASystem) .
+*** was able
+
+************ Easy TARGETS **************
+search [1] {iC(easyTargets,mvHigh,easyDeadline)} =>+ asys:ASystem such that not goalAchieved(easyDeadline,asys:ASystem) .
+No solution.
+states: 7037  rewrites: 3477281 in 3758ms cpu (3766ms real) (925058 rewrites/second)
+
+
+
+
+search [1] {iC(easyTargets,mvMed mvMed,easyDeadline)} =>+ asys:ASystem such that not goalAchieved(easyDeadline,asys:ASystem) .
+No solution.
+states: 97146  rewrites: 47816710 in 54832ms cpu (55074ms real) (872047 rewrites/second)
+
+
+
+
+
+*** Reducing deadline to okDeadline
+search [1] {iC(easyTargets,mvHigh,okDeadline)} =>+ asys:ASystem such that not goalAchieved(okDeadline,asys:ASystem) .
+No solution.
+states: 7037  rewrites: 3477281 in 3996ms cpu (4021ms real) (869979 rewrites/second)
+
+
+search [1] {iC(easyTargets,mvMed,tightDeadline)} =>+ asys:ASystem such that not goalAchieved(tightDeadline,asys:ASystem) .
+No solution.
+states: 5739  rewrites: 2833253 in 3110ms cpu (3135ms real) (910744 rewrites/second)
+
+
+search [1] {iC(easyTargets,mvHigh,tightDeadline)} =>+ asys:ASystem such that not goalAchieved(tightDeadline,asys:ASystem) .
+Solution 1 (state 6911)
+states: 6912  rewrites: 3409536 in 3741ms cpu (3760ms real) (911208 rewrites/second)
+asys:ASystem --> {
+[eI |
+  clock(55) comDist(50) randInc(2) timeBound(55) class(b(0), Bot) (updatePool(none) @ 20) (
+    atloc(b(0), pt(21, 41, 30)) @ 55) (targetL(b(0), pt(20, 40, 30)) @ 54) (energy(b(0),
+    1.7820000000000032e+1) @ 55) (vel(b(0), 2.5000000000000009) @ 55) (curUpdate(b(0), none)
+    @ 21) (rand(eI, 1, 0) @ 55) (rand(b(0), 0, 0) @ 0) fence(b(0), 0, 0, 100, 100, 30) @ 0]}
+
+
+
+search [1] {iC(easyTargets,mvMed mvMed,okDeadline)} =>+ asys:ASystem such that not goalAchieved(okDeadline,asys:ASystem) .
+No solution.
+states: 97146  rewrites: 47816710 in 64424ms cpu (65120ms real) (742212 rewrites/second)
+
+*** Reducing further deadline to tightDeadline
+search [1] {iC(easyTargets,mvLow mvLow,tightDeadline)} =>+ asys:ASystem such that not goalAchieved(tightDeadline,asys:ASystem) .
+No solution.
+states: 67106  rewrites: 33129907 in 40640ms cpu (40907ms real) (815195 rewrites/second)
+
+search [1] {iC(easyTargets,mvMed mvMed,tightDeadline)} =>+ asys:ASystem such that not goalAchieved(tightDeadline,asys:ASystem) .
+Solution 1 (state 94262)
+states: 94263  rewrites: 46037032 in 53875ms cpu (54113ms real) (854503 rewrites/second)
+asys:ASystem --> {
+[eI |
+  clock(55) comDist(50) randInc(2) timeBound(55) class(b(0), Bot) (updatePool(none) @
+    23) (atloc(b(0), pt(21, 41, 30)) @ 55) (targetL(b(0), pt(20, 40, 30)) @ 54) (energy(
+    b(0), 1.8020000000000035e+1) @ 55) (vel(b(0), 2.5000000000000009) @ 55) (curUpdate(
+    b(0), none) @ 24) (rand(eI, 1, 0) @ 55) (rand(b(0), 0, 0) @ 0) fence(b(0), 0, 0,
+    100, 100, 30) @ 0]}
+
+*** INcreased instead the update intensity.
+search [1] {iC(easyTargets,mvHigh mvHigh,easyDeadline)} =>+ asys:ASystem such that not goalAchieved(easyDeadline,asys:ASystem) .
+Solution 1 (state 145367)
+states: 145368  rewrites: 71119318 in 90762ms cpu (91005ms real) (783576
+    rewrites/second)
+asys:ASystem --> {
+[eI |
+  clock(66) comDist(50) randInc(2) timeBound(75) class(b(0), Bot) (updatePool(none) @
+    50) (atloc(b(0), pt(65, 85, 0)) @ 66) (targetL(b(0), pt(70, 90, 30)) @ 66) (energy(
+    b(0), 3.0200000000000284) @ 66) (vel(b(0), 5.0) @ 66) (curUpdate(b(0), none) @ 51) (
+    rand(eI, 1, 0) @ 66) (rand(b(0), 0, 0) @ 0) fence(b(0), 0, 0, 100, 100, 30) @ 0]
+[b(0) : Bot |
+  lkb : (clock(66) class(b(0), Bot) (atloc(b(0), pt(65, 85, 0)) @ 66) (pending(b(0),
+    stop(b(0))) @ 67) (targetL(b(0), pt(70, 90, 30)) @ 66) (visitLT(b(0), [pt(30, 30,
+    30) : 14] [pt(100, 100, 30) : 32]) @ 32) (energy(b(0), 3.0200000000000284) @ 66) (
+    caution(b(0), 2.0e+1) @ 0) (targetVel(b(0), 5.0) @ 0) (vel(b(0), 5.0) @ 66) (
+    curUpdate(b(0), none) @ 51) (eLoc(b(0), pt(20, 40, 30), 52) @ 32) (eLoc(b(0), pt(30,
+    30, 30), 13) @ 4) (eLoc(b(0), pt(70, 50, 30), 23) @ 14) (eLoc(b(0), pt(70, 90, 30),
+    62) @ 50) (eLoc(b(0), pt(100, 100, 30), 34) @ 15) (fence(b(0), 0, 0, 100, 100, 30) @
+    0) myHome(b(0), pt(0, 0, 0)) myAlt(b(0), 20)),
+  ckb : (class(b(0), Bot) atloc(b(0), pt(65, 85, 0)) @ 66),
+  sensors : (locS obstacleS energyS speedS targetS),
+  evs : ((tick @ 1) {one,stop(b(0))} @ 0)]}
+
+*** okdeadline
+
+search [1] {iC(easyTargets,mvHigh,okDeadline)} =>+ asys:ASystem such that not goalAchieved(okDeadline,asys:ASystem) .
+No solution.
+states: 7037  rewrites: 3477281 in 3718ms cpu (3725ms real) (935076 rewrites/second)
+
+*** tightdeadline
+search [1] {iC(easyTargets,mvHigh,tightDeadline)} =>+ asys:ASystem such that not goalAchieved(tightDeadline,asys:ASystem) .
+Solution 1 (state 6911)
+states: 6912  rewrites: 3409536 in 3644ms cpu (3649ms real) (935522 rewrites/second)
+asys:ASystem --> {
+[eI |
+  clock(55) comDist(50) randInc(2) timeBound(55) class(b(0), Bot) (updatePool(none) @
+    20) (atloc(b(0), pt(21, 41, 30)) @ 55) (targetL(b(0), pt(20, 40, 30)) @ 54) (energy(
+    b(0), 1.7820000000000032e+1) @ 55) (vel(b(0), 2.5000000000000009) @ 55) (curUpdate(
+    b(0), none) @ 21) (rand(eI, 1, 0) @ 55) (rand(b(0), 0, 0) @ 0) fence(b(0), 0, 0,
+    100, 100, 30) @ 0]}
+
+
+
+
+
+
+************ Ok TARGETS **************
+search [1] {iC(okTargets,mvMed,easyDeadline)} =>+ asys:ASystem such that not goalAchieved(easyDeadline,asys:ASystem) .
+No solution.
+states: 8330  rewrites: 4124896 in 4409ms cpu (4423ms real) (935475 rewrites/second)
+
+search [1] {iC(okTargets,mvHigh,easyDeadline)} =>+ asys:ASystem such that not goalAchieved(easyDeadline,asys:ASystem) .
+Solution 1 (state 10418)
+states: 10419  rewrites: 5155922 in 5408ms cpu (5414ms real) (953349 rewrites/second)
+asys:ASystem --> {
+[eI |
+  clock(67) comDist(50) randInc(2) timeBound(75) class(b(0), Bot) (updatePool(none) @ 30) (
+    atloc(b(0), pt(23, 42, 0)) @ 67) (targetL(b(0), pt(20, 40, 30)) @ 67) (energy(b(0),
+    2.5200000000000431) @ 67) (vel(b(0), 5.0) @ 67) (curUpdate(b(0), none) @ 31) (rand(eI,
+    1, 0) @ 67) (rand(b(0), 0, 0) @ 0) fence(b(0), 0, 0, 100, 100, 30) @ 0]
+[b(0) : Bot |
+  lkb : (clock(67) class(b(0), Bot) (atloc(b(0), pt(23, 42, 0)) @ 67) (pending(b(0), stop(b(
+    0))) @ 68) (targetL(b(0), pt(20, 40, 30)) @ 67) (visitLT(b(0), [pt(30, 30, 30) : 14] [
+    pt(70, 50, 30) : 25] [pt(100, 100, 30) : 42]) @ 42) (energy(b(0), 2.5200000000000431) @
+    67) (caution(b(0), 2.0e+1) @ 0) (targetVel(b(0), 5.0) @ 0) (vel(b(0), 5.0) @ 67) (
+    curUpdate(b(0), none) @ 31) (eLoc(b(0), pt(20, 40, 30), 62) @ 42) (eLoc(b(0), pt(30, 30,
+    30), 13) @ 4) (eLoc(b(0), pt(50, 60, 30), 29) @ 25) (eLoc(b(0), pt(70, 50, 30), 23) @
+    14) (eLoc(b(0), pt(100, 100, 30), 42) @ 30) (fence(b(0), 0, 0, 100, 100, 30) @ 0)
+    myHome(b(0), pt(0, 0, 0)) myAlt(b(0), 20)),
+  ckb : (class(b(0), Bot) atloc(b(0), pt(23, 42, 0)) @ 67),
+  sensors : (locS obstacleS energyS speedS targetS),
+  evs : ((tick @ 1) {one,stop(b(0))} @ 0)]}
+
+
+search [1] {iC(okTargets,mvMed,okDeadline)} =>+ asys:ASystem such that not goalAchieved(okDeadline,asys:ASystem) .
+No solution.
+states: 8330  rewrites: 4124896 in 4495ms cpu (4532ms real) (917474 rewrites/second)
+
+search [1] {iC(okTargets,mvHigh,okDeadline)} =>+ asys:ASystem such that not goalAchieved(okDeadline,asys:ASystem) .
+asys:ASystem --> {
+[eI |
+  clock(65) comDist(50) randInc(2) timeBound(65) class(b(0), Bot) (updatePool(none) @ 30) (
+    atloc(b(0), pt(23, 42, 10)) @ 65) (targetL(b(0), pt(20, 40, 30)) @ 64) (energy(b(0),
+    4.8200000000000429) @ 65) (vel(b(0), 5.0) @ 65) (curUpdate(b(0), none) @ 31) (rand(eI,
+    1, 0) @ 65) (rand(b(0), 0, 0) @ 0) fence(b(0), 0, 0, 100, 100, 30) @ 0]}
+
+
+*** two updates  
+search [1] {iC(okTargets,mvLow mvLow,easyDeadline)} =>+ asys:ASystem such that not goalAchieved(easyDeadline,asys:ASystem) .
+No solution.
+states: 108715  rewrites: 53393805 in 65997ms cpu (66488ms real) (809027 rewrites/second)
+
+search [1] {iC(okTargets,mvMed mvMed,easyDeadline)} =>+ asys:ASystem such that not goalAchieved(easyDeadline,asys:ASystem) .
+Solution 1 (state 159853)
+states: 159854  rewrites: 78369488 in 91973ms cpu (92037ms real) (852088
+    rewrites/second)
+asys:ASystem --> {
+[eI |
+  clock(67) comDist(50) randInc(2) timeBound(75) class(b(0), Bot) (updatePool(none) @
+    40) (atloc(b(0), pt(22, 42, 0)) @ 67) (targetL(b(0), pt(20, 40, 30)) @ 67) (energy(
+    b(0), 2.520000000000036) @ 67) (vel(b(0), 5.0) @ 67) (curUpdate(b(0), none) @ 41) (
+    rand(eI, 1, 0) @ 67) (rand(b(0), 0, 0) @ 0) fence(b(0), 0, 0, 100, 100, 30) @ 0]
+[b(0) : Bot |
+  lkb : (clock(67) class(b(0), Bot) (atloc(b(0), pt(22, 42, 0)) @ 67) (pending(b(0),
+    stop(b(0))) @ 68) (targetL(b(0), pt(20, 40, 30)) @ 67) (visitLT(b(0), [pt(30, 30,
+    30) : 14] [pt(50, 60, 30) : 41] [pt(75, 85, 30) : 48] [pt(95, 75, 30) : 31]) @ 48) (
+    energy(b(0), 2.520000000000036) @ 67) (caution(b(0), 2.0e+1) @ 0) (targetVel(b(0),
+    5.0) @ 0) (vel(b(0), 5.0) @ 67) (curUpdate(b(0), none) @ 41) (eLoc(b(0), pt(20, 40,
+    30), 62) @ 48) (eLoc(b(0), pt(30, 30, 30), 13) @ 4) (eLoc(b(0), pt(50, 60, 30), 40)
+    @ 31) (eLoc(b(0), pt(70, 50, 30), 23) @ 14) (eLoc(b(0), pt(75, 85, 30), 48) @ 41) (
+    eLoc(b(0), pt(95, 75, 30), 31) @ 18) (fence(b(0), 0, 0, 100, 100, 30) @ 0) myHome(b(
+    0), pt(0, 0, 0)) myAlt(b(0), 20)),
+  ckb : (class(b(0), Bot) atloc(b(0), pt(22, 42, 0)) @ 67),
+  sensors : (locS obstacleS energyS speedS targetS),
+  evs : ((tick @ 1) {one,stop(b(0))} @ 0)]}
+
+search [1] {iC(okTargets,mvLow mvLow,okDeadline)} =>+ asys:ASystem such that not goalAchieved(okDeadline,asys:ASystem) .
+No solution.
+states: 108715  rewrites: 53393805 in 60443ms cpu (60927ms real) (883363 rewrites/second)
+
+search [1] {iC(okTargets,mvMed mvMed,okDeadline)} =>+ asys:ASystem such that not goalAchieved(okDeadline,asys:ASystem) .
+
+Solution 1 (state 159273)
+states: 159274  rewrites: 78086913 in 103011ms cpu (103549ms real) (758038 rewrites/second)
+asys:ASystem --> {
+[eI |
+  clock(65) comDist(50) randInc(2) timeBound(65) class(b(0), Bot) (updatePool(none) @ 40) (
+    atloc(b(0), pt(22, 42, 10)) @ 65) (targetL(b(0), pt(20, 40, 30)) @ 64) (energy(b(0),
+    4.8200000000000358) @ 65) (vel(b(0), 5.0) @ 65) (curUpdate(b(0), none) @ 41) (rand(eI,
+    1, 0) @ 65) (rand(b(0), 0, 0) @ 0) fence(b(0), 0, 0, 100, 100, 30) @ 0]}
+
+search [1] {iC(okTargets,mvLow mvLow,tightDeadline)} =>+ asys:ASystem such that not goalAchieved(tightDeadline,asys:ASystem) .
+No solution.
+states: 108715  rewrites: 53393805 in 60720ms cpu (61097ms real) (879343 rewrites/second)
+
+
+search [1] {iC(okTargets,mvMed,tightDeadline)} =>+ asys:ASystem such that not goalAchieved(tightDeadline,asys:ASystem) .
+No solution.
+states: 8330  rewrites: 4124896 in 5038ms cpu (5111ms real) (818714 rewrites/second)
+
+search [1] {iC(okTargets,mvHigh,tightDeadline)} =>+ asys:ASystem such that not goalAchieved(tightDeadline,asys:ASystem) .
+Solution 1 (state 9844)
+states: 9845  rewrites: 4851894 in 6023ms cpu (6114ms real) (805440 rewrites/second)
+asys:ASystem --> {
+[eI |
+  clock(55) comDist(50) randInc(2) timeBound(55) class(b(0), Bot) (updatePool(none) @ 0) (
+    atloc(b(0), pt(31, 48, 30)) @ 55) (targetL(b(0), pt(20, 40, 30)) @ 54) (energy(b(0),
+    1.8020000000000039e+1) @ 55) (vel(b(0), 5.0000000000000009) @ 55) (curUpdate(b(0), none)
+    @ 1) (rand(eI, 1, 0) @ 55) (rand(b(0), 0, 0) @ 0) fence(b(0), 0, 0, 100, 100, 30) @ 0]}
+
+************ HARD TARGETS **************
+******* easy deadline
+*** 1 Update
+search [1] {iC(hardTargets,mvLow,easyDeadline)} =>+ asys:ASystem such that not goalAchieved(easyDeadline,asys:ASystem) .
+No solution.
+states: 12330  rewrites: 6104122 in 6670ms cpu (6675ms real) (915155 rewrites/second)
+
+search [1] {iC(hardTargets,mvMed,easyDeadline)} =>+ asys:ASystem such that not goalAchieved(easyDeadline,asys:ASystem) .
+Solution 1 (state 13518)
+states: 13519  rewrites: 6647977 in 7928ms cpu (7943ms real) (838473 rewrites/second)
+asys:ASystem --> {
+[eI |
+  clock(67) comDist(50) randInc(2) timeBound(72) class(b(0), Bot) (updatePool(none) @ 0) (
+    atloc(b(0), pt(16, 84, 0)) @ 67) (targetL(b(0), pt(10, 90, 30)) @ 67) (energy(b(0),
+    1.9200000000000346) @ 67) (vel(b(0), 5.0) @ 67) (curUpdate(b(0), none) @ 1) (rand(eI, 1,
+    0) @ 67) (rand(b(0), 0, 0) @ 0) fence(b(0), 0, 0, 100, 100, 30) @ 0]
+[b(0) : Bot |
+  lkb : (clock(67) class(b(0), Bot) (atloc(b(0), pt(16, 84, 0)) @ 67) (pending(b(0), stop(b(
+    0))) @ 68) (targetL(b(0), pt(10, 90, 30)) @ 67) (visitLT(b(0), [pt(20, 20, 30) : 11] [
+    pt(80, 20, 30) : 45] [pt(95, 95, 30) : 30]) @ 45) (energy(b(0), 1.9200000000000346) @
+    67) (caution(b(0), 2.0e+1) @ 0) (targetVel(b(0), 5.0) @ 0) (vel(b(0), 5.0) @ 67) (
+    curUpdate(b(0), none) @ 1) (eLoc(b(0), pt(10, 90, 30), 65) @ 45) (eLoc(b(0), pt(20, 20,
+    30), 10) @ 4) (eLoc(b(0), pt(80, 20, 30), 45) @ 30) (eLoc(b(0), pt(95, 95, 30), 32) @
+    11) (fence(b(0), 0, 0, 100, 100, 30) @ 0) myHome(b(0), pt(0, 0, 0)) myAlt(b(0), 20)),
+  ckb : (class(b(0), Bot) atloc(b(0), pt(16, 84, 0)) @ 67),
+  sensors : (locS obstacleS energyS speedS targetS),
+  evs : ((tick @ 1) {one,stop(b(0))} @ 0)]}
+
+
+search [1] {iC(hardTargets,mvHigh,easyDeadline)} =>+ asys:ASystem such that not goalAchieved(easyDeadline,asys:ASystem) .
+
+*** 2 Updates
+search [1] {iC(hardTargets,mvLow mvLow,easyDeadline)} =>+ asys:ASystem such that not goalAchieved(easyDeadline,asys:ASystem) .
+Solution 1 (state 245905)
+states: 245906  rewrites: 119958163 in 160941ms cpu (161943ms real) (745350 rewrites/second)
+asys:ASystem --> {
+[eI |
+  clock(66) comDist(50) randInc(2) timeBound(72) class(b(0), Bot) (updatePool(none) @ 56) (
+    atloc(b(0), pt(7, 70, 2)) @ 66) (targetL(b(0), pt(20, 100, 30)) @ 66) (energy(b(0),
+    3.4700000000000366) @ 66) (vel(b(0), 5.0) @ 66) (curUpdate(b(0), none) @ 57) (rand(eI,
+    1, 0) @ 66) (rand(b(0), 0, 0) @ 0) fence(b(0), 0, 0, 100, 100, 30) @ 0]
+[b(0) : Bot |
+  lkb : (clock(66) class(b(0), Bot) (atloc(b(0), pt(7, 70, 2)) @ 66) (pending(b(0), stop(b(
+    0))) @ 67) (targetL(b(0), pt(20, 100, 30)) @ 66) (visitLT(b(0), [pt(10, 90, 30) : 57] [
+    pt(20, 20, 30) : 11] [pt(80, 20, 30) : 39] [pt(80, 80, 30) : 27]) @ 57) (energy(b(0),
+    3.4700000000000366) @ 66) (caution(b(0), 2.0e+1) @ 0) (targetVel(b(0), 5.0) @ 0) (vel(b(
+    0), 5.0) @ 66) (curUpdate(b(0), none) @ 57) (eLoc(b(0), pt(0, 0, 20), 75) @ 57) (eLoc(b(
+    0), pt(10, 90, 30), 59) @ 39) (eLoc(b(0), pt(20, 20, 30), 10) @ 4) (eLoc(b(0), pt(80,
+    20, 30), 39) @ 27) (eLoc(b(0), pt(80, 80, 30), 28) @ 11) (fence(b(0), 0, 0, 100, 100,
+    30) @ 0) myHome(b(0), pt(0, 0, 0)) myAlt(b(0), 20)),
+  ckb : (class(b(0), Bot) atloc(b(0), pt(7, 70, 2)) @ 66),
+  sensors : (locS obstacleS energyS speedS targetS),
+  evs : ((tick @ 1) {one,stop(b(0))} @ 0)]}
+
+
+**** ok deadline
+
+search [1] {iC(hardTargets,mvLow,okDeadline)} =>+ asys:ASystem such that not goalAchieved(okDeadline,asys:ASystem) .
+No solution.
+states: 12330  rewrites: 6104122 in 7247ms cpu (7274ms real) (842250 rewrites/second)
+
+search [1] {iC(hardTargets,mvMed,okDeadline)} =>+ asys:ASystem such that not goalAchieved(okDeadline,asys:ASystem) .
+Solution 1 (state 13273)
+states: 13274  rewrites: 6528886 in 7662ms cpu (7691ms real) (852001 rewrites/second)
+asys:ASystem --> {
+[eI |
+  clock(65) comDist(50) randInc(2) timeBound(65) class(b(0), Bot) (updatePool(none) @ 0) (
+    atloc(b(0), pt(16, 84, 10)) @ 65) (targetL(b(0), pt(10, 90, 30)) @ 64) (energy(b(0),
+    4.2200000000000344) @ 65) (vel(b(0), 5.0) @ 65) (curUpdate(b(0), none) @ 1) (rand(eI, 1,
+    0) @ 65) (rand(b(0), 0, 0) @ 0) fence(b(0), 0, 0, 100, 100, 30) @ 0]}
+
+**** tighdeadline
+search [1] {iC(hardTargets,mvLow,tightDeadline)} =>+ asys:ASystem such that not goalAchieved(tightDeadline,asys:ASystem) .
+Solution 1 (state 11717)
+states: 11718  rewrites: 5738988 in 6709ms cpu (6783ms real) (855297 rewrites/second)
+asys:ASystem --> {
+[eI |
+  clock(55) comDist(50) randInc(2) timeBound(55) class(b(0), Bot) (updatePool(none) @ 0) (
+    atloc(b(0), pt(16, 84, 30)) @ 55) (targetL(b(0), pt(10, 90, 30)) @ 54) (energy(b(0),
+    1.8020000000000039e+1) @ 55) (vel(b(0), 5.0000000000000018) @ 55) (curUpdate(b(0), none)
+    @ 1) (rand(eI, 1, 0) @ 55) (rand(b(0), 0, 0) @ 0) fence(b(0), 0, 0, 100, 100, 30) @ 0]}
+
+
+search [1] {iC(hardTargets,mvMed,tightDeadline)} =>+ asys:ASystem such that not goalAchieved(tightDeadline,asys:ASystem) .
+
+
+
+

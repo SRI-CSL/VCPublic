@@ -1,0 +1,583 @@
+fmod MODEL-KNOWLEDGE is
+  inc SOFT-AGENTS .
+	inc CONVERSION .
+  inc RANDOM .
+
+  vars t t0 t1 t2 : Time .
+  vars alt x y x1 y1 x0 y0 z0 z1 z thr ix iy iz ix0 iy0 iz0 
+    nuX nuY nuZ dx dy 
+     dz xAux yAux zAux : Int .
+  vars id id0 id1 : Id .
+	var cl : Class .
+  vars l l0 l1 l2 l3 loc : Loc .
+  vars ekb ekb0 ekb1 kb  lkb kb1 lkb0 kb3 :  KB .
+  var dir dir0 dir1 : Dir .
+  vars e e0 e1 ff0 ff1 ffx ffy ffz ff ffx0 ffx1 ffy0 ffy1 ffz0 ffz1 v sx sy sz norm1 norm2 dt dt0 dt1 fdx fdy fdz ffn : FiniteFloat .
+  vars locs locs0 locs1 locs2 locs3 : LocList .
+  var act act0 act1 pact : Action .
+  var acts : ActSet .
+  vars n n0 n1 r j j0 j1 zmax : Nat .
+  var times : TimeList .
+  var lts : LocTimeS .
+  op b : Nat -> Id .
+  op st : Nat -> Id .
+  op eI : -> Id .
+  
+
+*** parameters
+  --- ops gridX gridY gridZ : -> Nat .
+  --- for shifting coordinates 0,0
+  ops senXLow senYLow senZLow : -> FiniteFloat . 
+  ops gridStepX gridStepY gridStepZ : -> FiniteFloat .
+ 
+****  op comDistance : -> Nat .
+  op periodicity : -> Nat .
+
+  op chargeUnit : -> FiniteFloat .
+  op maxCharge : -> FiniteFloat .      --- stop charging when full
+  op minEnergy : -> FiniteFloat .
+  op botDelay : -> Nat .
+  op costMv : FiniteFloat -> FiniteFloat .
+
+***** done up/dn velocities
+  op vlift : -> FiniteFloat .
+  op vland : -> FiniteFloat .
+  op minSpeed : -> FiniteFloat .
+  op minAlt : -> Int .
+
+  op sampleTime : -> FiniteFloat .
+****  eq sampleTime = 1.0 .  --- goes in scenario
+
+*** class
+  op Bot : -> Class .
+****  op Station : -> Class .
+  op Obstacle : -> Class .
+
+*** grid-location
+  op pt : Int Int Int -> Loc .
+
+  op mkLoc : FiniteFloat FiniteFloat FiniteFloat -> Loc .
+  eq mkLoc(ffx,ffy,ffz) =
+       pt(rat(floor((ffx - senXLow) / gridStepX)), 
+          rat(floor((ffy - senYLow) / gridStepY)),
+          rat(floor((ffz - senZLow) / gridStepZ))) .
+
+  op equiv : Loc Loc -> Bool .
+  eq equiv(l0,l0) = true .
+  eq equiv(l0,l1) = false [owise] .
+
+  op sum : Loc Loc -> Loc .
+  eq sum(pt(x0,y0,z0),pt(x1,y1,z1)) = pt(x0 + x1,y0 + y1, z0 + z1) .
+
+  sort LocList .
+  subsort Loc < LocList .
+  op nil : -> LocList [ctor] .
+  op _;_ : LocList LocList -> LocList [ctor assoc id: nil] .
+
+  op first : LocList ~> Loc .
+  op rest : LocList ~> LocList .
+  eq first(loc ; locs) = loc .
+  eq rest(loc ; locs) = locs .
+  op len : LocList -> Nat .
+  eq len((nil).LocList) = 0 .
+  eq len(loc ; locs) = s (len(locs)) .
+
+  op diff : Loc Loc -> Loc .
+  eq diff(pt(x0,y0,z0),pt(x1,y1,z1)) 
+   = pt((x1 - x0),(y1 - y0),(z1 - z0)) .
+
+  --- Here we are using locs as vectors. So do not use (0,0,0).
+  op angle : Loc Loc -> FiniteFloat .
+  ceq angle(pt(x0,y0,z0),pt(x1,y1,z1)) 
+   = acos(ffx0 * ffx1 + ffy0 * ffy1 + ffz0 * ffz1) 
+   if norm1 := sqrt(float(x0 ^ 2) + float(y0 ^ 2) + float(z0 ^ 2)) 
+   /\ norm2 := sqrt(float(x1 ^ 2) + float(y1 ^ 2) + float(z1 ^ 2)) 
+   /\ ffx0 := float(x0) / norm1 
+   /\ ffy0 := float(y0) / norm1 
+   /\ ffz0 := float(z0) / norm1 
+   /\ ffx1 := float(x1) / norm2 
+   /\ ffy1 := float(y1) / norm2 
+   /\ ffz1 := float(z1) / norm2 .
+     
+op fDisplace : Loc Loc KB -> Loc .
+ceq fDisplace(pt(x,y,z),pt(dx,dy,dz),
+             (fence(id,x0,y0,x1,y1,zmax) @ t) kb)
+ = pt(nuX,nuY,nuZ)
+ if xAux := (x + dx)
+ /\ nuX := if xAux > x1 then x1 else 
+             (if xAux < x0 then x0 else xAux fi) fi 
+ /\ yAux := (y + dy)
+ /\ nuY := if yAux > y1 then y1 else 
+             (if yAux < y0 then y0 else yAux fi) fi 
+ /\ zAux := (z + dz)
+ /\ nuZ := if zAux > zmax then zmax else 
+             (if zAux < 0 then 0 else zAux fi) fi .
+
+  *** Knowledge fact specifying that some drone 
+  *** has reached energy zero during flight
+  op crashed : Id Loc FiniteFloat -> Info .
+  eq hasId(id,crashed(id,loc,ff) @ t) = true .
+
+  *** Knowledge fact specifying that some drone
+  *** landed far from home
+  op landFarFromHome : Id Loc FiniteFloat -> Info .
+  eq hasId(id,landFarFromHome(id,loc,ff) @ t) = true .
+
+  op pending : Id Action -> Info .
+  eq hasId(id,pending(id,act) @ t) = true .
+
+  op targetL : Id LocList -> Info .
+  eq hasId(id,targetL(id,locs) @ t) = true .
+
+
+  sort TimeList .
+  subsort Time < TimeList .
+  op nilTL : -> TimeList .
+  op _;_ : TimeList TimeList -> TimeList [ctor assoc id: nilTL] .
+
+  op len : TimeList -> Nat .
+  eq len((nilTL).TimeList) = 0 .
+  eq len( t ; times) = s (len(times)) .
+  op first : TimeList ~> Time .
+  eq first( t ; times) = t .
+  op rest : TimeList -> TimeList .
+  eq rest( t ; times) = times .
+  eq rest(times) = nilTL [owise] .
+
+
+  sorts LocTimeL LocTimeS .
+  op [_:_] : Loc TimeList -> LocTimeL [ctor] .
+  subsort LocTimeL < LocTimeS .
+  op none : -> LocTimeS .
+  op __ : LocTimeS LocTimeS -> LocTimeS [ctor assoc comm id: none] .
+
+  op size : LocTimeS -> Nat .
+  eq size(ltl:LocTimeL ltls:LocTimeS) = s size(ltls:LocTimeS) .
+  eq size(none) = 0 .
+
+  op visitLT : Id LocTimeS -> Info .
+  eq hasId(id,visitLT(id,lts) @ t) = true .
+
+***** just return update
+  op incVisitLT : Id Loc Time KB -> KB .
+  eq incVisitLT(id,loc,t1,
+****  (visitLT(id,[loc : tl:TimeList] lts) @ t) kb)
+       (visitLT(id,[loc : times] lts) @ t) kb)
+      = 
+****  (visitLT(id,[loc : (tl:Timelist ; t1)] lts) @ t1) .
+       (visitLT(id,[loc : times ; t1] lts) @ t1) .
+  eq incVisitLT(id,loc,t1, (visitLT(id, lts) @ t) kb)
+      = (visitLT(id,[loc : t1] lts) @ t1) [owise] .
+
+  eq incVisitLT(id,loc,t1,kb) = none [owise] .
+
+ 
+  op myHome : Id Loc -> PKItem .
+  eq hasId(id,myHome(id,loc)) = true .
+
+  op myAlt : Id Int -> PKItem .
+  eq hasId(id,myAlt(id,alt)) = true .
+
+  op energy : Id FiniteFloat -> Info [ctor] .
+  eq hasId(id,energy(id,e) @ t) = true .
+
+  op getEnergy : Id KB -> FiniteFloat .
+  eq getEnergy(id, (energy(id,e) @ t) lkb ) = e .
+  eq getEnergy(id,lkb) = 0.0 [owise] .
+
+  op caution : Id FiniteFloat -> Info [ctor] .
+  eq hasId(id,caution(id,e) @ t) = true .
+	
+  op getCaution : Id KB -> FiniteFloat .
+  eq getCaution(id, (caution(id,e) @ t) lkb ) = e .
+  eq getCaution(id,lkb ) = 1.0 [owise] .
+
+  op timeElapsed : FiniteFloat -> Info .
+  op getTimeElapsed : KB -> KB .
+  eq getTimeElapsed((timeElapsed(dt) @ t) kb) = timeElapsed(dt) @ t .
+  eq getTimeElapsed(kb) = none [owise] .
+
+**** Boundary for location of bot id 
+**** x0 y0 (lower left) x1 y1 (upper right) max alt
+****  corners at z == 0
+**** fence(id,x0,y0,x1,y1,zmax) @ t0
+	op fence : Id Int Int Int Int Nat -> Info [ctor] .
+
+  op inBounds : Loc Int Int Int Int Nat -> Bool .
+  eq inBounds(pt(x,y,z),x0,y0,x1,y1,zmax)  =
+     x0 <= x and x <= x1 
+     and y0 <= y and y <= y1 
+     and 0 <= z  and z <= zmax .
+
+**** max communication distance
+
+	op comDist : Nat -> PKItem [ctor] .
+  op getComDist : KB -> Nat .
+  eq getComDist(comDist(n) kb) = n .
+  eq getComDist(kb) = 0 [owise] .
+
+  op getComDistKI :  KB -> KB .
+  eq getComDistKI(comDist(n) kb) = comDist(n) .
+  eq getComDistKI(kb) = none [owise] .
+
+  
+**** for modeling faults 
+  op randInc : Nat -> KItem .
+  op rand : Id Nat Nat -> Info .
+
+**** abstracting random numbers to [0,1]
+  ops randMax rand.25 rand.5 rand.75 rand.125 : -> Nat .
+  eq randMax = 4294967295 .
+	eq rand.25 = 1073741824 .
+	eq rand.5  = 2147483647 .
+	eq rand.75 = 3221225471 .
+  eq rand.125 = 536870912 .
+
+ 
+  **** This is the target velocity is the absolute velocity
+  op targetVel : Id FiniteFloat -> Info .  
+  eq hasId(id,targetVel(id,ff) @ t) = true .
+
+  op getVel : Id KB -> FiniteFloat .
+  eq getVel(id, (targetVel(id,v) @ t) lkb ) = v .
+  eq getVel(id,lkb) = 0.0 [owise] .
+
+**** the current speed -- read from ekb
+  op vel : Id FiniteFloat -> Info .  
+  eq hasId(id,vel(id,ff) @ t) = true .
+
+  op getCurVel : Id KB -> FiniteFloat .
+  eq getCurVel(id, (vel(id,v) @ t) lkb ) = v .
+  eq getCurVel(id,lkb) = 0.0 [owise] .
+
+  op distanceFF : Loc Loc -> FiniteFloat .
+  eq distanceFF(pt(x0,y0,z0),pt(x1,y1,z1)) = 
+    float((abs(x0 - x1))) * gridStepX + float(abs(y0 - y1)) * gridStepY + float(abs(z0 - z1)) * gridStepZ .
+
+  eq distance(pt(x0,y0,z0),pt(x1,y1,z1)) = 
+    abs(x0 - x1) + abs(y0 - y1) + abs(z0 - z1) .
+
+  op getNormVec : Loc Loc -> Dir .
+  ceq getNormVec(pt(x0,y0,z0),pt(x1,y1,z1)) = dir(fdx / ffn, fdy / ffn, fdz / ffn)
+   if fdx := float(x1 - x0) / gridStepX
+   /\ fdy := float(y1 - y0) / gridStepY
+   /\ fdz := float(z1 - z0) / gridStepZ
+   /\ ffn := sqrt(fdx ^ 2.0 + fdy ^ 2.0 + fdz ^ 2.0) .
+
+  --- location occupied if there is a bot at the location
+   op occupied : Loc KB -> Bool .
+  eq occupied(l0,(atloc(id,l0) @ t) class(id,Bot) ekb) = true .
+  eq occupied(l0, ekb) = false [owise] .
+
+  --- in contact if distance is less than or equal to comDistance
+  eq inContact(id0,id1,ekb) 
+   = distance(getLoc(id0,ekb),getLoc(id1,ekb)) <= getComDist(ekb)  .
+
+  op near : Loc Loc -> Bool .
+  eq near(pt(ix,iy,iz),pt(ix0,iy0,iz0)) 
+    =  abs(ix0 - ix) + abs(iy0 - iy) < 10 .
+  eq near(l,l0) = false [owise] .
+
+
+  sort Dir . 
+  op dir : FiniteFloat FiniteFloat FiniteFloat -> Dir .
+
+**** model of expected result of move actions
+  op round : FiniteFloat -> Int .
+  op roundX : FiniteFloat -> Int .
+  eq round(sx)  =  
+    (if (sx >= 0.0) 
+     then roundX(sx) 
+     else  - round(- sx) fi) .
+     
+  ceq roundX(sx) =
+    (if (sx >= 0.0)
+    then (if r:Rat < 1/2 then floor(rat(sx)) else ceiling(rat(sx)) fi)
+    else (if r:Rat < 1/2 then ceiling(rat(sx)) else floor(rat(sx)) fi)
+    fi)
+    if r:Rat := rat(sx) - floor(rat(sx)) .
+
+***(
+**** model of expected result of move actions
+  op round : FiniteFloat -> Int .
+  ceq round(sx) =
+    (if (sx >= 0.0)
+    then (if r:Rat < 1/2 then floor(rat(sx)) else ceiling(rat(sx)) fi)
+    else (if r:Rat < 1/2 then ceiling(rat(sx)) else floor(rat(sx)) fi)
+    fi)
+    if r:Rat := rat(sx) - floor(rat(sx)) .
+)
+
+*** partial order
+  eq atloc(id,l0) @ t0 << atloc(id,l1) @ t1 = t0 < t1 .
+  eq (clock(t0)) << (clock(t1)) = t0 < t1 .
+  eq (energy(id,e0) @ t0) << (energy(id,e1) @ t1) =  t0 < t1 .
+  eq (caution(id,e0) @ t0) << (caution(id,e1) @ t1) =  t0 < t1 .
+  eq vel(id,ff0) @ t0 << vel(id,ff1) @ t1 = t0 < t1 .
+  eq targetVel(id,ff0) @ t0 << targetVel(id,ff1) @ t1 = t0 < t1 .
+  eq targetL(id,locs0) @ t0 << targetL(id,locs1) @ t1 
+       = t0 < t1 .
+  eq pending(id, act0) @ t0 << pending(id, act1) @ t1 = t0 < t1 .
+  eq timeElapsed(dt0) @ t0 << timeElapsed(dt1) @ t1 = t0 < t1 .
+  eq landFarFromHome(id,l0,ff0) @ t0 << landFarFromHome(id,l1,ff) @ t1 
+       = t0 < t1 . *** it does not matter which one we keep.
+  eq (visitLT(id, ltl0:LocTimeS) @ t0)   
+       << (visitLT(id, ltl1:LocTimeS) @ t1) = t0 < t1 .     
+
+  eq (rand(id,n0,j0) @ t0) << (rand(id,n1,j1) @ t1) = t0 < t1 .
+
+
+  op close : Loc Loc -> Bool .
+ 
+endfm
+
+******** bot  actions
+fmod MODEL-ACTIONS is 
+  inc MODEL-KNOWLEDGE .  
+ 
+ vars t t0 t1 t2 t3 t4 t5 t6 : Time .
+ vars alt x y x1 y1 x0 y0 z0 z1 z thr : Int .
+ vars id id0 id1 : Id .
+var cl : Class .
+ vars l l0 l1 l2 l3 loc : Loc .
+ vars ekb ekb0 ekb1 kb kb0 lkb kb1 lkb0 kb3 :  KB .
+ var dir dir0 dir1 : Dir .
+ vars e e0 e1 ff0 ff1 ffx ffy ffz ff ffx0 ffx1 ffy0 ffy1 ffz0 ffz1 v sx sy sz norm1 norm2 dt dt0 dt1 fdx fdy fdz ffn : FiniteFloat .
+ vars locs locs0 locs1 locs2 locs3 : LocList .
+ var act act0 act1 pact : Action .
+ var acts : ActSet .
+ vars n n0 n1 r j : Nat .
+var times : TimeList .
+ 
+ ******** bot  actions
+   op continue : Id -> Action  [ctor] .
+   op takeOff : Id Int -> Action  [ctor] .
+   op takeOff : Id Int FiniteFloat -> Action  [ctor] .
+   op land : Id  -> Action  [ctor] .
+   op land : Id FiniteFloat -> Action  [ctor] .
+   op stop : Id -> Action  [ctor] .
+   op goTo : Id Loc -> Action  [ctor] .
+   op goToW : Id Loc FiniteFloat -> Action  [ctor] .
+   op goToW : Id FiniteFloat FiniteFloat FiniteFloat FiniteFloat 
+              -> Action  [ctor] .
+   op noAct : -> Action [ctor] .
+ 
+  op getLoc : Action -> Loc .
+  eq getLoc(goTo(id,loc)) = loc .
+  eq getLoc(goToW(id,loc,dt)) = loc .
+  eq getLoc(act) = noLoc [owise] . *** Make sure it is always a goto
+
+  op getVel : Action -> FiniteFloat .
+  eq getVel(goToW(id,loc,v)) = v .
+  eq getVel(act) = 0.0 [owise] .
+
+  op goTos : Class Id KB -> ActSet .
+  op goTos$ : Class Id LocList -> ActSet .
+  eq goTos(cl,id,(targetL(id,locs) @ t) kb) = 
+   goTos$(cl,id, locs) .
+  eq goTos$(cl,id,loc ; locs) = goTo(id,loc) goTos$(cl,id,locs) .
+  eq goTos$(cl,id,nil) = none .
+
+***** 16dec25  avoiding repeated visits to current loc
+op myActs : Class Id LocList KB -> ActSet .
+eq myActs(cl,id,locs,(targetL(id,locs0) @ t) kb) = 
+      goTos$(cl,id, locsdiff(locs0, locs)) .
+
+op locsdiff : LocList LocList -> LocList .
+eq locsdiff(locs0 ; loc ; locs1,loc ; locs) = 
+     locsdiff(locs0 ; locs1, locs) .
+eq locsdiff(locs1, loc ; locs) =  locsdiff(locs1, locs) [owise] .
+eq locsdiff(locs1, nil)  = locs1 .
+
+***(
+  op getLastVisits : Class Id KB -> KB .
+  eq getLastVisits(cl,id,(lastVisit(id,loc,dt) @ t) kb)
+   = (lastVisit(id,loc,dt) @ t) getLastVisits(cl,id,kb) .
+  eq getLastVisits(cl,id, kb) = none [owise] .
+
+)
+	op doAct : Action KB -> KB .
+	
+  ceq doAct(goTo(id,loc),kb) = kb1
+   if clock(t) (atloc(id,l0) @ t1) (targetVel(id,v) @ t2)
+       (energy(id,e) @ t3) kb0 := kb **** (timeElapsed(dt0) @ t4) 
+   /\ e0 := e - cost2loc(l0,loc,v) 
+****   /\ ff := distanceFF(l0,loc)
+   --- Once we are able to link the model's timestamp with SITL's 
+   --- This is a very rough estimate of arrival time
+****   /\ dt1 := (ff / v) + dt0
+****   /\ t1 := s t0
+   /\ kb1 := (atloc(id,loc) @ s t) (energy(id,e0) @ s t)  .
+
+
+  op cost2loc : Loc Loc FiniteFloat -> FiniteFloat .
+  eq cost2loc(l0,l1,v) = (distanceFF(l0,l1) / v) * costMv(v) .
+
+  op getLKB : Id Conf -> KB .
+  eq getLKB(id:Id,[id:Id : cl:Class | lkb : kb:KB, attrs:AttributeSet] pc:Conf) = kb:KB .
+	
+
+  op getPending : Id KB -> ActSet . **** 0 or 1
+  eq getPending(id, kb (pending(id,pact) @ t)) = pact .
+  eq getPending(id, kb) = none [owise] .
+  
+  op pickOne : ActSet -> Action .
+  eq pickOne(act acts) = act .
+  
+  op isGoTo : Action Loc -> Bool .
+  eq isGoTo(goToW(id,loc,v), loc) = true .
+  eq isGoTo(goTo(id,loc), loc) = true .
+  eq isGoTo(act,loc) = false [owise] .
+  
+  op isStop : Action -> Bool .
+  eq isStop(stop(id)) = true .
+  eq isStop(act) = false [owise] .
+
+
+  op distanceDir : Loc Loc -> FiniteFloat .
+  ceq distanceDir(pt(x0,y0,z0),pt(x1,y1,z1)) = ffn
+   if fdx := float(x1 - x0) / gridStepX
+   /\ fdy := float(y1 - y0) / gridStepY
+   /\ fdz := float(z1 - z0) / gridStepZ
+   /\ ffn := sqrt(fdx ^ 2.0 + fdy ^ 2.0 + fdz ^ 2.0) .
+  
+****** using visit times
+
+	op doActT : Action KB -> KB .
+	
+  ceq doActT(goTo(id,loc),kb) = kb1
+   if clock(t) (atloc(id,l0) @ t0) (targetVel(id,v) @ t2)
+       (energy(id,e) @ t3)  kb0 := kb   **** (timeElapsed(dt0) @ t4)
+****   /\ e0 := e - cost2loc(l0,loc,v) 
+   /\ ff := distanceDir(l0,loc)
+   --- Once we are able to link the model's timestamp with SITL's 
+   --- This is a very rough estimate of arrival time
+   /\ dt1 := (ff / v) 
+	 /\ t1 := round(dt1) + t 
+   /\ e0 := e - cost2locT(l0,loc,v,dt1) 
+   /\ kb1 :=  (atloc(id,loc) @ s t) (energy(id,e0) @ s t)	
+              incVisitLT(id,loc,t1,kb) .
+
+
+  op time2Loc : Loc Loc FiniteFloat -> FiniteFloat .
+	eq time2Loc(l0,loc,v) = distanceDir(l0,loc) / v .
+
+  op cost2locT : Loc Loc FiniteFloat FiniteFloat -> FiniteFloat .
+  eq cost2locT(l0,l1,v,dt) = costMv(v) * dt .
+
+
+**** The drone should remember the expected time to visit a location
+ op eLoc : Id Loc TimeList -> Info .
+ eq hasId(id,eLoc(id,loc,times) @ t) = true .
+
+ op updateELoc : Id Loc Time KB -> KB .
+ eq updateELoc(id,loc,t1,(eLoc(id,loc,times) @ t) kb) = 
+	              (eLoc(id,loc, (times ; t1)) @ t1) kb .
+ eq updateELoc(id,loc,t1,kb) = kb [owise] .
+
+**** eLoc item added upon first attempt to visit rather than initial state
+ op updateELocKB : Id Loc FiniteFloat KB -> KB .
+ eq updateELocKB(id,loc,v, (eLoc(id,loc,times) @ t0) clock(t) kb) =
+     ((eLoc(id,loc,
+        times ; round(float(t) + time2Loc(getLoc(id,kb),loc,v)) ) @ t)
+      clock(t) kb)  .  
+
+ eq updateELocKB(id,loc,v, clock(t) kb) =
+      ((eLoc(id,loc, 
+             round(float(t) + time2Loc(getLoc(id,kb),loc,v))) @ t) 
+      clock(t) kb)  .
+            
+
+  ops obstacleS energyS teS speedS : -> Sensor [ctor] .
+  op targetS : -> Sensor [ctor] .
+
+  **** single update and sets of updates
+  sorts TgtUpdate TgtUpdateS .
+  subsort TgtUpdate < TgtUpdateS .
+  op none : -> TgtUpdateS [ctor] .
+  op __ : TgtUpdateS TgtUpdateS -> TgtUpdateS 
+          [ctor assoc comm id: none] .
+
+  op updatePool : TgtUpdateS -> Info .
+  op curUpdate : Id TgtUpdateS -> Info .  *** 0 or 1
+
+  var tgtUps : TgtUpdateS .
+  eq (curUpdate(id,tgtUps) @ t0) << (curUpdate(id,tgtUps) @ t1)
+       = t0 < t1 .
+  eq (updatePool(tgtUps) @ t0) << (updatePool(tgtUps) @ t1)
+       = t0 < t1 .
+
+  op dropTgt : -> TgtUpdate [ctor] .
+  op dropTgt : Loc  -> TgtUpdate [ctor] .
+
+  op addTgt : Loc  -> TgtUpdate [ctor] .
+
+  ****    loc as offset
+  op mvTgt : Loc  -> TgtUpdate [ctor] .
+  ****   init  final
+  op mvTgt : Loc  Loc -> TgtUpdate [ctor] .
+
+endfm
+
+
+fmod FAULT-MODEL is
+  inc MODEL-KNOWLEDGE .
+  
+***(
+physical knowledge
+ class(id,cl)
+ atloc(id,loc) @ t
+ energy(id,e) @ t
+ fence
+  
+sensor names 
+  locS
+  energyS
+  obstacleS
+
+fence, info are part of agents kb if relevant
+
+Actions
+ continue(id)
+ takeOff(id,int,dz)
+ land(id) 
+ land(id,dz) 
+ stop(id)
+ --- We will need to probably add velocity to the goTo action
+  goTo(id,loc)
+  goToW(id,loc,vel)
+  goToW(id,fx,fy,fz,dur)
+) 
+
+**** Fault/Failure model  
+
+sort FVal .
+op ffV : Rat -> FVal .
+op ptV : Loc -> FVal .
+op intV : Int -> FVal .
+
+vars  ff ff0 ff1 rp : Rat .
+vars  pt0 pt1 pt  : Loc .
+vars i0 i1 : Int .
+
+op sum : FVal FVal -> FVal .
+op mult : Int FVal -> FVal .
+
+eq sum(ffV(ff0), ffV(ff1)) = ffV(ff0 + ff1) .
+eq sum(ptV(pt0), ptV(pt1)) = ptV(sum(pt0, pt1)) .
+eq sum(intV(i0), intV(i1)) = intV(i0 + i1) .
+
+sorts FType FPars .
+op simpleFT : -> FType [ctor] .
+op sFP : Rat Rat FVal -> FPars [ctor] .
+****      prob scale   prob shift  (scale shift) 
+
+op boolFT : -> FType [ctor] .
+op bFP : Rat -> FPars [ctor] .  *** prob of fail
+
+ op randSgn : Rat -> Float .
+ eq randSgn(rp) = (if rp < 1/2 then -1.0 else 1.0 fi) .
+ 
+
+endfm
+

@@ -1,0 +1,388 @@
+fmod MODEL-TASKS is
+  inc MODEL-ACTIONS .
+
+  vars id : Id .
+	var cl : Class .
+	vars  t t0 t1 t2 t3 t4 t5 t6 : Time .
+  vars l l0 loc loc0 home loc1 loc2 tgtloc : Loc .
+  vars kb kbp lkb lkb0 lkb1 lkb2 lkb3 skb kb0 kb1 lkb4  : KB .
+  vars evs evs' ievs devs : EventSet . 
+  var act act0 act1  : Action .
+	vars acts acts0 pact : ActSet .
+	vars e e1 v v1 c x y z cursp : FiniteFloat .
+  vars  sp sp0 ffx ffy ffz ffx1 ffy1 ffz1 dt dt2 dt1 dz  : FiniteFloat .
+  vars alt ix iy iz ix0 iy0 iz0 : Int .
+  var r j n j1 thr : Nat .
+****  var wind? : Bool .
+  
+  vars locs locs0 locs1 locs2 locs3 : LocList .
+  var times : TimeList .
+  var lts : LocTimeS .
+ 
+	vars  rval0 rval1 rval : RVal .
+	var  ract : RAct .
+	var  racts : RActSet .
+  vars  tgtUps tgtUps1 : TgtUpdateS .
+
+
+**** bot processes rcvs any other events are ignored
+**** should not be any others
+  op handleS : Class Id KB EventSet -> KB .
+	eq handleS(cl,id,lkb,rcv(kb) ievs) =
+	      handleS(cl,id,addK(lkb,kb),ievs) .
+	eq handleS(cl,id,lkb,ievs) = lkb [owise] .  
+	
+**** locS obstacleS energyS teS speedS  
+op addSensorK : KB KB -> KB .
+eq addSensorK(lkb,skb) = addK(lkb,skb) [owise] .
+eq addSensorK((atloc(id,loc) @ t) lkb, (atloc(id,loc1) @ t1) skb)
+   = addSensorK((atloc(id,loc1) @ t1) lkb, skb) .
+eq addSensorK((energy(id,e) @ t) lkb, (energy(id,e1) @ t1) skb)
+   = addSensorK((energy(id,e1) @ t1) lkb, skb) .
+eq addSensorK((vel(id,v) @ t) lkb, (vel(id,v1) @ t1) skb)
+   = addSensorK((vel(id,v1) @ t1) lkb, skb) .
+eq addSensorK( (curUpdate(id,tgtUps) @ t) lkb, 
+     (curUpdate(id,tgtUps1) @ t1) skb)
+   = addSensorK((curUpdate(id,tgtUps1) @ t1) lkb, skb) .
+eq addSensorK( (targetL(id,locs0) @ t) lkb, 
+     (targetL(id,locs1) @ t1) skb)
+   = addSensorK((targetL(id,locs1) @ t1) lkb, skb) .
+
+**** keeps only location and energy, updates myDir at the edge
+  op proSensors : Id KB KB -> KB .
+  eq proSensors(id,lkb,skb) = addSensorK(lkb,skb) .
+
+  ops done notDone : Action Loc -> Bool .
+  eq done(act,loc) = not notDone(act,loc) .
+
+  eq notDone(takeOff(id,alt), pt(ix,iy,iz))  = abs(alt - iz) > 1 .
+  eq notDone(land(id), pt(ix,iy,iz))  = abs(iz) > minAlt .
+  eq notDone(goTo(id,loc0), loc)  =  not close(loc0,loc) .
+  eq notDone(goToW(id,loc0,v), loc)  =  not close(loc0,loc) .
+  eq notDone(act,loc) = false [owise] .
+
+  op isStopped : Id KB -> Bool .
+  eq isStopped(id,(pending(id,stop(id)) @ t) lkb) = true .
+  eq isStopped(id, lkb) = false [owise] .
+
+  op acts : Id KB -> RActSet .
+  op actsSCP : Id KB -> RActSet .
+  op actsBasic : Id KB -> RActSet .
+
+  ******** simplifying only gotos differ in strategy
+  op nextLoc : Id KB -> RActSet .
+  op nextLocSimple : Id KB -> RActSet .
+  op nextLocSCP : Id KB -> RActSet .
+
+  ***(
+  eq acts(id,kb) = actsBasic(id,kb) .
+
+  eq nextLocs(id,kb) = nextLocsSimple(id,kb) .
+  eq updateTargets(id,act,kb) = updateTargetsSimple(id,act,kb) .
+ 
+  eq nextLocs(id,kb) = nextLocsSCP(id,kb) .
+  eq updateTargets(id,act,kb) = updateTargetsSCP(id,act,kb) .
+  )
+
+  ceq actsBasic(id,kb)  =
+          (if pact == none   ***** haven't started
+           then  {one, takeOff(id,alt)}
+           else (if (e < minEnergy and 
+                     not (pact == land(id) or pact == stop(id))) 
+               --- Force to land whenever the energy is too low
+                 then {one, land(id)}
+           else (if (loc == noLoc)
+                 then none
+            else (if notDone(pact,loc) 
+                  then (if isTgt(pact,home) **** add
+                    then {one, continue(id)}
+                   else checkUpdate(id,loc,getLoc(pact),kb) fi)
+            else (if pact == land(id)  --- if landing, then stop
+                  then {one, stop(id)}
+            else (if pact == stop(id) --- if stopped, then stop
+                  then none
+            else (if pact == goToW(id,pt(ix0,iy0,alt),v)
+                  then {one, land(id)}
+            else (if e < c 
+                  then {one, goToW(id,pt(ix0,iy0,alt),v)}
+                  else nextLoc(id,kb)
+                   fi ) fi) fi) fi) fi) fi) fi) fi)
+    if ((atloc(id,loc) @ t0) (energy(id,e) @ t1) clock(t)
+        (caution(id,c) @ t4) myAlt(id,alt)  myHome(id,pt(ix0,iy0,iz0))
+        (targetVel(id,v) @ t2) kb0) := kb
+****   /\ home := pt(ix0,iy0,iz0)
+   /\ home := pt(ix0,iy0,alt)
+   /\ pact := getPending(id,kb0) .
+             
+**** goTo home should go to the x,y coord and then land 
+**** not cruz lower and lower on the way.
+  ceq nextLocSimple(id,kb) =
+    (if locs == nil    
+     then {one, goToW(id,pt(ix0,iy0,alt),v)}
+     else {one, goToW(id,first(locs),v) }
+     fi )
+    if (targetL(id,locs) @ t3) (targetVel(id,v) @ t1) 
+       myHome(id,pt(ix0,iy0,iz0)) myAlt(id,alt) 
+       kb0  := kb .
+
+  op isTgt : ActSet Loc -> Bool .
+  eq isTgt(goToW(id,loc,v),loc) = true .
+  eq isTgt(pact,loc) = false [owise] .
+
+
+****             curloc pendloc lkb
+op checkUpdate : Id Loc Loc KB -> RAct .
+**** the following should be called checkUpdateSimple
+**** to allow for other strategies for nextLoc
+eq checkUpdate(id,loc,tgtloc,kb (curUpdate(id,none) @ t0) )
+   = {one,continue(id)} .
+
+eq checkUpdate(id,loc,tgtloc,kb 
+                 (curUpdate(id,dropTgt(loc0)) @ t0) )
+  = (if tgtloc == loc0 then nextLoc(id,kb)
+                       else {one,continue(id)} fi) .
+  
+**** if there is a new target to visit, it will be 
+**** handled when its turn comes up in the Simple case  
+eq checkUpdate(id,loc,tgtloc,kb 
+                 (curUpdate(id,addTgt(loc0)) @ t0))
+  = {one, continue(id)} .
+
+**** if the update moves the current target, update it
+ceq checkUpdate(id,loc,tgtloc,kb 
+        (curUpdate(id,mvTgt(loc0,loc1)) @ t0))
+  = (if tgtloc == loc0
+     then {one, goToW(id,loc1,v)}
+     else {one, continue(id)}
+     fi)
+ if kb0 (targetVel(id,v) @ t1) := kb 
+ .
+ **** clt removed extra fDisplace 
+
+  op addVelocity : RActSet  FiniteFloat -> RActSet .
+  eq addVelocity({rval,goTo(id,loc2)} racts,v) =
+        {rval,goToW(id,loc2,v)}  addVelocity(racts,v) .
+  eq addVelocity(ract racts,v) = 
+        ract addVelocity(racts,v) [owise] .
+  eq addVelocity(none,v) = none .
+    
+  ceq nextLocSCP(id,kb) = 
+    (if ((locs == nil) or (racts == none)  )
+     then {one, goToW(id,pt(ix0,iy0,alt),v)}
+     else addVelocity(racts,v)
+     fi)
+  if (targetVel(id,v) @ t1) class(id,cl) (targetL(id,locs) @ t3) 
+      myHome(id,pt(ix0,iy0,iz0)) myAlt(id,alt) kb0 := kb
+  /\ racts := solveSCP(id,kb,myActs(cl,id,nil,kb))
+  .
+
+  op isGoTo : ActSet -> Bool .
+  eq isGoTo(goTo(id,loc)) = true .
+  eq isGoTo(goToW(id,loc,v)) = true .
+  eq isGoTo(acts) = false [owise] .
+
+  op updateTargets : Id Action KB -> KB .
+
+  op updateTargetsSimple : Id Action KB -> KB .
+  op updateTargetsX : Id Loc KB -> KB .
+  ceq updateTargetsSimple(id,act, kb) =
+        (if (isGoTo(act) and act =/= pact) 
+        then updateTargetsX(id,getLoc(act),kb) 
+        else kb fi)
+  if pact := getPending(id,kb) .
+  eq updateTargetsX(id,loc, 
+        kb clock(t) (targetL(id,loc ; locs) @ t2))
+     = clock(t) kb (targetL(id,locs) @ s t) .
+  eq updateTargetsX(id,loc,kb) = kb [owise] .
+
+  op updateTargetsSCP : Id Action KB -> KB .
+  op updateTargetsSCPX : Id Loc KB -> KB .
+****  eq updateTargetsSCP(id,act,kb) = kb .
+  ceq updateTargetsSCP(id,act,kb) = 
+        (if (isGoTo(act) and act =/= pact) 
+        then updateTargetsSCPX(id,getLoc(act),kb) 
+        else kb fi)
+  if pact := getPending(id,kb) .
+
+  eq updateTargetsSCPX(id,loc, 
+        kb clock(t) (targetL(id,locs0 ; loc ; locs) @ t2))
+     = clock(t) kb (targetL(id,locs0 ; locs) @ s t) .
+  eq updateTargetsSCPX(id,loc,kb) = kb [owise] .
+  
+ 
+  ceq doTask(cl,id,tick,ievs,devs,skb,lkb) = 
+    if racts == none 
+    then 
+       (if isStopped(id,lkb2)
+        then {lkb2, devs, none }
+        else {lkb2, devs (tick @ botDelay), none }
+        fi)
+    else 
+       selector(doTask$(id,getThresh(id,lkb2),lkb2,
+                           devs (tick @ botDelay),racts))
+     fi  
+   if lkb0 := handleS(cl,id,lkb,ievs)
+   /\ lkb1 := proSensors(id,lkb0,skb)
+   /\ lkb2 := updateVisit(id,lkb1)
+   /\ racts := acts(id,lkb2)  .
+
+                     **** FiniteFloat
+  op recentVisitT : Loc KB Time -> Bool .
+  eq recentVisitT(loc,
+        (visitLT(id,[loc : times ; t1] lts) @ t) kb,t2) 
+****          = dt2 - float(t1) < 3.0 
+          = t2 - t1 < 3  .
+  eq recentVisitT(loc,kb,t2) = false [owise] .
+
+  eq close(pt(ix,iy,iz),pt(ix0,iy0,iz0)) 
+    =  abs(ix0 - ix) + abs(iy0 - iy) < 4 .
+  eq close(loc0,loc) = false [owise] .
+
+  op updateVisit : Id KB -> KB .
+  ceq updateVisit(id,kb) = kb1
+   if pact := getPending(id,kb)
+   /\ clock(t) (atloc(id,loc) @ t0)  kb0 := kb  ****(timeElapsed(dt) @ t2)
+   /\ kb1 := (if isGoTo(pact)
+              then (if (close(getLoc(pact),loc) 
+    						         and not(recentVisitT(getLoc(pact),kb,t)))
+                   then addK(kb,incVisitLT(id,getLoc(pact),t,kb))
+                   else kb fi)
+               else kb fi) .
+
+
+**** Need to separate the unit vector and speed.
+*** Controller level actions
+op doControl : Action KB -> Action .
+eq doControl(stop(id),  kb) = stop(id) .
+
+ceq doControl(goToW(id,loc,sp),kb) 
+       = goToW(id,ffx1 * sp,ffy1 * sp,ffz1 * sp,2.0 * sampleTime)
+ if dir(ffx1,ffy1,ffz1) := getNormVec(getLoc(id,kb),loc) .
+
+*** if near tgt then  adjust speed
+****** if drone has wind sensor then cann account for wind in speed adjustment
+ceq doControl(continue(id), (pending(id,goToW(id,loc,sp)) @ t) kb) =
+  goToW(id,ffx1 * sp0,ffy1 * sp0,ffz1 * sp0,2.0 * sampleTime)
+ if dir(ffx1,ffy1,ffz1) := getNormVec(getLoc(id,kb),loc) 
+ /\ cursp := getCurVel(id,kb) 
+ /\ sp0 := (if near(getLoc(id,kb),loc) 
+           then max(cursp / 2.0,minSpeed)
+           else cursp
+           fi) 
+           . 
+           
+           
+***( 
+ alt = 2  v = 3  alt - v neg so subtract alt
+ alt = 2 v = 1    substract v
+ 
+!!!! Need to fix takeOff/land Inc to slow down as approach desired alt 
+)
+  op landInc : FiniteFloat FiniteFloat FiniteFloat -> FiniteFloat .
+  eq landInc(ffz,ffz1,v) = 
+           (if ffz - ffz1 > v  then v else ffz - ffz1 fi) .
+
+  ceq doControl(land(id),  kb) = land(id,dz) 
+   if pt(ix0,iy0,iz0) := getLoc(id,kb)
+   /\ dz := landInc(float(iz0) * gridStepZ,0.0,vland) .
+
+
+  eq doControl(continue(id),(pending(id,land(id)) @ t) kb) 
+       = doControl(land(id),  kb) .
+     
+  op takeOffInc : FiniteFloat FiniteFloat FiniteFloat 
+                   -> FiniteFloat .
+  eq takeOffInc(ffz,ffz1,v) = 
+     (if ffz1 - ffz > v  then v else ffz1 - ffz fi) .
+
+  ceq doControl(takeOff(id,alt),  kb) = takeOff(id,alt,dz) 
+   if pt(ix0,iy0,iz0) := getLoc(id,kb)
+   /\ dz := takeOffInc(float(iz0) * gridStepZ,float(alt),vlift) .
+
+  eq doControl(continue(id),(pending(id,takeOff(id,alt)) @ t) kb) 
+       =  doControl(takeOff(id,alt), kb) .
+     
+  eq doControl(continue(id),(pending(id,act0) @ t) kb) = act0 [owise] .
+
+  eq doControl(act,kb) = noAct [owise] .
+
+
+
+  op doTask$ : Id RVal KB EventSet RActSet -> KBEventsKBSet .
+  ceq doTask$(id,rval,lkb2,devs,{rval0,act} racts) = 
+     (if (rval < rval0) and (act1 =/= noAct)
+      then {lkb3,devs ({rval0,act1} @ 0),kbp} 
+      else none fi) 
+     doTask$(id,rval,lkb2,devs,racts)  
+   if act1 := doControl(act,lkb2)
+   /\ kbp := tell(id,act,lkb2) 
+   /\ lkb1 := updateLKB(id,act,lkb2)
+   /\ lkb3 := (if isGoTo(act) 
+               then updateELocKB(id,getLoc(act),getVel(act),lkb1)
+               else lkb1 fi) .
+   
+  eq doTask$(id,rval,lkb2,devs,none) = none .
+
+***(
+kb' : lkb + 
+(if act == stop(id) and pact == land(id,dz)
+ then if near(pt(x0,y0,0),home) 
+           then none
+           else (landFarFromHome(id,pt(x0,y0,0),float(t)) @ s(t)) fi)
+
+)
+ 
+
+  op updateLKB : Id Action KB -> KB .
+  ceq updateLKB(id,continue(id),lkb) 
+     = clock(t) (pending(id,act) @ s t) lkb0 
+   if clock(t) (pending(id,act) @ t0) lkb0 := lkb .
+
+  ceq updateLKB(id,act,lkb) = addK(lkb,(pending(id,act) @ s t)) 
+   if clock(t) lkb0 := lkb [owise] .
+
+
+  --- ceq updateLKB(id,act,lkb) = addK(lkb1,(pending(id,act) @ s t)) 
+  ---  if clock(t) lkb0 := lkb
+  ---  /\ lkb1 := updateTargets(id,act,lkb) [owise] .
+
+  op tell : Id Action KB -> KB .
+  eq tell(id,act,(atloc(id,loc) @ t) class(id,cl) lkb) = 
+	         (atloc(id,loc) @ t) class(id,cl) .
+  eq tell(id,act,kb) = none [owise] .
+
+  op selector : KBEventsKBSet -> KBEventsKBSet .
+  eq selector(kbset:KBEventsKBSet) = kbset:KBEventsKBSet [owise] .
+
+
+  vars kek0 kek1 kek : KBEventsKB .
+  var  kekset : KBEventsKBSet . 
+****	var  rval0 rval1 : RVal .
+****	var act0 act1 : Action .
+  vars evs0 evs1 : EventSet .
+
+  op allKeK : KB KBEventsKBSet -> KBEventsKBSet .
+  op bestKeK : KB KBEventsKBSet ->  KBEventsKBSet .
+  op bestKeKX :  KBEventsKBSet KBEventsKB ->  KBEventsKBSet .
+
+  eq allKeK(kb,kek kekset) = kek kekset .
+  eq allKeK(kb,kekset) = {kb,(tick @ botDelay),none} [owise] .
+  eq bestKeK(kb,kek kekset) = bestKeKX(kekset, kek) .  
+  eq bestKeK(kb,kekset) = {kb,(tick @ botDelay),none} [owise] .
+  eq bestKeKX( kek0 kekset, kek1) =
+       bestKeKX(kekset, betterEvs(kek0, kek1)) .
+  eq bestKeKX(none, kek1) = kek1 .
+  
+  op betterEvs : KBEventsKB KBEventsKB -> KBEventsKB .
+  ceq betterEvs(kek0,kek1) =  
+       (if (rval0 < rval1) then kek1 else kek0 fi) 
+    if ({rval0,act0} @ t0) evs0 := getKEKEvents(kek0)
+    /\ ({rval1,act1} @ t1) evs1 := getKEKEvents(kek1)   
+    .
+   
+***(
+  eq selectKeK(kb,kekset) = bestKeK(kb,kek kekset) .
+  eq selectKeK(kb,kekset) = allKeK(kb,kek kekset) .
+)
+
+endfm

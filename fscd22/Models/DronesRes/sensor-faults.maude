@@ -1,0 +1,195 @@
+
+fmod SENSOR-FAULTS is
+ inc FAULT-MODEL .
+ inc MODEL-ACTIONS .
+ 
+
+  vars t t0 t1 t2 t3 t4 t5 t6 : Time .
+  var n i j j0 j1 n0 n1 zmax : Nat .
+  vars x y x1 y1 x0 y0 z0 xll xur yll yur i0 i1 i2 : Int .
+  vars id id0 id1 : Id .
+	var cl : Class .
+  vars l l0 l1 l2 l3 loc  dl dl1 : Loc .
+  vars ekb ekb0 ekb1 kb  lkb kb1 lkb0 kb0 kb2 :  KB .
+  vars  ff ff0 ff1 fp fp0 fp1 rp0 rp1 rp2 rp3 rp4 rp5 de : Rat .
+  vars sp v ffx ffy ffz  e e0 e1 e2 dx dy dz dt : FiniteFloat .
+	vars act act0 act1 : Action .
+
+  var ftype : FType .
+  var fpars : FPars .
+  var sen : Sensor .
+
+
+**** Sensor faults
+op sF : Id Sensor FType FPars -> Info .
+
+op getSF : Id Sensor KB -> KB .
+eq getSF(id,sen,(sF(id,sen,ftype,fpars) @ t) kb) = 
+             (sF(id,sen,ftype,fpars) @ t)  .
+eq getSF(id,sen, kb) = none [owise] .
+
+*********** reading sensors
+
+op occupiedNbrs : KB Loc FiniteFloat -> KB .
+op occupiedNbrsX : KB Loc FiniteFloat KB -> KB .
+
+eq occupiedNbrs(kb,l,v) = occupiedNbrsX(kb,l,v,none) . 
+ceq occupiedNbrsX((atloc(id,l0) @ t) class(id,cl) kb0,l,v,kb1) 
+   = occupiedNbrsX(kb0,l,v,kb1 kb2) 
+  if kb2 := 
+      (if (((cl == Bot) or (cl == Obstacle)) and isNbr(l,l0,v) )
+       then (atloc(id,l0) @ t) class(id,cl)
+       else none
+       fi)  .
+  
+eq occupiedNbrsX(kb,l,v,kb1) = kb1 [owise] .
+     
+op isNbr : Loc Loc FiniteFloat -> Bool .
+eq isNbr(l0,l1,v) = distanceDir(l0,l1) < 2.0 * v .
+
+
+*** op readSensors : Id SensorSet KB -> KBPair .
+op readSensorsX : Id SensorSet KB KB -> KBPair .
+
+eq readSensors(id,ss:SensorSet,ekb) =
+     readSensorsX(id,ss:SensorSet,ekb,none) .
+eq readSensorsX(id,none,ekb,kb)  = {kb,ekb} .
+ceq readSensorsX(id,s:Sensor ss:SensorSet,ekb,kb) =
+      readSensorsX(id, ss:SensorSet,ekb0,addK(kb,kb0))
+if {kb0,ekb0} := readSensor(id,s:Sensor,ekb) .
+
+--- (sensor item or none) 
+op getSensorKI : Id Sensor KB -> KB . 
+
+--- sensorKB (after fault adjustment), updated Ekb
+op readSensor : Id Sensor KB -> KBPair . 
+
+eq getSensorKI(id,locS, (atloc(id,l) @ t) kb) 
+     = (atloc(id,l) @ t) .
+eq getSensorKI(id,energyS, (energy(id,e) @ t) kb) 
+     = (energy(id,e) @ t) .
+
+eq getSensorKI(id,obstacleS, (atloc(id,l) @ t) (vel(id,v) @ t0) kb) 
+     = occupiedNbrs(kb,l,v) .
+
+eq getSensorKI(id,teS, (timeElapsed(dt) @ t) kb)  
+     = (timeElapsed(dt) @ t) .
+
+eq getSensorKI(id,speedS, (vel(id,v) @ t) kb)  
+     = (vel(id,v) @ t) .
+
+eq getSensorKI(id,s:Sensor, kb) = none [owise] .
+
+op getSensorsKI : Id SensorSet KB -> KB .
+eq getSensorsKI(id,s:Sensor sset:SensorSet,ekb) =
+   (getSensorKI(id,s:Sensor,ekb)  getSensorsKI(id,sset:SensorSet,ekb)) .
+eq getSensorsKI(id,(none).SensorSet,ekb) = (none).KB .
+
+ceq readSensor(id,s:Sensor,kb) =
+    (if kb1 == none 
+    then {kb0,kb} 
+    else applySensorF(id,s:Sensor,kb0,kb1,kb) fi)
+if kb0 := getSensorKI(id,s:Sensor,kb)
+/\ kb1 := getSF(id,s:Sensor,kb) .
+
+var locl : LocList .
+var tgtUps : TgtUpdateS .
+var tgtUp : TgtUpdate .
+
+**** only return targetL if there is an update
+eq getSensorKI(id,targetS,(targetL(id,locl) @ t0) 
+                          (curUpdate(id,none) @ t1) ekb) 
+ = (targetL(id,locl) @ t0) (curUpdate(id,none) @ t1) .
+
+eq getSensorKI(id,targetS, 
+              (targetL(id,locl) @ t0) 
+              (curUpdate(id,tgtUp) @ t1) ekb) 
+ = (targetL(id,locl) @ t0) (curUpdate(id,tgtUp) @ t1) .
+
+***(
+****                       sget fault ekb
+op applySensorF : Id Sensor KB KB KB -> KBPair .
+ceq applySensorF(id,locS,atloc(id,l) @ t0, 
+                 (sF(id,locS,simpleFT,sFP(fp0,fp1,ptV(dl))) @ t1),
+                 (rand(id,i,j) @ t4 ) ekb)
+    = {atloc(id,l1) @ t3, ekb  (rand(id,i,s s j) @ t)}
+  if (fence(id,x0,y0,x1,y1,zmax) @ t2) clock(t) randInc(n) ekb0
+     := ekb
+  /\ rp0 := (random( (n * j) + i) / randMax)
+  /\ rp1 := (random( (n * (j + 1)) + i) / randMax )
+  /\ dl1 := if rp1 < fp1 then dl else pt(0,0,0) fi
+  /\ l0 := sum(l,dl1)
+  /\ l1 := (if (rp0 < fp0) 
+            then noLoc 
+            else (if inBounds(l0,x0,y0,x1,y1,zmax) then l0 else l fi) fi) 
+   /\ t3 := 
+***    t
+       (if (l1 == l) then t0 else t fi)
+            .
+)            
+******                       dead? off?  mag?
+***** (sF(id,locS,simpleFT,sFP(fp0,fp1,ptV(fp))) @ t1),
+
+****                       sget fault ekb
+op applySensorF : Id Sensor KB KB KB -> KBPair .
+ceq applySensorF(id,locS,atloc(id,l) @ t0, 
+                 (sF(id,locS,simpleFT,sFP(fp0,fp1,ffV(fp))) @ t1),
+                 (rand(id,i,j) @ t4 ) ekb)
+    = {atloc(id,l1) @ t3, ekb  (rand(id,i,j + 6) @ t)}
+  if clock(t) randInc(n) ekb0
+     := ekb
+   /\ rp0 := random( (n * j) + i) / randMax
+   /\ rp1 := random( (n * (j + 1)) + i) / randMax
+   /\ rp2 := random( (n * (j + 2)) + i) / randMax
+   /\ rp3 := random( (n * (j + 3)) + i) / randMax
+   /\ rp4 := random( (n * (j + 4)) + i) / randMax
+   /\ rp5 := random( (n * (j + 5)) + i) / randMax
+   /\ l1 := (if (rp0 < fp0) 
+             then noLoc
+             else (if rp1 >= fp1 
+                   then l
+                   else transformLoc(l,fp * rp4,rp2,rp3,fp * rp5)
+                   fi ) fi)
+   /\ t3 := (if (l1 == l) then t0 else t fi)
+ .
+
+***** add vector len sp, angle with cos given by (rp2-1/2)/2
+  op transformLoc : Loc Rat Rat Rat Rat -> Loc .
+  ceq transformLoc(pt(x0,y0,z0),fp,rp2,rp3,rp5) 
+     = pt(x0 + round(dx * sp),
+          y0 + round(dy * sp),
+          z0 + round(dz * sp))
+  if dx := float(rp2 - 1/2 * 2) 
+  /\ dy := sqrt(1.0 - dx * dx) * randSgn(rp3)
+  /\ dz := float(rp5 - 1/2) * 2.0
+  /\ sp := float(fp)
+  .
+
+ceq applySensorF(id,energyS,energy(id,e) @ t0,
+          (sF(id,energyS,simpleFT,sFP(fp0,fp1,ffV(fp))) @ t1),
+          (rand(id,i,j) @ t4 ) ekb)
+   = {energy(id,e2) @ t, ekb (rand(id,i,j + 3) @ t)}
+  if clock(t) randInc(n)  ekb0 := ekb
+  /\ rp0 := (random( (n * j) + i) / randMax)
+  /\ rp1 := (random( (n * (j + 1)) + i) / randMax)
+  /\ rp2 := (random( (n * (j + 2)) + i) / randMax)
+  /\ e0 := if rp0 < fp0 then 0.0 else 1.0 fi
+  /\ e1 := if rp1 < fp1 then float(fp) * randSgn(rp2) else 0.0 fi
+  /\ e2 := e0 * max((e + e1),0.0)
+    .
+
+ceq applySensorF(id,obstacleS,kb0,
+                (sF(id,obstacleS,boolFT,bFP(fp0)) @ t1),
+                (rand(id,i,j) @ t4 ) ekb) =
+        {kb1, (rand(id,i, s j) @ t)  ekb}
+  if (fence(id,x0,y0,x1,y1,zmax) @ t2) clock(t) randInc(n)  ekb0
+     := ekb
+  /\ rp0 := (random( (n * j) + i) / randMax)
+  /\ kb1 := if rp0 < fp0 then none else kb0 fi .
+  
+eq applySensorF(id,s:Sensor,kb0,kb1,ekb) = {kb0, ekb} [owise] .
+
+
+
+
+endfm

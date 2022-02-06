@@ -1,0 +1,43 @@
+fmod PRETTY is
+ pr CONVERSION .
+ op makeString : DecFloat -> String .
+ op makeString2 : String NzNat -> String .
+ op sign : Int -> String .
+ op zeros : Int -> String .
+
+ var S : Int .
+ var M : String .
+ var E : Int .
+ var P : NzNat .
+ var N : Nat .
+ 
+ eq sign(-1) = "-" .
+ eq sign(0) = "" .
+ eq sign(1) = "" .
+
+ eq zeros(- P) = "" .
+ eq zeros(0) = "" .
+ eq zeros(s N) = "0" + zeros(N) . 
+
+ eq makeString(< S, M, P >) = sign(S) + makeString2(M + zeros((P + 1) - length(M)), P) .
+ eq makeString(< S, M, E >) = sign(S) + "0." + zeros(- E) + M [owise] .
+
+ eq makeString2(M, P) = substr(M, 0, P) + "." + substr(M, P, length(M) - P) .
+endfm
+
+***(
+red makeString(decFloat(0.0025, 3)) .
+red makeString(decFloat(0.25, 3)) .
+red makeString(decFloat(2.5, 3)) .
+red makeString(decFloat(25.0, 3)) .
+red makeString(decFloat(25000000.0, 3)) .
+
+red makeString(decFloat(0.0, 3)) .
+
+red makeString(decFloat(-0.0025, 3)) .
+red makeString(decFloat(-0.25, 3)) .
+red makeString(decFloat(-2.5, 3)) .
+red makeString(decFloat(-25.0, 3)) .
+red makeString(decFloat(-25000000.0, 3)) .
+)
+

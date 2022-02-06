@@ -1,0 +1,262 @@
+
+************* generic agent
+fmod AGENT is
+  inc SA-KNOWLEDGE .
+  inc EVENTS .
+
+  var attrs : AttributeSet .
+  var kb : KB .
+  var id : Id .
+  var cl : Class .
+
+  sort Agent  .
+  op [_:_|_] : Id Class AttributeSet -> Agent [ctor format (n d d d d n++i --i d)] .  **** 14 format points
+
+  op lkb`:_ : KB -> Attribute [ctor] .
+  op ckb`:_ : KB -> Attribute [ctor] .
+  op sensors`:_ : SensorSet -> Attribute [ctor] .
+  op evs`:_ : EventSet -> Attribute [ctor] .
+
+  op getLKB : Agent -> KB .
+  eq getLKB([id : cl | (lkb : kb),  attrs]) = kb .
+
+  sorts Attribute AttributeSet .
+  subsort Attribute < AttributeSet .
+  op none : -> AttributeSet  [ctor] .
+  op _,_ : AttributeSet AttributeSet -> AttributeSet 
+                         [ctor assoc comm id: none format (d d ni d)] .
+  
+  sort Env .
+  op [_|_] : Id KB -> Env [ctor format (n d d n++i --i d)] .  *** 6 format points
+  
+  
+  op inContact : Id Id KB -> Bool .
+
+ 
+endfm
+
+
+************* generic conf
+fmod SA-CONF is
+  pr AGENT .
+
+  sorts  ConfElt Conf .
+  subsorts Agent  < ConfElt < Conf .
+  subsort Env < ConfElt .
+  
+  op none : -> Conf .
+  op __ : Conf Conf -> Conf [ctor assoc comm id: none] .
+
+  var aconf lconf : Conf .  
+  vars attrs attrs1 attrs2 : AttributeSet . 
+  vars a a1 a2 eid : Id .   vars cl cl1 cl2 : Class .
+  vars t t' u  t0 : Time .  var ti : TimeInf .
+  var n : Nat .
+  var tsk : Task .      
+  var act : Action . 
+  var ract : RAct . 
+  var racts : RActSet .
+  var iev : IEvent .  var ev : Event .  var evs evs0 evs1 : EventSet .
+  var lkb ckb1 ckb2 ckb1' ckb2' rcvk1 rcvk2 ekb ekb' newkb oldkb : KB .
+  var nzt : NzTime .
+  vars log log1 : Log .
+  var ids : IdSet .
+  
+  op getAgent : Id Conf -> Conf .  *** 0 or 1 agents
+  eq getAgent(a, [a : cl | attrs] aconf) = [a : cl | attrs] .
+  eq getAgent(a, aconf) = none [owise] .
+
+  op getIds : Conf -> IdSet .
+  eq getIds([a : cl | attrs] aconf) = a getIds(aconf) .
+  eq getIds(aconf) = none [owise] .
+  
+  op getTime : Conf -> Time .
+  eq getTime([ eid | clock(t) ekb ] aconf) = t .
+
+  op getEnvId : Conf -> Id .
+  eq getEnvId([ eid | clock(t) ekb ] aconf) = eid .
+
+
+  eq envKB([eid | ekb] aconf) = ekb .
+  eq envKB(aconf) = none [owise] .
+
+  eq updateEnv(ekb', [eid | ekb] aconf) = [eid | addK(ekb,ekb')] aconf .
+  eq updateEnv(ekb', aconf) = aconf [owise] .
+ 
+
+  
+  *** available actions (with delay 0)
+  op effActs : Conf -> EventSet .
+  eq effActs([a : cl | evs : evs, attrs] aconf) = effActs(evs) effActs(aconf) .
+  eq effActs(aconf) = none [owise] .
+
+***!!! because t may count down to zero during envAct
+  op effActs : EventSet -> EventSet .
+  eq effActs((act @ t ) evs)  =  (act @ t) effActs(evs) .
+  eq effActs((ract @ t ) evs)  =  (ract @ t) effActs(evs) .
+  eq effActs(evs) = none [owise] .
+
+  **** the global envkb 
+  **** either by collecting from agents or stored in the Env object
+  op envKB : Conf -> KB .
+  eq envKB(aconf) = none [owise] .  
+
+  *** update environments 
+  op updateEnv : KB Conf -> Conf .
+
+  *** time elapse (also update local clocks)
+  op timeEffect : Conf Time -> Conf .
+  eq timeEffect([a : cl | lkb : (lkb clock(t)), evs : evs, attrs] aconf, u) 
+   = [a : cl | lkb : (lkb clock(t plus u)), evs : timeEffect(evs,u), attrs] 
+      timeEffect(aconf, u) .
+  eq timeEffect([eid | clock(t) ekb] aconf, u)
+      = [eid | clock(t plus u) ekb] timeEffect(aconf, u) .
+  eq timeEffect(aconf, u) = aconf [owise] .
+
+  op timeEffect : EventSet Time -> EventSet .
+
+  eq timeEffect((tsk @ t) evs, u) 
+      = (tsk @ (t monus u)) timeEffect(evs,u) .
+  eq timeEffect((act @ t) evs, u) = 
+     (if (t >= u) then (act @ (t monus u)) else  none fi ) 
+     timeEffect(evs,u) .
+  eq timeEffect((ract @ t) evs, u) = 
+     (if (t >= u) then (ract @ (t monus u)) else  none fi ) 
+     timeEffect(evs,u) .
+  eq timeEffect(evs, u) = evs [owise] .
+  
+
+  op mte : Conf -> TimeInf .
+  eq mte(aconf) = mteX(aconf) .
+
+  op mteX : Conf -> TimeInf .
+  eq mteX([a : cl | evs : evs, attrs] aconf) = minimum(mte(evs),mteX(aconf)) .
+****  eq mteX([eid | ekb]) = infty .
+  eq mteX(aconf) = infty [owise] .
+
+  op mte : EventSet -> TimeInf .
+  eq mte(iev evs) = mte(evs) .
+  eq mte((tsk @ t) evs) = minimum(t,mte(evs)) .
+--- actions are performed with timeStep
+  eq mte((act @ t) evs) = mte(evs) .
+  eq mte((ract @ t) evs) = mte(evs) .
+  eq mte((none).EventSet) = infty .
+
+  ***( 
+   doEnvAct(t, nzt,ekb,evs): 
+   performs actions evs for duration nzt from global time t
+   i.e. for nzt unit time increments, doUnitEnvAct(t,ekb,evs)
+)
+  op doEnvAct : Time Time KB EventSet -> KB .
+
+  --- Perform actions simultaneously. 
+  --- Note that the concurrent results need to be resolved if there are `collisions'.
+ ceq doEnvAct(t, nzt, ekb, evs) 
+   = doEnvAct(s(t), nzt monus 1, ekb', timeEffect(evs,1))
+   if ekb' := doUnitEnvAct(t, ekb, evs)
+   /\ okEnv(ekb') .  
+  eq doEnvAct(t, 0, ekb, evs) = ekb .
+
+**** update envkb by doing actions in evset for 1 unit dur
+**** t is the clock at current time unit
+**** ekb should not have a clock
+	op doUnitEnvAct : Time KB EventSet -> KB .
+
+
+--- check if there is collision
+  op okEnv : KB -> Bool .
+
+***** newkb is the proposed update to oldkb -- resolution should deal with conflicts
+op resolveKB : Id KB KB -> KB .
+eq resolveKB(eid,newkb,oldkb)  = newkb [owise] .
+
+***** for processing network messages if any
+***** presumable based on kitems in the ekb
+  op processNet : Conf -> Conf .
+  eq processNet(aconf) = aconf [owise] .
+
+***** for instrumenting
+  op updateConf : Conf -> Conf .
+  eq updateConf(aconf) = aconf [owise] .
+
+  sorts LogItem Log .
+  subsort LogItem < Log .
+  subsort Log < ConfElt .
+  
+****  op [_:_|_] : Id Class AttributeSet -> Agent [ctor format (n d d d d n++i --i d)] .  **** 8 format points
+
+**** 8 format points
+  op {_,_,_} : Time RActSet Conf -> LogItem 
+              [ctor format(n d d nt d d d n)] .
+  op nil : -> Log [ctor] .
+  op _;_ : Log Log -> Log [ctor assoc id: nil] .
+  
+  op bound : Nat -> ConfElt .
+
+ op stopped : Conf -> Conf .
+ eq updateConf(bound(0) aconf) = stopped(aconf) .
+ eq updateConf(bound(s n) aconf) = bound(n) updateConf(aconf) .
+ 
+  sort  RActsEvents .
+  op {_,_} : RActSet EventSet -> RActsEvents [ctor] .
+  
+****                 cur  todo     
+  op updateLog : Log Time Time EventSet Conf -> Log .
+  eq updateLog(log, t, 0, evs,lconf) = log .
+**** one time unit left
+  ceq updateLog(log, t, s 0, evs,lconf) = log1
+   if {racts,evs1} := splitReadyEvents(evs)
+   /\ log1 := log ; {t,racts,lconf} .
+**** more than one time unit to pass
+  ceq updateLog(log, t, s s t0, evs,lconf) = 
+       updateLog(log1, s t, s t0, timeEffect(evs1,1),lconf)   
+   if {racts,evs1} := splitReadyEvents(evs)
+   /\ log1 := log ; {t,racts,none} .
+
+  op splitReadyEvents : EventSet -> RActsEvents .
+  op splitReadyEventsX : EventSet RActSet EventSet -> RActsEvents .
+  eq splitReadyEvents(evs) = splitReadyEventsX(evs,none,none) .
+  eq splitReadyEventsX(none,racts,evs1) = {racts,evs1} .
+  eq splitReadyEventsX((ract @ 0) evs,racts,evs1) = 
+           splitReadyEventsX(evs,racts ract ,evs1) .
+  eq splitReadyEventsX(ev evs,racts,evs1) = 
+           splitReadyEventsX(evs,racts,evs1 ev) [owise] .
+
+
+  op kbLog : Conf Conf -> Conf .
+  eq kbLog(aconf,lconf) = lconf [owise] .
+
+**** updateLog(aconf1, t,nzt,effActs(aconf))
+  op updateLog : Conf Time NzTime EventSet -> Conf .
+  eq updateLog(aconf log, t, nzt, evs) =
+       aconf 
+       updateLog(log,t,nzt,evs,kbLog(aconf,none)) 
+     .
+  eq updateLog(aconf, t, nzt, evs) = aconf [owise] .
+
+  op getLog : Conf -> Log .
+  eq getLog(aconf log) = log .
+  eq getLog(aconf) = nil [owise] .
+
+  
+endfm
+
+
+fmod SOFT-AGENTS is
+  pr SA-CONF .
+
+  *** when top level is needed
+  sort ASystem .
+  op `{_`} : Conf -> ASystem .
+  op getConf : ASystem -> Conf .
+  eq getConf({ conf:Conf }) = conf:Conf .
+
+  op getTime : ASystem -> Time .
+  eq getTime(asys:ASystem) 
+   = getTime(getConf(asys:ASystem)) .
+
+
+  op envKB : ASystem -> KB .
+  eq envKB(asys:ASystem) = envKB(getConf(asys:ASystem)) .
+endfm
+

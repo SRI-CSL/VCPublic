@@ -1,0 +1,358 @@
+mod SCENARIO-PARAMETERS is
+  inc SOFT-AGENT-RULES .
+  inc ENV-ACTIONS .
+  inc MODEL-TASKS .
+  inc SENSOR-FAULTS .
+****  inc VAL-VISITS-ENERGY .
+	inc SOLVE-SCP{valuation2valvisitsenergy} . 
+----	inc SOLVE-SCP{valuation2valpicsenergy} . 
+
+var check : Bool .
+vars n n' i j m : Nat .
+vars t0 t1 t2 t te0 te1 : Time .
+vars v e e0 e1 dt te : FiniteFloat .
+var rks : RActSet .
+var rv : RVal .
+var kekset : KBEventsKBSet .
+vars x y z x0 y0 z0  a : Int .
+**** vars dx dy dz : FiniteFloat .
+var fp : Rat .
+vars newkb oldkb kb kb0 lkb ekb ekb1 skb : KB .
+vars lconf aconf conf : Conf .
+var attrs : AttributeSet .
+var id id0 id1 eid : Id .
+var cl : Class .
+var act : Action .
+var l l0 l1 l2  loc loc1 loc0  home  : Loc .
+var lts : TimeLocList .
+var locs : LocList .
+var pact : ActSet .
+var sset : SensorSet .
+var tgtUps : TgtUpdateS .
+var tgtUp : TgtUpdate .
+var locl locl0 : LocList .
+
+**** eq comDistance = 6 .
+
+eq senXLow = 0.0 .
+eq senYLow = 0.0 .
+eq senZLow = 0.0 .
+
+---- Grid unit
+eq gridStepX = 1.0 .
+eq gridStepY = 1.0 .
+eq gridStepZ = 1.0 .
+ 
+
+eq botDelay = 1 .
+eq periodicity = 60 .
+eq sampleTime = 1.0 .
+
+eq minEnergy = 10.0 .
+eq minSpeed = 1.5 .
+eq minAlt = 2 .
+eq vlift = 5.0 .
+eq vland = 5.0 .
+
+op b : Nat -> Id .
+op eI : -> Id .
+op ob : Nat -> Id .   **** obstacles
+
+
+***(
+Alisson's logs show .25 / sec early, then .125 /sec later 
+battery drain.
+
+Assume .5 for taking off  
+       .25 for landing
+       .25 for horizontal flight
+       .125 for hovering
+)
+
+
+op reducedFactor : -> FiniteFloat .
+eq reducedFactor = 1.0 .
+
+*** Using values inferred from SITL experiments
+*** The value for hovering is not well supported.
+*** seems to be in energy per meter (Need to check this with carolyn)
+eq costMv(v) = (if v < 3.0 then 1.30 * reducedFactor else 1.5 * reducedFactor fi) .
+
+**** op costMvZ : FiniteFloat FiniteFloat ->  FiniteFloat .
+ --- for sitl replace by 1.57 if up 
+ --- for sitl replace by 1.15 going down
+ eq costMvZ(v,dt) = 
+     if (v > 0.0) 
+     then  dt * 1.57 * reducedFactor  
+     else  dt * 1.15 * reducedFactor 
+     fi .
+
+
+**** resolving conflicts in concurrent actions -- just return resolved newkb (and updated random counter)
+eq resolveKB(eid, newkb, (rand(eid,i,j) @ t0) randInc(n) oldkb) =
+    resolveKBX(newkb, (rand(eid,i,j) @ t0) randInc(n)) .
+
+op resolveKBX : KB KB -> KB .
+ceq resolveKBX((atloc(id0,l) @ t0) (atloc(id1,l) @ t1) kb,
+              (rand(eid,i,j) @ t2) randInc(n))  =
+     resolveKBX(kb0 kb, (rand(eid,i,s j) @ t2) randInc(n)) 
+if fp :=  random( (n * j) + i) / randMax 
+/\ kb0 := (if fp < 1/2 then (atloc(id0,l) @ t0) else (atloc(id1,l) @ t1) fi) .
+
+eq resolveKBX(kb, (rand(eid,i, j) @ t2) randInc(n)) 
+     = (kb rand(eid,i,j) @ s t2) [owise] .
+
+********* choices for task functions
+  eq acts(id,kb) = actsBasic(id,kb) .
+
+  eq nextLoc(id,kb) = nextLocSimple(id,kb) .
+  eq updateTargets(id,act,kb) = updateTargetsSimple(id,act,kb) .
+
+***(
+  eq nextLoc(id,kb) = nextLocSCP(id,kb) .
+  eq updateTargets(id,act,kb) = updateTargetsSCP(id,act,kb) .
+  )
+
+
+********* choices for solve-scp functions/selectors
+  eq updateRks(rks,act,rv) = updateRksMx(rks,act,rv) .
+
+***(
+  eq updateRks(rks,act,rv) = updateRksAll(rks,act,rv) .
+)
+
+  eq selectKeK(kb,kekset) = bestKeK(kb,kekset) .
+
+***(
+  eq selectKeK(kb,kekset) = allKeK(kb,kekset) .
+)
+
+************************ printed by doTask rule
+eq toPrintKBL(id, (atloc(id,loc) @ t0) (energy(id,e) @ t1 ) lkb) =
+               (atloc(id,loc) @ t0) (energy(id,e) @ t1 ) .
+eq toPrintEvs({lkb,evs:EventSet,kb0} kekset:KBEventsKBSet) = 
+               getRankedEvs(evs:EventSet) 
+               toPrintEvs(kekset:KBEventsKBSet) .
+
+************ printed by timeStep rule -- argument is resolved newkb
+***(
+eq toPrintKB( (atloc(b(1),loc1)  @ t1) (energy(b(1),e1) @ te1  )
+              (atloc(b(0),loc0) @ t0 ) (energy(b(0),e0) @ te0  ) ekb)
+           =  ((atloc(b(1),loc1)  @ t1) (energy(b(1),e1) @ te1 ) 
+               (atloc(b(0),loc0) @ t0 ) (energy(b(0),e0) @ te0 )) .
+**** eq toPrintKB(ekb) = none [owise] .
+)
+
+******************* updating the log
+
+************** specifying log
+***(
+          aconf none
+op kbLog : Conf Conf -> Conf .
+eq kbLog(aconf,lconf) = lconf [owise] .
+)
+
+**** collects doActInfo for active entity 
+**** and sensor readings for the env
+op kbLogX : Conf Conf KB -> Conf .
+eq kbLog(aconf,lconf) = kbLogX(aconf,lconf,none) .
+
+eq kbLogX([id : Bot | lkb : lkb, (sensors : sset), attrs]  aconf
+           [eid | ekb], lconf,skb) =
+    kbLogX(aconf [eid | ekb],
+           lconf [id : Bot | lkb : getDoActInfo(id,lkb) ],
+           addK(getSensorsKI(id,sset,ekb),skb)) .
+eq kbLogX(aconf [eid | ekb],lconf,skb) = lconf [eid | skb] [owise] .
+**** extractRand(ekb) 
+
+***(
+constant info per id
+  fence
+  home
+  
+
+)
+op getDoActInfo : Id KB  -> KB .
+eq getDoActInfo(id,kb) =
+   (getLocInfo(kb,none)) 
+   (getEnergyInfo(id,kb))
+   (getPendingInfo(id,kb))
+   .
+   
+
+op getLocInfo : KB KB -> KB .
+eq getLocInfo(class(id,Bot) (atloc(id,loc) @ t) kb, lkb)
+  = getLocInfo(kb, lkb (atloc(id,loc) @ t)) .
+eq getLocInfo(kb, lkb) = lkb [owise] .
+  
+op getEnergyInfo : Id KB -> KB .
+eq getEnergyInfo(id, (energy(id,e) @ t) lkb ) = (energy(id,e) @ t) .
+eq getEnergyInfo(id,lkb ) = none [owise] .
+
+op getPendingInfo : Id KB -> KB .
+eq getPendingInfo(id, (pending(id,act) @ t) lkb) 
+     = (pending(id,act) @ t) .
+eq getPendingInfo(id,lkb ) = none [owise] .
+
+
+******************* updating the conf metadata
+
+***** CAVEAT -- this needs to be fixed if running w Sitl.
+***** probably just want two versions of updateConf
+**** should be used only at the beginning of a round
+
+op upDateRand : ASystem Nat -> ASystem .
+op upDateRandC : Conf Nat -> Conf .
+eq upDateRand({[ eid | ekb ] aconf}, n) =
+              {[ eid | upDateRandKB(eid,ekb,n)] 
+              upDateRandC(aconf,n)} .
+
+eq upDateRandC([ id : cl | lkb : lkb, attrs ] aconf, n) =
+              [ id : cl | lkb : upDateRandKB(id,lkb,n)] 
+              upDateRandC(aconf,n) .
+
+eq upDateRandC(aconf,n) = aconf [owise] .
+
+op upDateRandKB  : Id KB Nat -> KB .
+eq upDateRandKB(id, clock(t1) (rand(eid,i,j) @ t) kb,n) = 
+    clock(t1) (rand(id,i,j + n) @ t1) kb .
+eq upDateRandKB(id,kb,n) = kb [owise] .
+
+
+
+op updateTE : KB FiniteFloat -> KB .
+eq updateTE(clock(t1) (timeElapsed(te) @ t) kb, dt)
+           = clock(t1) (timeElapsed(te + dt) @ t1) kb .
+****
+
+***(
+eq updateConf([ eid | ekb ] aconf) = 
+   updateTracks(updateMaxSep(updateMinSep([ eid | ekb1 ] aconf))) .
+)
+
+
+*************************
+
+
+op minSep : Nat Loc Loc -> ConfElt [ctor format(nt d)] .
+op maxSep : Nat Loc Loc -> ConfElt [ctor format(nt d)] .
+
+
+op updateMinSep : Conf -> Conf .
+eq updateMinSep([ eid | ekb ] aconf minSep(n,l,l0)) =
+                ([ eid | ekb ] aconf updateMinSep(n,l,l0,ekb)) .
+eq updateMinSep(conf) = conf [owise] .
+
+
+**** quick and dirty for 2 drone case
+op updateMinSep : Nat Loc Loc KB -> ConfElt .
+ceq updateMinSep(n,l,l0,(atloc(b(0),l1) @ t0) (atloc(b(1),l2) @ t1) kb) = 
+            (if n' < n 
+            then minSep(n',l1,l2)
+            else minSep(n,l,l0)
+            fi)
+if n' := hdistance(l1,l2) .
+
+eq updateMinSep(n,l,l0,kb) = minSep(n,l,l0) [owise] .
+
+op updateMaxSep : Conf -> Conf .
+eq updateMaxSep([ eid | ekb ] aconf maxSep(n,l,l0)) =
+                ([ eid | ekb ] aconf updateMaxSep(n,l,l0,ekb)) .
+eq updateMaxSep(conf) = conf [owise] .
+
+
+op updateMaxSep : Nat Loc Loc KB -> ConfElt .
+ceq updateMaxSep(n,l,l0,(atloc(b(0),l1) @ t0) (atloc(b(1),l2) @ t1) kb) = 
+            (if n < n' 
+            then maxSep(n',l1,l2)
+            else maxSep(n,l,l0)
+            fi)
+if n' := hdistance(l1,l2) .
+
+eq updateMaxSep(n,l,l0,kb) = maxSep(n,l,l0) [owise] .
+
+op hdistance : Loc Loc -> Nat .
+eq hdistance(pt(x,y,z),pt(x0,y0,z0)) = abs(x - x0) + abs(y - y0) .
+
+
+sorts TLPair TimeLocList .
+subsort TLPair < TimeLocList .
+op `{_`,_`} : Time Loc -> TLPair [ctor] .
+op mtTL : -> TimeLocList [ctor] .
+op _;_ : TimeLocList TimeLocList -> TimeLocList [ctor assoc id: mtTL] .
+
+op track : Id Loc TimeLocList -> ConfElt [ctor format(nt d)] .
+op updateTracks : Conf -> Conf .
+op updateTrack : Id Loc TimeLocList KB KB -> ConfElt .
+
+eq updateTracks([id : cl | lkb : lkb, attrs] [ eI | ekb ] 
+                track(id,l,lts) conf )
+    =  updateTracks([id : cl | lkb : lkb, attrs] [ eI | ekb ] conf)
+       updateTrack(id,l,lts,lkb,ekb) .
+
+eq updateTracks([id : cl | lkb : lkb, attrs] [ eI | ekb ]  conf )
+   = [id : cl | lkb : lkb, attrs] updateTracks([ eI | ekb ]  conf ) [owise] .
+
+eq updateTracks( conf ) =  conf  [owise] .
+
+
+ceq updateTrack(id,l,lts,lkb,ekb) =
+   (if (check and near(l0, l))
+   then track(id,l, lts ; {t,l0})
+   else track(id,l,lts)
+   fi)
+ if clock(t) (atloc(id,l0) @ t0) kb := ekb
+ /\ pact := getPending(id,lkb) 
+ /\ check := isGoTo(pact) and (getLoc(pact) == l) 
+.
+
+op mkTLs : Id LocList -> Conf .
+eq mkTLs(id,l ; locs) = track(id,l,mtTL) mkTLs(id,locs) .
+eq mkTLs(id,nil) = none .
+   
+
+--- The drone removes loc from its target list when it selects
+--- that loc.   The env should remove it when the drone is close to its target -- checkVisited  
+--- eq updateConf([ eid | ekb ] aconf) = 
+---      [eid | checkVisited(resetUpdates(ekb),none)] aconf .
+
+op timeBound : Time -> PKItem .
+
+op noTimeBound : KB -> Bool .
+eq noTimeBound((timeBound(t1)) ekb) = false .
+eq noTimeBound(ekb) = true [owise] .
+
+ceq updateConf([ eid |  ekb ] aconf)
+  = [eid | checkVisited(resetUpdates(ekb),none)] aconf
+ if noTimeBound(ekb) . 
+
+
+
+
+op resetUpdates : KB -> KB .
+eq resetUpdates(ekb clock(t) (curUpdate(id,tgtUp) @ t0))
+   = resetUpdates(ekb clock(t) (curUpdate(id,none) @ t)) .
+eq resetUpdates(ekb) = ekb [owise] .
+
+op checkVisited : KB KB -> KB .
+ceq checkVisited(kb clock(t)
+                   (targetL(id,loc ; locl) @ t0) 
+                   (atloc(id,loc1) @ t1), kb0 )
+  = checkVisited(kb clock(t), kb0 
+                        (targetL(id,locl0 ; locl) @ t) 
+                        (atloc(id,loc1) @ t1) )
+if locl0 := (if close(loc,loc1)  then nil else loc fi) .                                   
+
+***(
+ceq checkVisited(kb clock(t)
+                   (targetL(id,loc ; locl) @ t0) 
+                   (atloc(id,loc1) @ t1), kb0 )
+  = checkVisited(kb clock(t), kb0 
+                        (targetL(id,loc0 ; locl) @ t) 
+                        (atloc(id,loc1) @ t1) )
+if loc0 := (if close(loc,loc1)  then nil else loc fi) .         
+)
+eq checkVisited(kb,kb0) = kb kb0 [owise] .
+
+endm
+

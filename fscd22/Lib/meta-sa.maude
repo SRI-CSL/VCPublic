@@ -1,0 +1,532 @@
+mod META-SOFT-AGENT is
+  inc RFE  .   *** rewriter + filemanager
+  inc RAT2FSTRING .
+  inc LEXICAL .
+  
+var ctl : Control .
+var wait4s : Wait4Set .
+var reqQ reqQ' reqQ0 reqQ1 : RequestQ .
+vars log log'  : Log .
+vars es0 es es' es'' es1 : ESet .
+
+vars inQ outQ toks toks' rids : QidList .
+vars q nq rid 
+     modname amodname amname mname maudename pyname aname
+     g2dname g2dvname  simname initname   wid
+     randinc : Qid .
+vars mod agentMod amod module : Module .
+vars res? res?? res1? res0? resx0?? resx1?? resx2??
+      res0?? res1?? res2?? res3?? res4?? res5??  : [ResultPair?] .
+var res4? : [Result4Tuple] .
+
+var n : Nat .
+vars ?string  str actstr : String .
+vars bindings bnds : TBinds .
+
+vars asysT asysT1 aconfT aconfT0 aconfT1 aconfT2 aconfT3 aconfT4 : Term .
+vars ekbT ekb0T ekb1T ekb2T : Term .
+vars mteT nT bT nzT idT timeT actsT sactsT mactsT alonT trm trm1 : Term .
+vars tl evsTL : TermList .
+
+***********************************************************************
+***********************************************************************
+
+**** gensym hack for generating new ids 
+
+  op getGlobalCounter : ESet -> String .
+  op incGlobalCounter : ESet -> ESet .
+  op incGlobalCounter : ESet Nat -> ESet .
+
+  eq getGlobalCounter(es) = 
+          svalString(getVal(es,'sval,'globalCounter,sv("0"))) .
+  eq incGlobalCounter(es) = incGlobalCounter(es,1) .
+  eq incGlobalCounter(es,n) = 
+       addEntry(es,'sval,'globalCounter,
+                sv(string(rat(getGlobalCounter(es),10) + n,10))) .
+
+
+  op stringInc : String -> String .
+  eq stringInc(str) = 
+      (if string(rat(str,10) + 1, 10) :: String
+       then string(rat(str,10) + 1, 10) 
+       else str fi) .
+
+
+  op stringDec : String -> String .
+  eq stringDec(str) = 
+      (if string((rat(str,10) + -1), 10) :: String
+       then string((rat(str,10) + -1), 10) 
+       else str fi) .
+
+
+op sqquote : Qid -> String .
+eq sqquote(q) = squote(string(q)) .
+
+op qid2NatT :  Qid -> Term .
+ceq qid2NatT(q) =
+ (if hasSort(['MY-META-CNV],nT,'Nat) then nT else '0.Zero fi)
+ if nT :=  upTerm(rat(string(q),10)) .
+
+
+
+****************************************************************
+****************************************************************
+
+  eq isReq('pyexe) = true .
+  eq enabled(wait4s,req('pyexe,ql(pyname toks),reqQ)) =
+      not(waiting4(wait4s,pyname)) .
+
+  crl[pyexe]:
+   [nil,
+    st(processing(req('pyexe,ql(pyname toks),reqQ')),
+       wait4s,reqQ,es,log),
+    outQ]
+     =>
+   [nil,
+    st(ready,
+       wait4s ! wait4(pyname,nil,
+                      req('logreq,ql('pyexe pyname toks),reqQ')),
+       reqQ,
+       es,
+       log), outQ
+     pyname '\n mname '\n toks' maudePrompt]
+   if  mname := getMaudeName(es)
+   /\ ?string :=  withPyAck(removeBQs(qidl2str(toks),0,""),mname,pyname)
+   /\ toks' := str2toks(?string) .
+
+  op withPyAckTemplate : -> String .
+  eq withPyAckTemplate =
+"(seq \n\
+    %exp\n\
+    (apply send %replyto %pyname \"OK\") )" .
+
+ op withPyAck : String Qid Qid -> String .
+ eq withPyAck(?string,mname,aname) =
+     fillTemplate(withPyAckTemplate,
+                  (("%exp" :~ ?string),
+                   ("%replyto" :~ squote(string(mname))),
+                   ("%pyname" :~ squote(string(aname))))) .
+
+
+
+****************************************************************
+****  initialiaze meta level eset only
+**** if simname == 'unKnown then use Maudephysics
+****************************************************************
+op initAgentEset : ESet Qid Qid Qid Qid Qid Qid Qid Qid -> ESet .
+ceq initAgentEset(es,maudename,g2dname,g2dvname,simname,
+                  amodname,initname,wid,randinc) =
+     addEntry( addEntry( addEntry( addEntry( addEntry(
+       addEntry(  addEntry( addEntry( addEntry( addEntry( 
+        addEntry(es, 
+                'qval, 'maudeName, ql(maudename)), 
+                'qval, 'g2dName, ql(g2dname)), 
+                'qval, 'g2dVName, ql(g2dvname)),
+                'qval, 'simName, ql(simname)),
+                'qval, 'worldId, ql(wid)),
+                'qval, 'agentModName, ql(amodname)),
+ 							  'sval, 'globalCounter,sv("0")),
+								'tval, 'randIx, tm(amodname, '0.Zero)),
+								'tval, 'randInc,tm(amodname, qid2NatT(randinc))),
+                'tval, 'initASys, tm(amodname,asysT)),
+                'tval, 'agentSys, tm(amodname,asysT))
+                         ---- ASystem
+ if res?? := metaReduce([amodname],mkConst(initname,'ASystem))
+ /\ asysT := (if res?? :: ResultPair 
+               then getTerm(res??)
+							 else '`{_`}['none.Conf] fi) .
+
+eq isReq('initAgentEset) = true .
+eq enabled(wait4s,req('initAgentEset, 
+                  	    ql(maudename g2dname g2dvname simname 
+                        amodname initname wid randinc ),reqQ))
+        = true .
+
+rl[initAgentEset]:
+   [nil, 
+    st(processing(req('initAgentEset, 
+             ql(mname g2dname g2dvname simname 
+                amodname initname wid randinc toks),reqQ')),
+       wait4s,reqQ,es,log),
+     outQ]
+   =>
+   [nil, 
+    st(ready, 
+       wait4s, 
+  		(reqQ reqQ'),
+			initAgentEset(es,mname,g2dname,g2dvname, simname,
+                       amodname, initname,wid,randinc),
+    	log), 
+  		outQ ] .
+
+***********************************************************************
+**** apply rules in QidList until nothing to do. 
+**** inst rules or timestep
+**** assume t is reduced
+
+
+op applyXXRules : Module Term QidList -> Term .
+ceq applyXXRules(module,trm,rids) =
+     (if trm1 == trm
+	    then trm1
+			else applyXXRules(module,trm1,rids) 
+			fi)
+  if trm1 := applyXXRules1(module,trm,rids)
+   .
+
+**** assume wellFormed(mod,t) == true
+  op applyXXRules1 : Module Term QidList -> Term .
+  eq applyXXRules1(mod,trm,nil) =  trm .
+  ceq applyXXRules1(mod,trm, rid rids) = applyXXRules1(mod,trm1, rids)
+   if res4? :=  metaXapply(mod,trm,rid,none,0,unbounded,0)
+   /\ trm1 :=  (if res4? :: Result4Tuple then getTerm(res4?) else trm fi)
+  .
+
+*****************  *****************  
+**** assumes config to be rewritten is stored as 'agentSys
+*****************  *****************  
+ eq isReq('rewTilDone) = true .
+ eq enabled(wait4s,req('rewTilDone,ql(toks),reqQ')) = true .
+
+ crl[rewTilDone]:
+    [nil,
+     st(processing(req('rewTilDone, ql(toks),reqQ')), 
+        wait4s,reqQ,es,log), 
+     outQ]
+      =>
+     [nil,  
+       st(ready, wait4s,  (reqQ reqQ'), es',log),
+      outQ]
+
+  if ql(amname) := getVal(es,'qval,'agentModName,ql('SOFT-AGENTS))
+  /\ tm(amodname,asysT) := 
+	     getVal(es,'tval,'agentSys,tm(amname,'`{_`}['none.Conf]))
+  /\ asysT1 := applyXXRules([amodname], asysT,toks)
+  /\ es' := addEntry(es,'tval,'agentSys,tm(amodname,asysT1))
+  .			
+
+***********************************************************************
+****  doTask!;timeStep!  nq times  (doRound 50)
+***********************************************************************
+
+ eq isReq('doRound) = true .
+ eq enabled(wait4s,req('doRound,ql(nq toks),reqQ)) = true .
+
+crl[doRound]:
+   [nil,
+    st(processing(req('doRound, ql(nq toks),reqQ')), 
+       wait4s,reqQ,es,log), 
+    outQ]
+     =>
+   [nil,  
+    st(ready,
+       wait4s,
+      (reqQ reqQ0),
+       addEntry(es,'tval,'agentSys,tm(amodname,asysT)),
+       log), outQ  ] 
+if ql(amodname) := getVal(es,'qval, 'agentModName, ql('BOOL))
+/\ tm(amodname, asysT) := 
+        getVal(es,'tval, 'initASys, tm(amodname,'`{_`}['none.Conf]))
+/\ reqQ0 := req('doRoundAux, ql(nq), reqQ') .
+
+
+
+ eq isReq('doRoundAux) = true .
+ eq enabled(wait4s,req('doRoundAux,ql(nq toks),reqQ)) = true .
+
+crl[doRoundAux]:
+   [nil,
+    st(processing(req('doRoundAux, ql(nq toks),reqQ')), 
+       wait4s,reqQ,es,log), 
+    outQ]
+     =>
+   [nil,  
+    st(ready,
+       wait4s,
+      (reqQ reqQ0),
+       es,
+       log), outQ  ] 
+if n := rat(string(nq),10)
+/\ tm(amodname,asysT) := 
+      getVal(es,'tval, 'agentSys, tm('SOFT-AGENTS,'`{_`}['none.Conf]))
+/\ res0?? := metaReduce([amodname], 'isDone[asysT])
+/\ bT := (if res0?? :: ResultPair then getTerm(res0??) else 'true.Bool fi)
+/\ ql(simname) := getVal(es,'qval, 'simName, ql('unKnown))
+/\ reqQ0 :=
+    (if ( (n :: Nat and n > 0) and bT =/= 'true.Bool)
+    then (if (simname == 'unKnown)   ---- using Maude physics
+         then req('rewTilDone, ql('doTasks),
+	  	         req('rewTilDone,ql('timeStep),
+                req('doRoundAux, ql(qid(string(sd(n,1),10))),
+     			        reqQ')))
+         else  req('rewTilDone, ql('doTasks),
+                req('doActs, ql(nil),
+                 req('doRoundAux, ql(qid(string(sd(n,1),10)) ),
+                  reqQ')))
+         fi )                 
+     else reqQ' fi) .
+
+
+***(
+ Interaction with simulator
+
+doActs()
+sets envKB, time, mte, nzt, acts
+splitEvs(acts,ekb) -> {simActs,maudeActs}
+sends acts to simActor
+continuation odActs()
+
+)
+
+op doActs : ESet -> ESet .
+ceq doActs(es) = es'
+if tm(amodname,asysT) :=
+       getVal(es,'tval,'agentSys,tm('SOFT-AGENTS,'`{_`}['none.Conf]))
+  /\ res1?? := metaReduce([amodname],'envKB[asysT])
+  /\ ekbT := 
+      (if res1?? :: ResultPair then getTerm(res1??) else 'none.KB fi)
+  /\ res2?? := metaReduce([amodname],'getTime['getConf[asysT]])
+  /\ timeT :=  (if res2?? :: ResultPair
+                then getTerm(res2??)
+                else 'infty.TimeInf fi)
+  /\ res3?? := metaReduce([amodname],'mte['getConf[asysT]])
+  /\ mteT :=  (if res3?? :: ResultPair
+               then getTerm(res3??)
+               else 'infty.TimeInf fi)
+  /\ res4?? := metaReduce([amodname],'effActs['getConf[asysT]])
+  /\ actsT :=  (if res4?? :: ResultPair
+               then getTerm(res4??)
+               else 'none.EventSet fi)
+  /\ res5?? := metaReduce([amodname],'splitEvs[ekbT,actsT])
+  /\ '`{_`,_`}[sactsT,mactsT] :=  (if res5?? :: ResultPair
+               then getTerm(res5??)
+               else '`{_`,_`}['none.EventSet,'none.EventSet] fi)
+  /\ es' := addEntry(addEntry(addEntry(addEntry
+          (addEntry(addEntry(addEntry(es,
+             'tval,'envKB,tm(amodname,ekbT)),
+             'tval,'time,tm(amodname,timeT)),
+             'tval,'mte,tm(amodname,mteT)),
+             'tval,'nzt,tm(amodname,mteT)),
+           'tval,'simActs,tm(amodname,sactsT)),
+           'tval,'maudeActs,tm(amodname,mactsT)),
+             'tval,'acts,tm(amodname,actsT))
+     .
+
+ eq isReq('doActs) = true .
+ eq enabled(wait4s,req('doActs,ql(toks),reqQ)) = true .
+
+ crl[doActs]:
+    [nil,
+     st(processing(req('doActs, ql(toks),reqQ)),
+        wait4s,reqQ',es,log),
+     outQ]
+      =>
+     [nil,
+       st(ready, wait4s,  (reqQ' reqQ0), es',log),
+      outQ]
+  if es' := doActs(es)
+  /\ tm(amodname,mteT) := getVal(es','tval, 'mte, tm('NAT,'0.Zero))
+  /\  reqQ0 := (if hasSort([amodname],mteT,'NzTime)
+                then req('doActsAux,ql(toks),reqQ)
+                else reqQ
+                fi)   .
+
+
+***(
+'actAcc[idT,alonT]
+
+(apply doActs "w0" (array java.lang.Object (array java.lang.Object "v(0)" "acc" (double 0) (double 5)) (array java.lang.Object "v(1)" "acc" (double 0) (double 3)) ))
+
+)
+
+op evsT2evTL : Term -> TermList .
+eq evsT2evTL('none.EventSet) = empty .
+eq evsT2evTL('__[tl]) = tl .
+eq evsT2evTL(trm) = trm  [owise] .
+
+op aactTemplate : -> String .
+eq aactTemplate  = 
+"(array java.lang.Object %vid \"acc\" (double 0)  (double %alon))" .
+
+op doActsTemplate : -> String .
+eq doActsTemplate  = 
+"(apply doActs %mname %simname %wid (array java.lang.Object %actspecs))" .
+
+*** op v : Nat -> Id .  vehicle id
+
+op idT2vid : Term -> String .
+eq idT2vid('v[nT]) = "v(" + string(downTerm(nT,0),10) + ")" .
+
+op mkActStr : Qid Qid Qid TermList -> String .
+ceq mkActStr(mname,simname,wid,evsTL) =
+  fillTemplate(doActsTemplate,bindings)
+if actstr := evst2actstr(evsTL,"")  
+/\ bindings :=
+     (("%mname" :~ sqquote(mname)) ,
+     ("%simname" :~ sqquote(simname)),
+     ("%wid" :~ sqquote(wid)),
+     ("%actspecs" :~ actstr)
+     ) .
+
+op evst2actstr : TermList String -> String .
+eq evst2actstr(empty,str) = str .
+ceq evst2actstr(('_@_['actAcc[idT,alonT],nT],evsTL),str) =
+     evst2actstr(evsTL,str + " " + actstr)
+if actstr := 
+   fillTemplate(aactTemplate,
+               (("%vid" :~ squote(idT2vid(idT))),
+                ("%alon" :~ rat2fstr(downTerm(alonT,0), 4,8)) ) ) .
+
+
+op aactPyTemplate : -> String .
+eq aactPyTemplate  = 
+"(mklist %vid \"acc\" (float 0)  (float %alon))" .
+
+op doActsPyTemplate : -> String .
+eq doActsPyTemplate  = 
+"(apply doActs %mname %simname %wid (mklist %actspecs))" .
+
+op mkActStr-py : Qid Qid Qid TermList -> String .
+ceq mkActStr-py(mname,simname,wid,evsTL) =
+  fillTemplate(doActsPyTemplate,bindings)
+if actstr := evst2actstr-py(evsTL,"")  
+/\ bindings :=
+     (("%mname" :~ sqquote(mname)) ,
+     ("%simname" :~ sqquote(simname)),
+     ("%wid" :~ sqquote(wid)),
+     ("%actspecs" :~ actstr)
+     ) .
+
+op evst2actstr-py : TermList String -> String .
+eq evst2actstr-py(empty,str) = str .
+ceq evst2actstr-py(('_@_['actAcc[idT,alonT],nT],evsTL),str) =
+     evst2actstr-py(evsTL,str + " " + actstr)
+if actstr := 
+   fillTemplate(aactPyTemplate,
+               (("%vid" :~ squote(idT2vid(idT))),
+                ("%alon" :~ rat2fstr(downTerm(alonT,0), 4,8)) ) ) .
+
+
+ eq isReq('doActsAux) = true .
+ eq enabled(wait4s,req('doActsAux,ql(toks),reqQ)) = true .
+
+ crl[doActsAux]:
+    [nil,
+     st(processing(req('doActsAux, ql(toks),reqQ')),
+        wait4s,reqQ,es,log),
+     outQ]
+      =>
+     [nil,
+       st(ready, 
+      (wait4s !
+       wait4(simname,nil, req('odActs, ql(nil),
+                   req('logreq,ql('doActsAux toks),reqQ')) )),
+        reqQ, es,log),
+      outQ  simname '\n mname '\n toks' maudePrompt ]
+ if mname := getMaudeName(es)
+ /\ ql(simname) := getVal(es,'qval,'simName,ql('unKnown))
+ /\ ql(wid) := getVal(es,'qval,'worldId,ql('unKnown))
+ /\ tm(amodname,sactsT) := 
+         getVal(es,'tval,'simActs,tm('SOFT-AGENTS,'none.EventSet))
+ /\ str := (if (simname == 'plambda)
+****            then "(apply primt2err (float 123))"
+            then mkActStr-py(mname,simname,wid,evsT2evTL(sactsT))
+            else mkActStr(mname,simname,wid,evsT2evTL(sactsT))
+            fi)
+ /\ toks' := str2toks(str) .
+
+
+***(
+g2d
+ /\ str := "(apply doActs \"maude\" \"g2d\" \"w0\" (array java.lang.Object (array java.lang.Object \"v(0)\" \"acc\" (double 0) (double 5)) (array java.lang.Object \"v(1)\" \"acc\" (double 0) (double 3)) ))"
+
+plambda 
+ (apply doActs "maude" "plambda" "w0" (mklist (mklist "v(0)" "acc" (float 0) (float 2.5)) (mklist "v(1)" "acc" (float 1) (float 2.5)) ))
+ 
+)
+
+******************************************************************
+***(
+odActs()  updates 'agentSys to be {aconf2}
+*** if nzt := mte(aconf)
+*** /\ t := getTime(envKB(aconf))
+*** /\ evs := effActs(aconf) -> simacts,maudeActs
+*** simulator does simacts
+
+/\ ekb0 := doEnvAct(t, nzt, envKB(aconf), evs) 
+/\ ekb' := resolveKB(getEnvId(aconf), ekb0, envKB(aconf))
+/\ aconf0 := updateEnv(ekb',timeEffect(aconf,nzt))
+/\ aconf1 := shareKnowledge(aconf0)
+/\ aconf4 := processNet(aconf1)
+/\ aconf3 := updateLog(aconf4, t,nzt,evs)
+/\ aconf2 := updateConf(aconf3) 
+)
+
+ eq isReq('odActs) = true .
+ eq enabled(wait4s,req('odActs,ql(toks),reqQ)) = true .
+
+ crl[odActs]:
+    [nil,
+     st(processing(req('odActs, ql(simname toks),reqQ')),
+        wait4s,reqQ,es,log),
+     outQ]
+      =>
+     [nil,
+       st(ready, wait4s,  (reqQ reqQ'),
+****      addEntry(es,'tval,'ekb0,tm(amodname,ekb0T)),
+      addEntry(es,'tval,'agentSys,tm(amodname,'`{_`}[aconfT2])),
+          log),
+      outQ]
+if ql(amodname) := getVal(es,'qval,'agentModName, ql('SOFT-AGENTS))
+/\ resx0?? := metaParse([amodname],toks,'KB)
+/\ ekb0T := (if resx0?? :: ResultPair
+          then getTerm(resx0??)
+          else  'none.KB
+          fi)
+/\ tm(amodname,'`{_`}[aconfT]) :=
+         getVal(es,'tval,'agentSys,tm(amodname,'`{_`}['none.Conf]))
+/\ tm(amodname,timeT) :=
+         getVal(es,'tval,'time,tm(amodname,'0.Zero))
+/\ tm(amodname,nzT) :=
+         getVal(es,'tval,'nzt,tm(amodname,'s_['0.Zero]))
+/\ tm(amodname,ekbT) :=
+         getVal(es,'tval,'envKB,tm(amodname,'none.KB))
+/\ tm(amodname,mactsT) :=
+         getVal(es,'tval,'maudeActs,tm(amodname,'none.EventSet))
+/\ tm(amodname,actsT) :=
+         getVal(es,'tval,'acts,tm(amodname,'none.EventSet))
+/\ resx1?? :=   metaReduce([amodname],'doEnvAct[timeT nzT, ekbT, mactsT])
+/\ ekb1T := (if resx1?? :: ResultPair
+          then getTerm(resx1??)
+          else  'none.KB
+          fi)
+/\ resx2?? := metaReduce([amodname],
+            'resolveKB['getEnvId[aconfT],'__[ekb0T,ekb1T],ekbT]) 
+/\ ekb2T := (if resx2?? :: ResultPair
+          then getTerm(resx2??)
+          else  'none.KB
+          fi)
+/\ res0?? := metaReduce([amodname],
+            'updateEnv[ekb2T,'timeEffect[aconfT,nzT]]) 
+/\ aconfT0 := (if res0?? :: ResultPair
+          then getTerm(res0??)
+          else  'none.Conf
+          fi)
+/\ res1?? := metaReduce([amodname],'processNet['shareKnowledge[aconfT0]]) 
+/\ aconfT1 := (if res1?? :: ResultPair
+          then getTerm(res1??)
+          else  'none.Conf
+          fi)
+/\ res3?? := metaReduce([amodname],'updateLog[aconfT1,timeT,nzT,actsT])
+/\ aconfT3 := (if res3?? :: ResultPair
+          then getTerm(res3??)
+          else  'none.Conf
+          fi)
+/\ res2?? := metaReduce([amodname],'updateConf[aconfT3])
+/\ aconfT2 := (if res2?? :: ResultPair
+          then getTerm(res2??)
+          else  'none.Conf
+          fi)
+  .
+
+endm

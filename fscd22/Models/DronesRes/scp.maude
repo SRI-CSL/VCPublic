@@ -1,0 +1,378 @@
+**** Boolean Valuation Safe or Not
+
+fmod BVAL is
+  pr CONVERSION .
+  inc RVAL .
+  
+**** Grade is BVal  
+  sort BVal .
+  subsort BVal < RVal .
+  
+  vars b1 b2 : BVal .
+  
+  op _<_ : BVal BVal -> Bool  .
+  op equivZero : BVal -> Bool .
+
+
+  ops bot top : -> BVal .
+  eq  bot < top = true .
+  eq x:BVal < y:BVal = false [owise] .
+
+  eq equivZero(bot) = true .
+  eq equivZero(top) = false .  
+
+endfm
+
+fmod TRIVAL is
+  pr CONVERSION .
+  inc RVAL .
+  
+**** Grade is BVal  
+  vars b1 b2 : TriVal .
+  sort TriVal .
+  subsort TriVal < RVal .
+
+  op _<_ : TriVal TriVal -> Bool  .
+  op equivZero : TriVal -> Bool .
+
+  ops bot mid top : -> TriVal .
+  eq  bot < top = true .
+  eq  bot < mid = true .
+  eq  mid < top = true .
+  eq x:TriVal < y:TriVal = false [owise] .
+
+  eq equivZero(bot) = true .
+  eq equivZero(top) = false .  
+  eq equivZero(mid) = false .  
+
+endfm
+
+
+
+fmod FFVAL is
+  pr CONVERSION .
+  inc RVAL .
+  
+  sort FF .
+  subsort FF < RVal .
+  op {_,_} : Rat Rat -> FF .
+
+***** Grade is Rat pair
+  vars u1 u2 : FF .
+  vars fb fc fb0 fc0 : Rat .
+
+*****!!! assume cost not 0.0
+
+  op _<_ : FF FF -> Bool  .
+
+  eq {fb,fc} < {fb0,fc0} 
+   = (if (fb < fb0) or ((fb == fb0) and (fc > fc0))
+     then true
+     else (if (fb == fb0 and (fc < fc0))
+           then false
+           else (if (fb / fc ) < (fb0 / fc0 )
+                 then true else false fi)
+     fi) fi) .
+
+  op equivZero : FF -> Bool .
+  --- Anything with benefit zero is zero.
+  eq equivZero({0,fc}) = true . 
+  eq equivZero(u1) = false [owise] .
+
+endfm
+
+fmod BFFVAL is
+****  pr CONVERSION .
+  inc BVAL .
+  inc FFVAL .
+  
+  vars b1 b2 : BVal .
+  vars u1 u2 : FF .
+  
+  sort BFFVal .
+  subsort BFFVal < RVal .
+  op {_,_} : BVal FF -> BFFVal .
+  op _<_ : BFFVal BFFVal -> Bool .
+  op equivZero : BFFVal -> Bool .
+
+  eq {b1,u1} < {b2,u2} = (b1 < b2) or (b1 == b2 and u1 < u2) .
+  eq equivZero({b1,u1}) = (equivZero(b1)) or (equivZero(u1)) .
+
+endfm
+
+**** safety valuation function for energy concern
+**** defines eval
+fmod VAL-ENERGY is
+****  inc SOFT-AGENTS .
+****  inc CONVERSION .
+  inc BVAL .
+  inc MODEL-ACTIONS .
+
+  vars kb kb' : KB .
+  vars id : Id .
+  var e : FiniteFloat .
+  vars loc locb : Loc .
+  vars t0 t t1 x1 y1 z1 x0 y0 z0 : Nat .
+  var act : Action .
+
+ 
+  op val-energy : Id KB  -> BVal .
+  eq val-energy(id,(energy(id,e) @ t0) kb) = 
+   if e > getCaution(id,kb) then top else bot fi .
+
+  op val-energy : Id KB Action  -> BVal .
+  eq val-energy(id,(myHome(id,locb)) kb,goTo(id,loc)) = 
+   if locb == loc 
+      then top 
+      else  val-energy(id,doAct(goTo(id,loc),kb)) fi .
+
+  eq val-energy(id,kb,act) = bot [owise] .  **** shouldn't happen
+
+endfm
+
+fmod VAL-ENERGY-CONSERVATIVE is
+****  inc SOFT-AGENTS .
+****  inc CONVERSION .
+  inc TRIVAL .
+  inc MODEL-ACTIONS .
+
+  var cl : Class .
+  vars kb kb' : KB .
+  vars id st : Id .
+  vars cx cy cz e : FiniteFloat .
+  vars loc locb l0 lb : Loc .
+  vars t0 t t1 x1 y1 z1 x0 y0 z0 : Nat .
+  var act : Action .
+  vars loc0 loc1 loc2 : Loc .
+  var locs : LocSet .
+  vars dir dir1 : Dir .
+  var dummy : TriVal .
+ 
+
+***  op caution : Id FiniteFloat -> Info .
+
+  op towards : Loc Loc Loc -> Bool .
+  eq towards(loc,loc1,locb) = 
+               --- distance should reduce
+               distance(locb,loc) > distance(loc1,locb) 
+               --- and it should head home
+               and angle(diff(loc,locb),diff(loc,loc1)) < pi / 4.0 .
+
+  op val-energy : Id KB  -> TriVal .
+  eq val-energy(id,(energy(id,e) @ t0) (atloc(id,loc) @ t) 
+     (myHome(id,locb)) kb) = 
+   if e >  getCaution(id,kb) then top else 
+    (if e > cost2loc(loc,locb,getVel(id,kb)) then mid else bot fi) fi .
+
+  op val-energy : Id KB Action  -> TriVal .
+  ceq val-energy(id,kb,goTo(id,loc1)) = 
+          val-energy(id,doAct(goTo(id,loc1),kb))  
+  if not (val-energy(id,doAct(goTo(id,loc1),kb)) == mid) .
+
+  ceq val-energy(id,kb,goTo(id,loc1)) = 
+    if towards(loc,loc1,locb) then mid else bot fi
+   if val-energy(id,doAct(goTo(id,loc1),kb)) == mid  
+   /\ (atloc(id,loc) @ t) (myHome(id,locb)) kb' := kb .
+
+  eq val-energy(id,kb,act) = bot [owise] .  **** shouldn't happen
+
+endfm
+
+
+***(
+This valuations is for just visiting a point once
+)
+
+fmod VAL-VISITS is 
+****  inc SOFT-AGENTS .
+****  inc CONVERSION .
+  inc FFVAL .
+  inc MODEL-ACTIONS .
+
+  vars kb kb' kb1 kb2 kb3 : KB .
+  vars id st : Id .
+  vars x y x1 y1 z1 x0 y0 z0 m n i : Nat .
+  var act : Action .
+  vars loc loc0 loc1 loc2 : Loc .
+  var locs locs0 locs1 : LocList .
+  vars dir dir1 : Dir .
+  vars t t0 t1 : Time .
+  vars st1 st2 : Rat . 
+  vars v dt ff1 ff2 : FiniteFloat .
+  var times : TimeList .
+  var pact : Action .
+  
+  op valueCS : Id KB -> Rat .
+  op benefit : Id KB Action -> Rat .
+  op cost : Id KB Action -> Rat .
+  op val-visits : Id KB Action  -> FF .
+
+***(  ceq benefit(id,kb,goTo(id,loc)) = st2 - st1
+   if kb1 := addK(kb,doActT(goTo(id,loc),kb))
+   /\ st1 := valueCS(id,kb)
+   /\ st2 := valueCS(id,kb1) .
+
+  eq valueCS(id,(clock(t)) (visitLT(id, ltl:LocTimeS) @ t1) kb)
+   = size(ltl:LocTimeS) .
+  eq valueCS(id,kb)  = 0 [owise] .
+)  
+
+***(
+benefit  0 if loc is the pending loc 1 ow
+if list is l0 l1 l0  with l1 closest then the last l0 will not happen.
+
+)
+  ceq benefit(id,kb,goTo(id,loc)) =
+   (if loc0 == loc then 0 else 1 fi)
+  if pact := getPending(id,kb)
+  /\ loc0 := getLoc(pact)   
+  .
+   
+  ceq cost(id,kb,goTo(id,loc)) = 
+         round(cost2locT(loc0,loc,v,time2Loc(loc0,loc,v)))
+   if v := getVel(id,kb) 
+   /\ loc0 := getLoc(id,kb) .
+
+  eq val-visits(id,kb,act) 
+   = {benefit(id,kb,act),cost(id,kb,act)} .
+
+
+endfm
+
+--- Agent decides by considering how stale and how far points are.
+--- I am not considering resolution this time.
+
+fmod VAL-PICS is
+****  inc SOFT-AGENTS .
+****  inc CONVERSION .
+  inc FFVAL .
+  inc MODEL-ACTIONS .
+
+  vars kb kb' kb1 kb2 kb3 : KB .
+  vars id st : Id .
+  vars x y x1 y1 z1 x0 y0 z0 m n i : Nat .
+  var act : Action .
+  vars loc loc0 loc1 loc2 : Loc .
+  var locs locs0 locs1 : LocList .
+  vars dir dir1 : Dir .
+  vars t t0 t1 : Time .
+  vars st1 st2 : Rat .
+  vars v dt : FiniteFloat .
+  var times : TimeList .
+  
+  op valueCS : Id KB -> Rat .
+  op valueCS2 : Id KB -> Nat .
+  ops benefit benefit2 : Id KB Action -> Rat .
+  op cost : Id KB Action -> Rat .
+  op val-pics : Id KB Action  -> FF .
+
+  ceq benefit(id,kb,goTo(id,loc)) = st2 - st1
+   if kb1 := addK(kb,doActT(goTo(id,loc),kb))
+   /\ st1 := valueCS(id,kb)
+   /\ st2 := valueCS(id,kb1) .
+
+****!!!! needs to be re thought
+  eq valueCS(id,(clock(t)) 
+        (visitLT(id,[loc : times ; t0] ltl:LocTimeS) @ t1) kb)
+   = valueCS(id,(clock(t)) kb)
+     + 
+     (if t - t0 > periodicity then 0 else timeFactor(t1,t) fi) .
+
+  *** not visited sites have maximum priority  ???        
+  eq valueCS(id,kb) = 0 [owise] . 
+
+---           photo time, current time
+  op timeFactor : Nat Nat -> Rat . 
+  eq timeFactor(t1,t) = 
+       if 2 * (t - t1) > periodicity
+       then (t - t1) / (periodicity  * 10)
+       else 1 fi .
+
+ ceq cost(id,kb,goTo(id,loc)) = 
+       round(cost2locT(loc0,loc,v,time2Loc(loc0,loc,v)) )
+   if v := getVel(id,kb) 
+   /\ loc0 := getLoc(id,kb) .
+
+ceq benefit2(id,kb,goTo(id,loc)) = 0  
+   if (atloc(id,loc1) @ t) kb1 := kb
+   /\ close(loc1,loc) .
+
+ ceq benefit2(id,kb,goTo(id,loc)) = n - m 
+   if kb1 := addK(kb,doActT(goTo(id,loc),kb))
+   /\ m := valueCS2(id,kb)
+   /\ n := valueCS2(id,kb1) .
+
+  *** Completing a round should be more desirable
+  ceq valueCS2(id,kb) =  (n * 100) + m
+   if n := findMin(id,kb,100000) 
+   /\ m := countVisitsAbove(kb,n) .
+
+**** the least # of visits any loc has
+  op findMin : Id KB Nat -> Nat .
+  ceq findMin(id,(visitLT(id,[loc : times] ltl:LocTimeS) @ t) kb, m)
+   = (if n < m then findMin(id,kb, n) else findMin(id,kb,m) fi)
+   if n := len(times) .
+  eq findMin(id,kb, m) = m [owise] .
+
+****???? should this only look at visits for the deciding drone?
+**** how many locs have more than n visits 
+  op countVisitsAbove : KB Nat -> Nat .
+  eq countVisitsAbove(
+       (visitLT(id,[loc : times] ltl:LocTimeS) @ t) kb, n) 
+   = countVisitsAbove(kb,n) + (if len(times) > n then 1 else 0 fi) .
+  eq countVisitsAbove(kb,n) = 0 [owise] .
+
+  eq val-pics(id,kb,act) 
+   = {benefit(id,kb,act),cost(id,kb,act)} .
+
+endfm
+
+fmod VAL-VISITS-ENERGY is
+  inc VAL-VISITS .
+  inc VAL-ENERGY .
+  inc BFFVAL .
+  
+  var id : Id . 
+  var kb : KB . 
+  var act : Action .
+  vars b1 b2 : BVal .
+  vars u1 u2 : FF .
+  
+  op val : Id KB -> BFFVal .
+  op val : Id KB Action -> BFFVal .
+  eq val(id,kb) = {val-energy(id,kb),{1,1}} .
+  eq val(id,kb,act) = {val-energy(id,kb,act),val-visits(id,kb,act)} .
+
+endfm
+
+fmod VAL-PICS-ENERGY is
+  inc VAL-PICS .
+  inc VAL-ENERGY .
+  inc BFFVAL .
+
+  var id : Id . 
+  var kb : KB . 
+  var act : Action .
+  vars b1 b2 : BVal .
+  vars u1 u2 : FF .
+ 
+  op val : Id KB -> BFFVal .
+  op val : Id KB Action -> BFFVal .
+  eq val(id,kb) = {val-energy(id,kb),{1,1}} .
+  eq val(id,kb,act) = {val-energy(id,kb,act),val-pics(id,kb,act)} .
+
+endfm
+
+
+view  valuation2valpicsenergy from VALUATION to VAL-PICS-ENERGY is
+endv  
+
+view  valuation2valvisitsenergy from VALUATION to VAL-VISITS-ENERGY is
+endv  
+
+***(
+view  valuation2valpicsenergyconservative 
+ from VALUATION to VAL-PICS-ENERGY is 
+endv  
+)
+
