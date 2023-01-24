@@ -1,0 +1,17 @@
+**** Check Dur using Dt Bad Adequacy ***
+Maude Experiment:
+  ../logicalScenarios/platooning/scenarios/following/load-platooning-manh.maude
+  SCENARIO-PLATOONING
+  asys(36,basicCond and testBounds0(10/3,7/3,1/1,1/10),2)
+====> Total Time for Dt Bad Adequacy =106.63054680200003
+0:01:46.630547
+['safeSP', 'safeSP', '(true).Bool']
+['safeSP', 'saferSP', '(true).Bool']
+['safeSP', 'unsafeSP', '(true).Bool']
+['saferSP', 'safeSP', '(true).Bool']
+['saferSP', 'saferSP', '(true).Bool']
+['unsafeSP', 'safeSP', '(true).Bool']
+['unsafeSP', 'unsafeSP', '(true).Bool']
+['unsafeSP', 'badSP', '(true).Bool']
+['badSP', 'unsafeSP', '(true).Bool']
+['badSP', 'badSP', '(true).Bool']

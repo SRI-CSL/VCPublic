@@ -1,0 +1,11 @@
+**** Resilience Check ***
+Maude Experiment:
+  ../logicalScenarios/pedestrian-crossing/scenarios/noSensorErrors/load-pedestrian-resilience.maude
+  SCENARIO-CROSSING
+  asysPedXLine(3,5/1,2/1,1/1,1/10)
+  time = 5
+  maxdec1 = -8
+====> Total Time for Resilience =89.08987621099368
+0:01:29.089876
+System reaches a bad state within 5 ticks
+[[2.5, 2.4, 2.3, 2.2, 2.1, 2.0], [1.5625, 1.5625, 1.5625, 1.5625, 1.5625, 1.5625], [1.0625, 1.0625, 1.0625, 1.0625, 1.0625, 1.0625], [0.5625, 0.5625, 0.5625, 0.5625, 0.5625, 0.5625]]

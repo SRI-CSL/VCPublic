@@ -1,0 +1,5 @@
+load ../../../../lib-vehicle/loadPre
+load decide
+load ../../../../lib-vehicle/loadPos-timestepSimple
+load scenario-template-veh-ped-error-pedS.maude
+load exp-scenario-crossing-error-pedS.maude 

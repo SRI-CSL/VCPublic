@@ -1,0 +1,76 @@
+fmod DECIDE is 
+  inc VAL-SAFETY .
+
+  vars id id2 id1 : Id .
+  vars kb kb1 kb2 : KB .
+  vars f c vnxt vmin vmax vminD vmaxD vel dis 
+       vminAct uminAct vmaxAct vc dstop caution
+       umaxAct time dcc spd accmin disTar 
+       safer safe bad 
+       ff ff1 ff2 v1 v2 vb : SymTerm .
+  vars t t0 t2 t3 i j k t4 : Nat .
+  vars cond cond0 cond00
+       cond1 cond2 cond3 cond4 cond5 
+       cond6 cond11 cond22
+       cond21 cond31 cond41 cond51 cond61  : Boolean .
+  vars l l0 l1 l2 : Loc .
+  var ids : IdSet .
+  vars u1 u2 : UVal .
+  vars str str0 str1 str2 str3 : String .
+
+--- Controller for the leader
+ ceq val-safety(id,i,kb,actSpeed(id,vmin,vmax),cond)
+   = {i,[vmin,u(1/1),vmax,u(1/1),cond]}
+   if (mode(id,leading(ids)) @
+    t0) kb1 := kb 
+    /\ none == getPedestrians(kb,none) .
+
+--- Controller for the follower;
+*** first: ttc > 4s, and full brake if not sat.
+ ceq val-safety(id,i,kb,actSpeed(id,vmin,vmax),cond)
+   = symValSpeedRed(i + 2,"safe",vmin,vmax,vv(i),cond11)
+     symValSpeedRed(i + 10,"safe",vmin,vmax,vv(i),cond22) 
+   if (gapNext(id,dis) @ t)
+      gapSafety(id,safer,safe,bad) 
+      (speed(id,vel) @ t2) 
+      (mode(id,following(id2)) @ t3) kb1 := kb
+   /\ vnxt := getVelNext(id,kb)
+   /\ cond11 := (((dis < ( 4/1 * (vel - vnxt) ))) and
+                  (vv(i) === vel -  8/1))
+                and cond 
+   /\ cond22 :=
+               ((dis >= ( 4/1 * (vel - vnxt) )) and
+                  (vv(i) === vel -  8/1))
+              and cond .
+
+op symValSpeedRed : Nat String SymTerm SymTerm
+                   SymTerm Boolean -> NatSymSegmentsSet .
+  ceq symValSpeedRed(i,str,vmin,vmax,vminD,cond) = 
+    {i + 4, [vv(i,str0),u(1/1),vv(i,str0),u(1/1),cond11 and cond]}
+    {i + 4, [vv(i,str0),u(1/1),vv(i,str0),u(1/1),cond21 and cond]}
+    {i + 4, [vv(i,str0),u(1/1),vv(i,str0),u(1/1),cond31 and cond]}
+    if str0 := "Val-Speed" 
+    /\ cond0 := vmin <= vmax 
+    /\ cond1 := vmax <= vminD 
+    /\ cond11 := vv(i,str0) === vmax
+            and cond1 and cond0
+    /\ cond2 := vmin <= vminD and vmax > vminD 
+    /\ cond21 := vv(i,str0) === vminD 
+            and cond2 and cond0
+    /\ cond3 := vmin > vminD 
+    /\ cond31 := vv(i,str0) === vmin 
+            and cond3 and cond0 .
+
+endfm
+
+
+
+
+
+
+
+
+
+
+
+

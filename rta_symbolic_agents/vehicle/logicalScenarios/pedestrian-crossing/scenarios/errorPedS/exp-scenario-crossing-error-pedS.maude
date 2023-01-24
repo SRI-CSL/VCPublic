@@ -1,0 +1,107 @@
+***( Case when there is a crash without specifying 
+explicitly a gap or positions.)
+ mod SCENARIO-CROSSING is
+ inc SCENARIO-TEMPLATE-VEH-PED .
+
+*** Define resolveKB
+*** Scenario where the vehicle in front is in
+*** constant speed, while the vehicle in the back is following.
+ vars numVars stp : Nat .
+vars b1 b2 b3 : Bool .
+var conf : Conf .
+var env : Env .
+var lkb : KB .
+var id0 : Id .
+vars ff0 ff1 ff2 ff3 : SymTerm .
+vars t t1 t2 n t3 t4 k : Nat .
+vars cond cond3 : Boolean . 
+vars smtRes1 smtRes2 smtRes3 : SmtCheckResult .
+var dtVal saferVal safeVal badVal error : Real .
+
+
+eq lkb1 = 
+    class(v(1),veh) 
+    (atloc(v(1),loc(vposx,vposy)) @ 0)
+    (speed(v(1), vvel) @ 0) 
+    (dir(v(1),loc(vinix,viniy),
+              loc(vtarx,vtary),vmag) @ 0) 
+    (maxAcc(v(1),maxacc1)) 
+    (maxDec(v(1),maxdec1))
+    (mode(v(1),leading(none)) @ 0)
+    velb(v(1),vellb1,velub1)
+    (accel(v(1),acc1) @ 0)
+    (pedCaution(v(1),safe) @ 0)
+    gapSafety(v(1),safer,safe,bad) .
+
+eq lkbPed = 
+    class(v(2),pedestrian) 
+    (atloc(v(2),loc(pposx,pposy)) @ 0)
+    (speed(v(2), pvel) @ 0) 
+    (dir(v(2),loc(pinix,piniy),
+              loc(ptarx,ptary),pmag) @ 0)
+    velb(v(2),vellb2,velub2)
+    (accel(v(2),acc2) @ 0)
+    maxAcc(v(2),maxacc2)
+    maxDec(v(2),maxdec2) .
+
+eq ekb(numVars,cond,stp) =
+    clock(0) stop(stp)
+    lkb1 lkbPed
+    tickSize(dt)
+    (velb(v(1),vellb1,velub1))
+    (velb(v(2),vellb2,velub2))
+    constraint(numVars,cond) .
+
+--- red ekb(35,true,3) .
+
+*** Vehicle moving in a straight line on axis Y.
+*** Speed bounds
+*** Positive Positions
+ops basicCondPedX basicCondLine : -> Boolean .
+eq basicCondPedX = 
+  vposx === 5/1 and vposy >= 0/1 and
+  pposx === pinix and pposy === piniy and
+  pinix >= 0/1  and piniy >= vposy and
+  ptarx === 10/1  and ptary === piniy and
+  pmag === (ptarx - pinix) and 
+  (vvel >= vellb1) and (vvel <= velub1) and
+  (pvel >= vellb2) and (pvel <= velub2) and
+  (vinix === 0/1) and (viniy === 0/1) and
+  (vtarx === 0/1) and (vtary === 1/1) and
+  (acc1 >= maxdec1) and (acc1 <= maxacc1) and
+  (acc2 >= maxdec2) and (acc2 <= maxacc2) and
+  (vmag === 1/1) .
+
+eq basicCondLine 
+ = vposx === 5/1 and vposy >= 0/1 and
+  pposx === pinix and pposy === piniy and
+  pinix >= 0/1  and piniy >= vposy and
+  ptarx === 10/1  and ptary >= vposy and
+  ((pmag * pmag) === (ptary - piniy) * (ptary - piniy) 
+                + (ptarx - pinix) * (ptarx - pinix)) and 
+  (vvel >= vellb1) and (vvel <= velub1) and
+  (pvel >= vellb2) and (pvel <= velub2) and
+  (vinix === 0/1) and (viniy === 0/1) and
+  (vtarx === 0/1) and (vtary === 1/1) and
+  (acc1 >= maxdec1) and (acc1 <= maxacc1) and
+  (acc2 >= maxdec2) and (acc2 <= maxacc2) and
+  (vmag === 1/1) .
+
+op bounds : Real Real Real Real Real -> Boolean .
+eq bounds(saferVal,safeVal,badVal,dtVal,error)
+ = (vellb1 === 1/2) and (velub1 === 10/1) and 
+   (vellb2 === 1/2) and (velub2 === 3/2) and
+   (maxacc1 === 2/1) and (maxdec1 === - 8/1) and 
+   (maxacc2 === 1/4) and (maxdec2 === - 1/4) and 
+   (safer === saferVal) and (safe === safeVal) and 
+   (bad === badVal) and (dt === dtVal) 
+   and (pedSDist === 50/1) and (errorPedS === error) .
+
+ops asysPedXLineErrorPedS : Nat Real Real Real Real Real -> ASystem .
+eq asysPedXLineErrorPedS(stp,saferVal,safeVal,badVal,dtVal,error) 
+  = asysCrossing(36,basicCondPedX and 
+                    bounds(saferVal,safeVal,badVal,dtVal,error),stp) .
+
+endm
+
+eof

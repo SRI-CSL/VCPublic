@@ -1,0 +1,19 @@
+
+
+**** Check Dur using Prec1 Adequacy ***
+Maude Experiment:
+  ../logicalScenarios/pedestrian-crossing/scenarios/noSensorErrors/load-pedestrian.maude
+  SCENARIO-CROSSING
+  asysPedXLine(3,6/1,3/1,1/1,1/10)
+====> Total Time for Prec1 Adequacy =452.549406893002
+0:07:32.549407
+['saferSP', 'saferSP', 'true']
+['saferSP', 'safeSP', 'true']
+['safeSP', 'saferSP', 'true']
+['safeSP', 'safeSP', 'true']
+['safeSP', 'unsafeSP', 'true']
+['unsafeSP', 'safeSP', 'true']
+['unsafeSP', 'unsafeSP', 'true']
+['unsafeSP', 'badSP', 'true']
+['badSP', 'unsafeSP', 'true']
+['badSP', 'badSP', 'true']

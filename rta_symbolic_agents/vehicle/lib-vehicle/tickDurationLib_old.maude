@@ -1,0 +1,714 @@
+***(
+This module specifies the function
+
+op checkTimeDur : ASystem SymTerm -> Bool .
+
+for checking whether a 
+a duration of tick time is sufficient to detect when at most 
+two transitions of properties has occurred.
+For example, assume properties in a total ordering P1 <= P2 <= P3
+One shall show that if:
+
+C1 ==>[dt] C2
+where 
+ P3[C1] and P3[C2]
+then 
+there is no dt1 <= dt
+such that
+C1 ==>[dt1] C3
+  not P3[C3] or P2[C3]
+
+Similarly, 
+C1 ==>[dt] C2
+where 
+ P3[C1] and P2[C2]
+then 
+there is no dt1 <= dt
+such that
+C1 ==>[dt1] C3
+  not P3[C3] or P2[C3]
+)
+
+fmod TICK-DURATION-PROP is
+  inc MODEL-ACTIONS .
+  inc SAFETY-PROPERTIES .
+  inc EXTERNAL-SMT .
+
+vars id1 : Id .
+vars ids : IdSet .
+vars l l0 l1 nuLoc l11 l21 l22 l31 l32 : Loc .
+vars n k j j1 j2 j3 j4 t0 t1 t2 t3 t4 : Nat .
+vars cl1 : Class . 
+vars ekb kb ekb1 ekb0 ekb2 ekb3 : KB .
+vars spd vlb vub maxD maxA dt dt1 mag 
+     nuSpd acc auxv nuX nuY auxt : SymTerm . 
+vars cond0 condDtSP condDt1SPs condIniSP
+     condVel condAcc cond1 condNueqL1 
+     cond21 cond22 condNueqL2  
+     cond31 cond32 condNueqL3
+     condT condT1 condT2 condT3
+     condFinal condFinal1 condFinal2 condFinal3
+     condAux : Boolean .
+var conf : Conf .
+vars asys asys1 asys2 asys3 asys4 asys5 
+     asys6 : ASystem .
+vars sp sp1 sp2 spNot : SP .
+vars sps sps1 sps2 : SPSet .
+var t : Time .
+
+**** TODO: Failure message. Function checkTimeDur$$ shall 
+*** return the properties sp sp1 and the model.
+op checkTimeDur : ASystem -> Bool .
+op checkTimeDur : ASystem SymTerm -> Bool .
+op checkTimeDur$ : SPSet ASystem SymTerm -> Bool .
+op checkTimeDurSPtoSPRel : SP SPSet ASystem SymTerm -> Bool .
+op checkTimeDurSPtoSP1 : SP SP ASystem SymTerm -> Bool .
+
+***(
+Let sp be a property and 
+   sp1,...,spn 
+be the properties immediately below 
+in the pre-order of property.
+
+Let asys be the given configuration.
+Let asys1 be the configuration advanced a tick size.
+Let asys2 be the configuration by a generic tick size dt1, but using the same acceleration.
+The formula:
+
+cond(enforce(asys,sp)) 
+and 
+cond(enforce(asys1,sp))
+and 
+dt1 <= dt
+and
+not cond(enforce(asys2,[sp,sp1,...,spn]))
+
+Specifies that for any transition 
+asys => asys1
+going from sp to sp, it does not pass on configurations that are not sp,sp1,...,spn.
+)
+
+**** Main function to be called for a symbolic configuration asys.
+eq checkTimeDur(asys)
+ = checkTimeDur(fixDynamics(asys,getIds(asys)),getTickSize(asys)) .
+
+eq checkTimeDur(asys,dt)
+ = checkTimeDur$(spset,asys,dt) .
+
+**** Checks recursively the adequacy of the time duration for each property sp.
+ceq checkTimeDur$(sp sps,asys,dt)
+ = checkTimeDur$(sps,asys,dt)
+ *** check all transitions from sp to directly 
+ *** related to sp (including sp)
+ if checkTimeDurSPtoSPRel(sp,sp getRelSP(sp,none),asys,dt) .
+eq checkTimeDur$(none,asys,dt) = true .
+eq checkTimeDur$(sps,asys,dt) = false [owise] .
+
+**** Checks recursively the adequacy of the time duration for each 
+*** transition moving from sp to sp1.
+eq checkTimeDurSPtoSPRel(sp,sp1 sps,asys,dt)
+ = if checkTimeDurSPtoSP1TimeStepsBot(sp,sp1,asys,dt)
+   then checkTimeDurSPtoSPRel(sp,sps,asys,dt)
+   else false fi .
+eq checkTimeDurSPtoSPRel(sp,none,asys,dt) = true .
+
+op checkTimeDurSPtoSP1TimeStepsBot : SP SP ASystem SymTerm -> Bool .
+eq checkTimeDurSPtoSP1TimeStepsBot(sp,sp1,asys,dt) = true [owise] .
+ceq checkTimeDurSPtoSP1TimeStepsBot(sp,sp1,asys,dt)
+ = false 
+ if 
+ **** Enforce that the initial conf satisfies sp
+ asys1 := enforceSP(sp,asys)
+ --- /\ condIniSP := getBoolean(asys1)
+ **** Carry out a time step using the given time tick dt
+ /\ asys2 asysSet2 := timeSteps(asys1,dt)
+ **** Enforce that the resulting conf is also sp1, i.e., 
+ **** we have an sp --> sp1 transition.
+ /\ asys3 := enforceSP(sp1,asys2)
+ /\ condDtSP := getBoolean(asys3)
+ *** Alternative time tick such that 0/1 < dt1 <= dt
+ *** specified below.
+ /\ dt1 := vv(getSymCounter(asys3) + 1, "tick-size-alternative")
+ *** Change sym counter so that there is no symbol clash.
+ /\ asys4 := upSymCounter(asys1,getSymCounter(asys3) + 2)
+  *** Make a time tick with dt1.
+ /\ asys5 asysSet3 := timeSteps(asys4,dt1)
+ *** Enforce that the resulting conf does not satisfiy sp nor any of the directly related properties sps.
+ --- /\ sp2 sps2 := getBotSP(sp,sp1)
+ /\ sp2 := botSP(spset)
+ /\ asys6 := enforceSP(sp2,asys5)
+ /\ condDt1SPs := getBoolean(asys6)
+ *** If there is a dt1 that satisfies this condition, 
+ *** it means that asys6 passes through a property not in sp sps. 
+ *** Therefore dt is not fine enough.
+ /\ condFinal := condDtSP 
+            and (dt1 <= dt) and (dt1 > 0/1)
+            and condDt1SPs
+ /\ isSatwithPrint(condFinal,sp,sp1) .
+
+op isSatwithPrint : Boolean SP SP -> Bool .
+ eq isSatwithPrint(cond1,sp,sp1) 
+ = smtCheck(cond1)
+  [print "\nsolved = " sp " to " sp1 ] .
+
+
+
+**** This function fixes the dynamics used for all the checks.
+*** by using common symbols.
+*** Currently, only the acceleration is fixed.
+*** TODO: fix direction as well.
+op fixDynamics : ASystem IdSet -> ASystem .
+ceq fixDynamics(asys,id1 ids)
+ = fixDynamics(asys2,ids)
+ if j := getSymCounter(asys)
+ /\ acc := mkNuVar(j + 1,id1,"-acc") 
+ /\ t0 := getTime(asys)
+ /\ asys1 := addEnvKB(asys,accel(id1,acc) @ (t0 + 1))
+ /\ asys2 := upSymCounter(asys1,j + 2) .
+eq fixDynamics(asys,none) = asys .
+
+*** Functions that compute the evolution of the given input configuration
+*** using a time advancement of dt.
+*** TODO: Consider the direction in the position evolution.
+ops timeStep : Time ASystem SymTerm -> ASystem .
+ceq timeStep(t,{ conf [id1 | ekb] },dt)
+ = { conf [id1 | ekb1] }
+ if ids := getIds(conf)
+ /\ ekb1 := timeStepCond(t,ids,ekb,dt) .
+
+*** TODO: include a change in direction.
+*** TODO: Move the recursive call to an auxiliary function.
+ops timeStepCond : Time IdSet KB SymTerm -> KB .
+ceq timeStepCond(t,id1 ids,ekb,dt) 
+ = timeStepCond(t,ids,ekb1,dt) 
+ if class(id1,cl1) velb(id1,vlb,vub)
+    maxAcc(id1,maxA) maxDec(id1,maxD) 
+    (atloc(id1,l) @ t1) 
+    (speed(id1,spd) @ t2)
+    (dir(id1,l0,l1,mag) @ t3)
+    (accel(id1,acc) @ t4)
+    constraint(n,cond0) kb := ekb
+ /\ nuSpd := mkNuVar(n + 1,id1,"-Nu-speed")
+ /\ auxv := mkNuVar(n + 3,id1,"-auxv")
+ /\ nuX := mkNuVar(n + 4,id1,"-Nu-positionX")
+ /\ nuY := mkNuVar(n + 5,id1,"-Nu-positionY")
+ /\ auxt := mkNuVar(n + 6,id1,"-auxt")
+ /\ nuLoc := loc(nuX,nuY)
+ *** The current speed shall be within the speed bounds.
+ /\ condVel := spd >= vlb and spd <= vub
+ *** Any acceleration shall be within the acceleration bounds.
+ /\ condAcc := acc >= maxD and acc <= maxA
+ *** Compute speed when using the current acceleration
+ *** Notice that auxv may be outside the speed bounds. 
+ /\ condAux := (auxv === (spd + (acc * dt)))
+ *** auxt is the time i
+ *** l11 is the hypothetical position reached when 
+ *** accelerating with acc.
+ /\ {j,l11,cond1} 
+    := upVLoc(n + 7,id1,l,((auxv + spd) * dt) / 2/1 ,
+            dir(id1,l0,l1,mag))
+ *** the new location nuLoc is the same as l11. 
+ *** this is the case when auxv is within the speed bounds.
+ /\ condNueqL1 := sameLoc(nuLoc,l11) and cond1
+ *** The location l21 is the intermediate location 
+ *** reached when the vehicle is accelerating for auxt 
+ *** time units and reaching the speed upper bound.
+ /\ {j1,l21,cond21} 
+    := upVLoc(j,id1,l,((vub + spd) * auxt) / 2/1,
+            dir(id1,l0,l1,mag))
+ *** The location l22 is the final location 
+ *** reached when the vehicle reached the upper bound 
+  /\ {j2,l22,cond22} 
+    := upVLoc(j1,id1,l21,(vub * (dt - auxt)),
+            dir(id1,l0,l1,mag))
+ /\ condNueqL2 := sameLoc(nuLoc,l22) and cond21 and cond22
+ *** The location l31 is the intermediate location 
+ *** reached when the vehicle is accelerating for auxt 
+ *** time units and reaching the speed lower bound.
+ /\ {j3,l31,cond31} 
+    := upVLoc(j2,id1,l,((vlb + spd) * auxt) / 2/1,
+            dir(id1,l0,l1,mag)) 
+ *** The location l32 is the final location 
+ *** reached when the vehicle reached the lower bound 
+ /\ {j4,l32,cond32} 
+    := upVLoc(j3,id1,l31,(vlb * (dt - auxt)),
+            dir(id1,l0,l1,mag))
+ /\ condNueqL3 := sameLoc(nuLoc,l32) and cond31 and cond32
+ /\ condT := 
+    condAux
+    and
+    (((auxv >= vlb) and (auxv <= vub)) implies 
+        ((nuSpd === auxv) and condNueqL1))
+    and 
+    ((auxv > vub) implies 
+      ((auxt === ((vub - spd) / acc)) and 
+             (nuSpd === vub) and condNueqL2)) 
+    and
+    ((auxv < vlb) implies 
+      ((auxt === ((vlb - spd) / acc)) and 
+            (nuSpd === vlb) and condNueqL3) )
+ /\ condFinal := condVel and condAcc and
+            condT and cond0 
+ /\ ekb1 := class(id1,cl1) velb(id1,vlb,vub)
+            maxAcc(id1,maxA) maxDec(id1,maxD) 
+            (atloc(id1,nuLoc) @ s t) 
+            (speed(id1,nuSpd) @ s t)
+            (dir(id1,l0,l1,mag) @ s t)
+            (accel(id1,acc) @ s t)
+            constraint(j4 + 1,condFinal) kb . 
+
+eq timeStepCond(t,none,ekb,dt) = ekb .
+
+*************** ASystem Decomposition ***************
+
+vars asysSet asysSet1 asysSet2 asysSet3 : ASystemSet .
+var kbSet : KBSet .
+
+op timeSteps : ASystem SymTerm -> ASystemSet .
+op timeSteps$ : ASystem KBSet ASystemSet -> ASystemSet .
+ceq timeSteps({ conf [id1 | ekb] },dt)
+= timeSteps$({ conf [id1 | ekb] },kbSet,none)
+ if ids := getIds(conf)
+ /\ kbSet := timeStepConds(0,ids,ekb,dt) . 
+
+eq timeSteps$({ conf [id1 | ekb] },
+              ekb1 ; kbSet, asysSet) 
+ = timeSteps$({ conf [id1 | ekb] },
+              kbSet, { conf [id1 | ekb1] } asysSet) .
+eq timeSteps$(asys,noKBs,asysSet)
+ = asysSet .
+
+op timeStepConds : Time IdSet KBSet SymTerm -> KBSet .
+ceq timeStepConds(t,id1 ids,ekb,dt) 
+ = timeStepConds(t,ids,ekb1,dt) ; 
+   timeStepConds(t,ids,ekb2,dt) ;
+   timeStepConds(t,ids,ekb3,dt) 
+ if class(id1,cl1) velb(id1,vlb,vub)
+    maxAcc(id1,maxA) maxDec(id1,maxD) 
+    (atloc(id1,l) @ t1) 
+    (speed(id1,spd) @ t2)
+    (dir(id1,l0,l1,mag) @ t3)
+    (accel(id1,acc) @ t4)
+    constraint(n,cond0) kb := ekb
+ /\ nuSpd := mkNuVar(n + 1,id1,"-Nu-speed")
+ /\ auxv := mkNuVar(n + 3,id1,"-auxv")
+ /\ nuX := mkNuVar(n + 4,id1,"-Nu-positionX")
+ /\ nuY := mkNuVar(n + 5,id1,"-Nu-positionY")
+ /\ auxt := mkNuVar(n + 6,id1,"-auxt")
+ /\ nuLoc := loc(nuX,nuY)
+ *** The current speed shall be within the speed bounds.
+ /\ condVel := spd >= vlb and spd <= vub
+ *** Any acceleration shall be within the acceleration bounds.
+ /\ condAcc := acc >= maxD and acc <= maxA
+ *** Compute speed when using the current acceleration
+ *** Notice that auxv may be outside the speed bounds. 
+ /\ condAux := (auxv === (spd + (acc * dt)))
+ *** auxt is the time i
+ *** l11 is the hypothetical position reached when 
+ *** accelerating with acc.
+ /\ {j,l11,cond1} 
+    := upVLoc(n + 7,id1,l,((auxv + spd) * dt) / 2/1 ,
+            dir(id1,l0,l1,mag))
+ *** the new location nuLoc is the same as l11. 
+ *** this is the case when auxv is within the speed bounds.
+ /\ condNueqL1 := sameLoc(nuLoc,l11) and cond1
+ *** The location l21 is the intermediate location 
+ *** reached when the vehicle is accelerating for auxt 
+ *** time units and reaching the speed upper bound.
+ /\ {j1,l21,cond21} 
+    := upVLoc(j,id1,l,((vub + spd) * auxt) / 2/1,
+            dir(id1,l0,l1,mag))
+ *** The location l22 is the final location 
+ *** reached when the vehicle reached the upper bound 
+  /\ {j2,l22,cond22} 
+    := upVLoc(j1,id1,l21,(vub * (dt - auxt)),
+            dir(id1,l0,l1,mag))
+ /\ condNueqL2 := sameLoc(nuLoc,l22) and cond21 and cond22
+ *** The location l31 is the intermediate location 
+ *** reached when the vehicle is accelerating for auxt 
+ *** time units and reaching the speed lower bound.
+ /\ {j3,l31,cond31} 
+    := upVLoc(j2,id1,l,((vlb + spd) * auxt) / 2/1,
+            dir(id1,l0,l1,mag)) 
+ *** The location l32 is the final location 
+ *** reached when the vehicle reached the lower bound 
+ /\ {j4,l32,cond32} 
+    := upVLoc(j3,id1,l31,(vlb * (dt - auxt)),
+            dir(id1,l0,l1,mag))
+ /\ condNueqL3 := sameLoc(nuLoc,l32) and cond31 and cond32
+ /\ condT1 := 
+    condAux
+    and
+    (((auxv >= vlb) and (auxv <= vub)) and 
+        ((nuSpd === auxv) and condNueqL1))
+ /\ condT2 :=
+    condAux
+    and 
+    ((auxv > vub) and 
+      ((auxt === ((vub - spd) / acc)) and 
+             (nuSpd === vub) and condNueqL2)) 
+ /\ condT3 :=
+    condAux
+     and 
+    ((auxv < vlb) and 
+      ((auxt === ((vlb - spd) / acc)) and 
+             (nuSpd === vlb) and condNueqL3)) 
+ /\ condFinal1 := condVel and condAcc and
+            condT1 and cond0
+ /\ condFinal2 := condVel and condAcc and
+            condT2 and cond0
+ /\ condFinal3 := condVel and condAcc and
+            condT3 and cond0
+ /\ ekb1 := class(id1,cl1) velb(id1,vlb,vub)
+            maxAcc(id1,maxA) maxDec(id1,maxD) 
+            (atloc(id1,nuLoc) @ s t) 
+            (speed(id1,nuSpd) @ s t)
+            (dir(id1,l0,l1,mag) @ s t)
+            constraint(j4 + 1,condFinal1) kb 
+ /\ ekb2 := class(id1,cl1) velb(id1,vlb,vub)
+            maxAcc(id1,maxA) maxDec(id1,maxD) 
+            (atloc(id1,nuLoc) @ s t) 
+            (speed(id1,nuSpd) @ s t)
+            (dir(id1,l0,l1,mag) @ s t)
+            constraint(j4 + 1,condFinal2) kb 
+ /\ ekb3 := class(id1,cl1) velb(id1,vlb,vub)
+            maxAcc(id1,maxA) maxDec(id1,maxD) 
+            (atloc(id1,nuLoc) @ s t) 
+            (speed(id1,nuSpd) @ s t)
+            (dir(id1,l0,l1,mag) @ s t)
+            constraint(j4 + 1,condFinal3) kb .
+
+eq timeStepConds(t,none,ekb,dt) = ekb .
+
+op timeStepSimple : Time Id KBSet SymTerm -> KBSet .
+ceq timeStepSimple(t,id1,ekb,dt) 
+ = ekb1
+if class(id1,cl1) 
+    (atloc(id1,l) @ t1) 
+    (speed(id1,spd) @ t2)
+    (dir(id1,l0,l1,mag) @ t3)
+    (accel(id1,acc) @ t4)
+    constraint(n,cond0) kb := ekb
+ /\ nuSpd := mkNuVar(n + 1,id1,"-Nu-speed")
+ /\ nuX := mkNuVar(n + 2,id1,"-Nu-positionX")
+ /\ nuY := mkNuVar(n + 3,id1,"-Nu-positionY")
+ /\ nuLoc := loc(nuX,nuY)
+ /\ {j,l11,cond1} 
+    := upVLoc(n + 4,id1,l,((nuSpd + spd) * dt) / 2/1,
+            dir(id1,l0,l1,mag))
+ /\ condT1 := (nuSpd === spd + acc * dt) and 
+            (sameLoc(nuLoc,l11)) and 
+            cond1 and cond0 
+ /\ ekb1 := class(id1,cl1) 
+            (atloc(id1,nuLoc) @ s t) 
+            (speed(id1,nuSpd) @ s t)
+            (dir(id1,l0,l1,mag) @ s t)
+            (accel(id1,acc) @ s t)
+            constraint(j + 1,condT1) kb .
+
+sort CheckDurResult .
+op none : -> CheckDurResult .
+op [_,_,_,_] : ASystem SP ASystem SP -> CheckDurResult . 
+
+op getAsysNot : CheckDurResult -> ASystem .
+eq getAsysNot([asys,sp,asys6,spNot]) = asys6 .
+op getSPNot : CheckDurResult -> SP .
+eq getSPNot([asys,sp,asys6,spNot]) = spNot .
+
+*** Function for check prec1 dur.
+op checkDTPrec1SPtoSP1 : SP SP ASystem SymTerm -> CheckDurResult .
+eq checkDTPrec1SPtoSP1(sp,sp1,asys,dt) = none [owise] .
+ceq checkDTPrec1SPtoSP1(sp,sp1,asys,dt)
+ = [asys,sp,asys6,spNot] 
+ if 
+ **** Enforce that the initial conf satisfies sp
+ asys1 := enforceSP(sp,asys)
+ --- /\ condIniSP := getBoolean(asys1)
+ **** Carry out a time step using the given time tick dt
+ /\ asys2 asysSet2 := timeSteps(asys1,dt)
+ **** Enforce that the resulting conf is also sp1, i.e., 
+ **** we have an sp --> sp1 transition.
+ /\ asys3 := enforceSP(sp1,asys2)
+ /\ condDtSP := getBoolean(asys3)
+ *** Alternative time tick such that 0/1 < dt1 <= dt
+ *** specified below.
+ /\ dt1 := vv(getSymCounter(asys3) + 1, "tick-size-alternative")
+ *** Change sym counter so that there is no symbol clash.
+ /\ asys4 := upSymCounter(asys1,getSymCounter(asys3) + 2)
+  *** Make a time tick with dt1.
+ /\ asys5 asysSet3 := timeSteps(asys4,dt1)
+ *** Enforce that the resulting conf does not satisfiy sp nor any of the directly related properties sps.
+ /\ sps1 := if sp == sp1 then sp getRelSP(sp,none)
+            else sp sp1 fi
+ /\ spNot sps2 := spset
+ /\ isLowerThanAll(spNot,sps1)
+ /\ asys6 := enforceSP(spNot,asys5)
+ /\ condDt1SPs := getBoolean(asys6)
+ *** If there is a dt1 that satisfies this condition, 
+ *** it means that asys6 passes through a property not in sp sps. 
+ *** Therefore dt is not fine enough.
+ /\ condFinal := condDtSP 
+            and (dt1 <= dt) and (dt1 > 0/1)
+            and condDt1SPs 
+ /\ isSatwithPrint(condFinal,sp,sp1) .
+
+
+
+*** Function for check prec1 dur.
+op checkTimeDurSPtoSP1Asys : SP SP ASystem SymTerm -> Bool .
+eq checkTimeDurSPtoSP1Asys(sp,sp1,asys,dt) = true [owise] .
+ceq checkTimeDurSPtoSP1Asys(sp,sp1,asys,dt)
+ = false 
+ if 
+ **** Enforce that the initial conf satisfies sp
+ asys1 := enforceSP(sp,asys)
+ --- /\ condIniSP := getBoolean(asys1)
+ **** Carry out a time step using the given time tick dt
+ /\ asys2 asysSet2 := timeSteps(asys1,dt)
+ **** Enforce that the resulting conf is also sp1, i.e., 
+ **** we have an sp --> sp1 transition.
+ /\ asys3 := enforceSP(sp1,asys2)
+ /\ condDtSP := getBoolean(asys3)
+ *** Alternative time tick such that 0/1 < dt1 <= dt
+ *** specified below.
+ /\ dt1 := vv(getSymCounter(asys3) + 1, "tick-size-alternative")
+ *** Change sym counter so that there is no symbol clash.
+ /\ asys4 := upSymCounter(asys1,getSymCounter(asys3) + 2)
+  *** Make a time tick with dt1.
+ /\ asys5 asysSet3 := timeSteps(asys4,dt1)
+ *** Enforce that the resulting conf does not satisfiy sp nor any of the directly related properties sps.
+ /\ sps1 := if sp == sp1 then sp getRelSP(sp,none)
+            else sp sp1 fi
+ /\ spNot sps2 := spset
+ /\ isLowerThanAll(spNot,sps1)
+ /\ asys6 := enforceSP(spNot,asys5)
+ /\ condDt1SPs := getBoolean(asys6)
+ *** If there is a dt1 that satisfies this condition, 
+ *** it means that asys6 passes through a property not in sp sps. 
+ *** Therefore dt is not fine enough.
+ /\ condFinal := condDtSP 
+            and (dt1 <= dt) and (dt1 > 0/1)
+            and condDt1SPs 
+ /\ isSatwithPrint(condFinal,sp,sp1) .
+
+
+
+
+*************** One axis ***************
+
+
+**** Time step only on the Y axis. 
+*** This can be used when the scenarios are only use one axis.
+op timeStepY : ASystem SymTerm -> ASystem .
+ceq timeStepY({ conf [id1 | ekb] },dt)
+ = { conf [id1 | ekb1] }
+ if ids := getIds(conf)
+ /\ ekb1 := timeStepCondY(ids,ekb,dt) .
+
+op timeStepCondY : IdSet KB SymTerm -> KB .
+ceq timeStepCondY(id1 ids,ekb,dt) 
+ = timeStepCondY(ids,ekb1,dt) 
+ if class(id1,cl1) velb(id1,vlb,vub)
+    maxAcc(id1,maxA) maxDec(id1,maxD) 
+    (atloc(id1,l) @ t1) 
+    (speed(id1,spd) @ t2)    
+    (accel(id1,acc) @ t4)
+    constraint(n,cond0) kb := ekb
+ /\ nuSpd := mkNuVar(n + 1,id1,"-speed")
+ /\ auxv := mkNuVar(n + 3,id1,"-auxv")
+ /\ nuX := mkNuVar(n + 4,id1,"-positionX")
+ /\ nuY := mkNuVar(n + 5,id1,"-positionY")
+ /\ auxt := mkNuVar(n + 6,id1,"-auxt")
+ /\ nuLoc := loc(nuX,nuY)
+ *** The current speed shall be within the speed bounds.
+ /\ condVel := spd >= vlb and spd <= vub
+ *** Any acceleration shall be within the acceleration bounds.
+ /\ condAcc := acc >= maxD and acc <= maxA
+ *** Compute speed when using the current acceleration
+ *** Notice that auxv may be outside the speed bounds. 
+ /\ condAux := (auxv === (spd + (acc * dt)))
+ *** auxt is the time i
+ *** l11 is the hypothetical position reached when 
+ *** accelerating with acc.
+ /\ {j,l11,cond1} 
+    := upVLocDirY(n + 7,id1,l,((auxv + spd) * dt) / 2/1)
+ *** the new location nuLoc is the same as l11. 
+ *** this is the case when auxv is within the speed bounds.
+ /\ condNueqL1 := sameLoc(nuLoc,l11) and cond1
+ *** The location l21 is the intermediate location 
+ *** reached when the vehicle is accelerating for auxt 
+ *** time units and reaching the speed upper bound.
+ /\ {j1,l21,cond21} 
+    := upVLocDirY(j,id1,l,((vub + spd) * auxt) / 2/1)
+ *** The location l22 is the final location 
+ *** reached when the vehicle reached the upper bound 
+  /\ {j2,l22,cond22} 
+    := upVLocDirY(j1,id1,l21,(vub * (dt - auxt)))
+ /\ condNueqL2 := sameLoc(nuLoc,l22) and cond21 and cond22
+ *** The location l31 is the intermediate location 
+ *** reached when the vehicle is accelerating for auxt 
+ *** time units and reaching the speed lower bound.
+ /\ {j3,l31,cond31} 
+    := upVLocDirY(j2,id1,l,((vlb + spd) * auxt) / 2/1) 
+ *** The location l32 is the final location 
+ *** reached when the vehicle reached the lower bound 
+ /\ {j4,l32,cond32} 
+    := upVLocDirY(j3,id1,l31,(vlb * (dt - auxt)))
+ /\ condNueqL3 := sameLoc(nuLoc,l32) and cond31 and cond32
+ /\ condT := 
+    condAux
+    and
+    (((auxv >= vlb) and (auxv <= vub)) implies 
+        ((nuSpd === auxv) and condNueqL1))
+    and 
+    ((auxv > vub) implies 
+      (auxt === ((vub - spd) / acc)) and 
+      (nuSpd === vub) and condNueqL2) 
+    and
+    ((auxv < vlb) implies 
+      (auxt === ((vlb - spd) / acc)) and 
+      (nuSpd === vlb) and condNueqL3) 
+ /\ condFinal := condVel and condAcc and
+            condT and cond0
+ /\ ekb1 := class(id1,cl1) velb(id1,vlb,vub)
+            maxAcc(id1,maxA) maxDec(id1,maxD) 
+            (atloc(id1,nuLoc) @ t1) 
+            (speed(id1,nuSpd) @ t2)
+            constraint(j4 + 1,condFinal) kb . 
+
+eq timeStepCondY(none,ekb,dt) = ekb .
+
+
+op timeStepCondsY : IdSet KBSet SymTerm -> KBSet .
+ceq timeStepCondsY(id1 ids,ekb,dt) 
+ = timeStepCondsY(ids,ekb1,dt) ; 
+   timeStepCondsY(ids,ekb2,dt) ;
+   timeStepCondsY(ids,ekb3,dt) 
+ if class(id1,cl1) velb(id1,vlb,vub)
+    maxAcc(id1,maxA) maxDec(id1,maxD) 
+    (atloc(id1,l) @ t1) 
+    (speed(id1,spd) @ t2)
+    (dir(id1,l0,l1,mag) @ t3)
+    (accel(id1,acc) @ t4)
+    constraint(n,cond0) kb := ekb
+ /\ nuSpd := mkNuVar(n + 1,id1,"-Nu-speed")
+ /\ auxv := mkNuVar(n + 3,id1,"-auxv")
+ /\ nuX := mkNuVar(n + 4,id1,"-Nu-positionX")
+ /\ nuY := mkNuVar(n + 5,id1,"-Nu-positionY")
+ /\ auxt := mkNuVar(n + 6,id1,"-auxt")
+ /\ nuLoc := loc(nuX,nuY)
+ *** The current speed shall be within the speed bounds.
+ /\ condVel := spd >= vlb and spd <= vub
+ *** Any acceleration shall be within the acceleration bounds.
+ /\ condAcc := acc >= maxD and acc <= maxA
+ *** Compute speed when using the current acceleration
+ *** Notice that auxv may be outside the speed bounds. 
+ /\ condAux := (auxv === (spd + (acc * dt)))
+ *** auxt is the time i
+ *** l11 is the hypothetical position reached when 
+ *** accelerating with acc.
+ /\ {j,l11,cond1} 
+    := upVLocDirY(n + 7,id1,l,((auxv + spd) * dt) / 2/1)
+ *** the new location nuLoc is the same as l11. 
+ *** this is the case when auxv is within the speed bounds.
+ /\ condNueqL1 := sameLoc(nuLoc,l11) and cond1
+ *** The location l21 is the intermediate location 
+ *** reached when the vehicle is accelerating for auxt 
+ *** time units and reaching the speed upper bound.
+ /\ {j1,l21,cond21} 
+    := upVLocDirY(j,id1,l,((vub + spd) * auxt) / 2/1)
+ *** The location l22 is the final location 
+ *** reached when the vehicle reached the upper bound 
+  /\ {j2,l22,cond22} 
+    := upVLocDirY(j1,id1,l21,(vub * (dt - auxt)))
+ /\ condNueqL2 := sameLoc(nuLoc,l22) and cond21 and cond22
+ *** The location l31 is the intermediate location 
+ *** reached when the vehicle is accelerating for auxt 
+ *** time units and reaching the speed lower bound.
+ /\ {j3,l31,cond31} 
+    := upVLocDirY(j2,id1,l,((vlb + spd) * auxt) / 2/1) 
+ *** The location l32 is the final location 
+ *** reached when the vehicle reached the lower bound 
+ /\ {j4,l32,cond32} 
+    := upVLocDirY(j3,id1,l31,(vlb * (dt - auxt)))
+ /\ condNueqL3 := sameLoc(nuLoc,l32) and cond31 and cond32
+ /\ condT1 := 
+    condAux
+    and
+    (((auxv >= vlb) and (auxv <= vub)) and 
+        ((nuSpd === auxv) and condNueqL1))
+ /\ condT2 :=
+    condAux
+    and 
+    ((auxv > vub) and 
+      ((auxt === ((vub - spd) / acc)) and 
+             (nuSpd === vub) and condNueqL2)) 
+ /\ condT3 :=
+    condAux
+     and 
+    ((auxv < vlb) and 
+      ((auxt === ((vlb - spd) / acc)) and 
+             (nuSpd === vlb) and condNueqL3)) 
+ /\ condFinal1 := condVel and condAcc and
+            condT1 and cond0
+ /\ condFinal2 := condVel and condAcc and
+            condT2 and cond0
+ /\ condFinal3 := condVel and condAcc and
+            condT3 and cond0
+ /\ ekb1 := class(id1,cl1) velb(id1,vlb,vub)
+            maxAcc(id1,maxA) maxDec(id1,maxD) 
+            (atloc(id1,nuLoc) @ t1) 
+            (speed(id1,nuSpd) @ t2)
+            (dir(id1,l0,l1,mag) @ t3)
+            constraint(j4 + 1,condFinal1) kb 
+ /\ ekb2 := class(id1,cl1) velb(id1,vlb,vub)
+            maxAcc(id1,maxA) maxDec(id1,maxD) 
+            (atloc(id1,nuLoc) @ t1) 
+            (speed(id1,nuSpd) @ t2)
+            (dir(id1,l0,l1,mag) @ t3)
+            constraint(j4 + 1,condFinal2) kb 
+ /\ ekb3 := class(id1,cl1) velb(id1,vlb,vub)
+            maxAcc(id1,maxA) maxDec(id1,maxD) 
+            (atloc(id1,nuLoc) @ t1) 
+            (speed(id1,nuSpd) @ t2)
+            (dir(id1,l0,l1,mag) @ t3)
+            constraint(j4 + 1,condFinal3) kb .
+
+endfm
+
+eof
+
+
+*** TODO: condIniSP is repeated implicitly multiple times, e.g., in condDtSp.
+*** Room for improvement.
+ceq checkTimeDurSPtoSP1(sp,sp1,asys,dt)
+ = if isSat(condFinal) then false else true fi 
+ if 
+ **** Enforce that the initial conf satisfies sp
+ asys1 := enforceSP(sp,asys)
+ /\ condIniSP := getBoolean(asys1)
+ **** Carry out a time step using the given time tick dt
+ /\ asys2 := timeStep(0,asys1,dt)
+ **** Enforce that the resulting conf is also sp1, i.e., 
+ **** we have an sp --> sp1 transition.
+ /\ asys3 := enforceSP(sp1,asys2)
+ /\ condDtSP := getBoolean(asys3)
+ *** Alternative time tick such that 0/1 < dt1 <= dt
+ *** specified below.
+ /\ dt1 := vv(getSymCounter(asys3) + 1, "tick-size-alternative")
+ *** Change sym counter so that there is no symbol clash.
+ /\ asys4 := upSymCounter(asys1,getSymCounter(asys3) + 2)
+  *** Make a time tick with dt1.
+ /\ asys5 := timeStep(0,asys4,dt1)
+ *** Enforce that the resulting conf does not satisfiy sp nor any of the directly related properties sps.
+ /\ sps1 := if sp == sp1 then sp getRelSP(sp,none)
+            else sp sp1 fi
+ /\ asys6 := enforceNoSP(sps1,asys5)
+ /\ condDt1SPs := getBoolean(asys6)
+ *** If there is a dt1 that satisfies this condition, 
+ *** it means that asys6 passes through a property not in sp sps. 
+ *** Therefore dt is not fine enough.
+ /\ condFinal := condDtSP 
+            and (dt1 <= dt) and (dt1 > 0/1)
+            and condDt1SPs .
+

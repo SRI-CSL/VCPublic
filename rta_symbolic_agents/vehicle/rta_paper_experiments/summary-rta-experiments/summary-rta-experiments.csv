@@ -1,0 +1,187 @@
+File;Load file;scenario;Result (type, seconds, yes/no/DNF,obs);;;;;Gerald
+rta_exp_ped_dt_bad.py;load-pedestrian-resilience.maude;asysPedXLine(3,3/1,2/1,1/1,1/10);Bad DT;172;Yes;;;128
+rta_exp_ped_dt_bad-notres.py;load-pedestrian.maude;asysPedXLine(3,3/1,2/1,1/1,1/10);Bad DT;130;Yes;;;
+rta_exp_ped_dt_bad2.py;load-pedestrian-resilience.maude;asysPedXLine(3,5/1,2/1,1/1,1/10);Bad DT;78;Yes;;;
+rta_exp_ped_dt_bad2-notres.py;load-pedestrian.maude;asysPedXLine(3,5/1,2/1,1/1,1/10);Bad DT;89;Yes;;;
+rta_exp_ped_dt_prec1.py;load-pedestrian-resilience.maude;asysPedXLine(3,3/1,2/1,1/1,1/10);Prec DT;358;No;['safeSP', 'saferSP', 'false'];;
+rta_exp_ped_dt_prec1-notres.py;load-pedestrian.maude;asysPedXLine(3,3/1,2/1,1/1,1/10);Prec DT;DNF;DNF;;;
+rta_exp_ped_dt_prec2.py;load-pedestrian-resilience.maude;asysPedXLine(3,5/1,2/1,1/1,1/10);Prec DT;172;No;['safeSP', 'saferSP', 'false'];;
+rta_exp_ped_dt_prec2-notres.py;load-pedestrian.maude;asysPedXLine(3,5/1,2/1,1/1,1/10);Prec DT;149;Yes;;;
+rta_exp_ped_dt_prec3.py;load-pedestrian-resilience.maude;asysPedXLine(3,6/1,3/1,1/1,1/10);Prec DT;DNF;DNF;Stuck in safer -> safer;;
+rta_exp_ped_dt_prec3-notres.py;load-pedestrian.maude;asysPedXLine(3,6/1,3/1,1/1,1/10);Prec DT;452;Yes;;;
+rta_exp_ped_dt_prec5.py;load-pedestrian-resilience.maude;asysPedXLineDist(3,6/1,4/1,2/1,19/1,1/10);Prec DT;136;No;['safeSP', 'saferSP', 'false'];;
+rta_exp_ped_dt_prec5-notres.py;load-pedestrian.maude;asysPedXLineDist(3,6/1,4/1,2/1,19/1,1/10);Prec DT;227;Yes;;;
+rta_exp_ped_no_errors_resilience.py;load-pedestrian-resilience.maude;asysPedXLine(3,3/1,2/1,1/1,1/10);5-Resilience;621;Yes;;;
+;DT NO SKIP;;;;;;;
+rta_exp_ped_dt_noskip.py;load-pedestrian-resilience.maude;asysPedXLine(3,3/1,2/1,1/1,1/10);No;0.2s;;;;
+rta_exp_ped_dt_noskip2.py;load-pedestrian-resilience.maude;asysPedXLine(3,5/1,2/1,1/1,1/10);No;0.2s;;;;
+rta_exp_ped_dt_noskip_spd.py;load-pedestrian-resilience.maude;asysPedXLineSpd(3,2/1,3/1,2/1,1/1,1/10);Yes;1s;;;;
+rta_exp_ped_dt_noskip_spd-notres.py;load-pedestrian.maude;asysPedXLineSpd(3,2/1,3/1,2/1,1/1,1/10);yes;1s;;;;
+rta_exp_platooning_dt_noskip.py;load-platooning-manh.maude;asys(36,basicCond and testBounds0(3/1,2/1,1/1,1/10),2);Yes;1s;;;;
+rta_exp_platooning_dt_rss_noskip.py;load-platooning-manh.maude;asys(36,basicCond(5/1,40/1) and testBounds3(6/1,4/1,2/1,1/10),2);yes;1s;;;;
+;Resilience Pedestrian No Errors;;;;;;;
+rta_exp_ped_no_errors_resilience3.py;load-pedestrian-resilience.maude;asysPedXLine(3,3/1,2/1,1/1,1/10);4-resilience;26;Does not always reach safer.;"PosX--> {'v(1)': [5.0, 5.0, 5.0, 5.0, 5.0], 'v(2)': [1.0, 1.1, 1.2, 1.3, 1.4]}
+PosY--> {'v(1)': [1.6400000000000001, 2.56, 3.4, 4.16, 4.84], 'v(2)': [17.0, 17.0, 17.0, 17.0, 17.0]}
+Spd--> {'v(1)': [9.6, 8.8, 8.0, 7.2, 6.4], 'v(2)': [1.0, 1.0, 1.0, 1.0, 1.0]}
+Acc--> {'v(1)': [-7.0, -8.0, -8.0, -8.0, -8.0], 'v(2)': [0.0, 0.0, 0.0, 0.0, 0.0]}
+Sen--> {'v(1)': [['""None""', '""-1/1""', -1.0], ['""ag2""', '""17""', 17.0], ['""ag2""', '""17""', 17.0], ['""ag2""', '""17""', 17.0], ['""ag2""', '""17""', 17.0]], 'v(2)': [['""None""', '""-1/1""', -1.0], ['""ag2""', '""17""', 17.0], ['""ag2""', '""17""', 17.0], ['""ag2""', '""17""', 17.0], ['""ag2""', '""17""', 17.0]]}
+Error -> False
+distTar -->  [15.36, 14.44, 13.6, 12.84, 12.16]
+Safer -->  [20.159999999999997, 18.040000000000003, 16.0, 14.040000000000001, 12.160000000000002]
+Safe -->  [15.36, 13.64, 12.0, 10.440000000000001, 8.96]
+Bad -->  [10.559999999999999, 9.240000000000002, 8.0, 6.84, 5.760000000000001]";;
+rta_exp_ped_no_errors_resilience.py;load-pedestrian-resilience.maude;asysPedXLine(3,3/1,2/1,1/1,1/10);5-Resilience;634;Yes;;;
+rta_exp_ped_no_errors_resilience2.py;load-pedestrian.maude;asysPedXLine(3,3/1,2/1,1/1,1/10);5-Resilience;115;Does not always reach safer.;"PosX--> {'v(1)': [5.0, 5.0, 5.0, 5.0, 5.0, 5.0], 'v(2)': [1.0, 1.1, 1.2, 1.3, 1.4, 1.5]}
+PosY--> {'v(1)': [1.3, 1.35, 1.4, 1.45, 1.5, 1.55], 'v(2)': [2.0, 2.0, 2.0, 2.0, 2.0, 2.0]}
+Spd--> {'v(1)': [0.5, 0.5, 0.5, 0.5, 0.5, 0.5], 'v(2)': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]}
+Acc--> {'v(1)': [-7.0, -8.0, -8.0, -8.0, -8.0, -8.0], 'v(2)': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}
+Sen--> {'v(1)': [['""None""', '""-1/1""', -1.0], ['""ag2""', '""2""', 2.0], ['""ag2""', '""2""', 2.0], ['""ag2""', '""2""', 2.0], ['""ag2""', '""2""', 2.0], ['""ag2""', '""2""', 2.0]], 'v(2)': [['""None""', '""-1/1""', -1.0], ['""ag2""', '""2""', 2.0], ['""ag2""', '""2""', 2.0], ['""ag2""', '""2""', 2.0], ['""ag2""', '""2""', 2.0], ['""ag2""', '""2""', 2.0]]}
+Error -> False
+distTar -->  [0.7, 0.6499999999999999, 0.6000000000000001, 0.55, 0.5, 0.44999999999999996]
+Safer -->  [0.765625, 0.765625, 0.765625, 0.765625, 0.765625, 0.765625]
+Safe -->  [0.515625, 0.515625, 0.515625, 0.515625, 0.515625, 0.515625]
+Bad -->  [0.265625, 0.265625, 0.265625, 0.265625, 0.265625, 0.265625]";;
+rta_exp_ped_no_errors_resilience5.py;load-pedestrian-resilience.maude;asysPedXLine(3,4/1,2/1,1/1,1/10);5-Resilience;95;Does not always reach safer.;"PosX--> {'v(1)': [5.0, 5.0, 5.0, 5.0, 5.0, 5.0], 'v(2)': [1.0, 1.1, 1.2, 1.3, 1.4, 1.5]}
+PosY--> {'v(1)': [1.435, 1.575, 1.675, 1.775, 1.875, 1.975], 'v(2)': [4.0, 4.0, 4.0, 4.0, 4.0, 4.0]}
+Spd--> {'v(1)': [1.7999999999999998, 1.0, 1.0, 1.0, 1.0, 1.0], 'v(2)': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]}
+Acc--> {'v(1)': [-7.0, -8.0, 0.0, 0.0, 0.0, 0.0], 'v(2)': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}
+Sen--> {'v(1)': [['""None""', '""-1/1""', -1.0], ['""ag2""', '""4""', 4.0], ['""ag2""', '""4""', 4.0], ['""ag2""', '""4""', 4.0], ['""ag2""', '""4""', 4.0], ['""ag2""', '""4""', 4.0]], 'v(2)': [['""None""', '""-1/1""', -1.0], ['""ag2""', '""4""', 4.0], ['""ag2""', '""4""', 4.0], ['""ag2""', '""4""', 4.0], ['""ag2""', '""4""', 4.0], ['""ag2""', '""4""', 4.0]]}
+Error -> False
+distTar -->  [2.565, 2.425, 2.325, 2.225, 2.125, 2.025]
+Safer -->  [3.8024999999999998, 2.0625, 2.0625, 2.0625, 2.0625, 2.0625]
+Safe -->  [2.0025, 1.0625, 1.0625, 1.0625, 1.0625, 1.0625]
+Bad -->  [1.1024999999999998, 0.5625, 0.5625, 0.5625, 0.5625, 0.5625]";;
+rta_exp_ped_no_errors_resilience4.py;load-pedestrian-resilience.maude;asysPedXLine(3,3/1,2/1,1/1,1/10);6-Resilience;;;;;
+rta_exp_ped_no_errors_resilience7.py;load-pedestrian.maude;asysPedXLine(3,3/1,2/1,1/1,1/10);4-Resilience;34;Does not always reach safer.;"PosX--> {'v(1)': [5.0, 5.0, 5.0, 5.0, 5.0], 'v(2)': [1.0, 1.1, 1.2, 1.3, 1.4]}
+PosY--> {'v(1)': [1.34993896484375, 1.4, 1.45, 1.5, 1.55], 'v(2)': [2.0, 2.0, 2.0, 2.0, 2.0]}
+Spd--> {'v(1)': [0.53125, 0.5, 0.5, 0.5, 0.5], 'v(2)': [1.0, 1.0, 1.0, 1.0, 1.0]}
+Acc--> {'v(1)': [-7.0, -8.0, -8.0, -8.0, -8.0], 'v(2)': [0.0, 0.0, 0.0, 0.0, 0.0]}
+Sen--> {'v(1)': [['""None""', '""-1/1""', -1.0], ['""ag2""', '""2""', 2.0], ['""ag2""', '""2""', 2.0], ['""ag2""', '""2""', 2.0], ['""ag2""', '""2""', 2.0]], 'v(2)': [['""None""', '""-1/1""', -1.0], ['""ag2""', '""2""', 2.0], ['""ag2""', '""2""', 2.0], ['""ag2""', '""2""', 2.0], ['""ag2""', '""2""', 2.0]]}
+Error -> False
+distTar -->  [0.6500610351562499, 0.6000000000000001, 0.55, 0.5, 0.44999999999999996]
+Safer -->  [0.81451416015625, 0.765625, 0.765625, 0.765625, 0.765625]
+Safe -->  [0.54888916015625, 0.515625, 0.515625, 0.515625, 0.515625]
+Bad -->  [0.28326416015625, 0.265625, 0.265625, 0.265625, 0.265625]";;
+rta_exp_ped_no_errors_resilience8.py;load-pedestrian-resilience.maude;asysPedXLine(3,3/1,2/1,1/1,1/10);4-Resilience;27;Does not always reach safer.;"PosX--> {'v(1)': [5.0, 5.0, 5.0, 5.0, 5.0], 'v(2)': [1.0, 1.1, 1.2, 1.3, 1.4]}
+PosY--> {'v(1)': [1.6400000000000001, 2.56, 3.4, 4.16, 4.84], 'v(2)': [17.0, 17.0, 17.0, 17.0, 17.0]}
+Spd--> {'v(1)': [9.6, 8.8, 8.0, 7.2, 6.4], 'v(2)': [1.0, 1.0, 1.0, 1.0, 1.0]}
+Acc--> {'v(1)': [-7.0, -8.0, -8.0, -8.0, -8.0], 'v(2)': [0.0, 0.0, 0.0, 0.0, 0.0]}
+Sen--> {'v(1)': [['""None""', '""-1/1""', -1.0], ['""ag2""', '""17""', 17.0], ['""ag2""', '""17""', 17.0], ['""ag2""', '""17""', 17.0], ['""ag2""', '""17""', 17.0]], 'v(2)': [['""None""', '""-1/1""', -1.0], ['""ag2""', '""17""', 17.0], ['""ag2""', '""17""', 17.0], ['""ag2""', '""17""', 17.0], ['""ag2""', '""17""', 17.0]]}
+Error -> False
+distTar -->  [15.36, 14.44, 13.6, 12.84, 12.16]
+Safer -->  [20.159999999999997, 18.040000000000003, 16.0, 14.040000000000001, 12.160000000000002]
+Safe -->  [15.36, 13.64, 12.0, 10.440000000000001, 8.96]
+Bad -->  [10.559999999999999, 9.240000000000002, 8.0, 6.84, 5.760000000000001]";;
+rta_exp_ped_no_errors_resilience9.py;load-pedestrian.maude;asysPedXLine(3,5/1,2/1,1/1,1/10);5-Resilience;93;Does not always reach safer.;"PosX--> {'v(1)': [5.0, 5.0, 5.0, 5.0, 5.0, 5.0], 'v(2)': [1.0, 1.1, 1.2, 1.3, 1.4, 1.5]}
+PosY--> {'v(1)': [0.47500000000000003, 0.5750000000000001, 0.675, 0.775, 0.875, 0.975], 'v(2)': [3.0, 3.0, 3.0, 3.0, 3.0, 3.0]}
+Spd--> {'v(1)': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0], 'v(2)': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]}
+Acc--> {'v(1)': [-7.0, 0.0, 0.0, 0.0, 0.0, 0.0], 'v(2)': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}
+Sen--> {'v(1)': [['""None""', '""-1/1""', -1.0], ['""ag2""', '""3""', 3.0], ['""ag2""', '""3""', 3.0], ['""ag2""', '""3""', 3.0], ['""ag2""', '""3""', 3.0], ['""ag2""', '""3""', 3.0]], 'v(2)': [['""None""', '""-1/1""', -1.0], ['""ag2""', '""3""', 3.0], ['""ag2""', '""3""', 3.0], ['""ag2""', '""3""', 3.0], ['""ag2""', '""3""', 3.0], ['""ag2""', '""3""', 3.0]]}
+Error -> False
+distTar -->  [2.525, 2.425, 2.325, 2.225, 2.125, 2.025]
+Safer -->  [2.0625, 2.0625, 2.0625, 2.0625, 2.0625, 2.0625]
+Safe -->  [1.0625, 1.0625, 1.0625, 1.0625, 1.0625, 1.0625]
+Bad -->  [0.5625, 0.5625, 0.5625, 0.5625, 0.5625, 0.5625]";;
+rta_exp_ped_no_errors_resilience10.py;load-pedestrian.maude;asysPedXLine(3,5/1,2/1,1/1,1/10);4-Resilience;27;Does not always reach safer.;"PosX--> {'v(1)': [5.0, 5.0, 5.0, 5.0, 5.0], 'v(2)': [1.0, 1.1, 1.2, 1.3, 1.4]}
+PosY--> {'v(1)': [0.45, 0.55, 0.65, 0.75, 0.85], 'v(2)': [3.0, 3.0, 3.0, 3.0, 3.0]}
+Spd--> {'v(1)': [1.0, 1.0, 1.0, 1.0, 1.0], 'v(2)': [1.0, 1.0, 1.0, 1.0, 1.0]}
+Acc--> {'v(1)': [-7.0, 0.0, 0.0, 0.0, 0.0], 'v(2)': [0.0, 0.0, 0.0, 0.0, 0.0]}
+Sen--> {'v(1)': [['""None""', '""-1/1""', -1.0], ['""ag2""', '""3""', 3.0], ['""ag2""', '""3""', 3.0], ['""ag2""', '""3""', 3.0], ['""ag2""', '""3""', 3.0]], 'v(2)': [['""None""', '""-1/1""', -1.0], ['""ag2""', '""3""', 3.0], ['""ag2""', '""3""', 3.0], ['""ag2""', '""3""', 3.0], ['""ag2""', '""3""', 3.0]]}
+Error -> False
+distTar -->  [2.55, 2.45, 2.35, 2.25, 2.15]
+Safer -->  [2.0625, 2.0625, 2.0625, 2.0625, 2.0625]
+Safe -->  [1.0625, 1.0625, 1.0625, 1.0625, 1.0625]
+Bad -->  [0.5625, 0.5625, 0.5625, 0.5625, 0.5625]";;
+rta_exp_ped_no_errors_resilience11.py;load-pedestrian-resilience.maude;asysPedXLine(3,5/1,2/1,1/1,1/10);4-Resilience;28;Does not always reach safer.;"PosX--> {'v(1)': [5.0, 5.0, 5.0, 5.0, 5.0], 'v(2)': [1.0, 1.1, 1.2, 1.3, 1.4]}
+PosY--> {'v(1)': [0.5, 0.6, 0.7, 0.7999999999999999, 0.8999999999999999], 'v(2)': [3.0, 3.0, 3.0, 3.0, 3.0]}
+Spd--> {'v(1)': [1.0, 1.0, 1.0, 1.0, 1.0], 'v(2)': [1.0, 1.0, 1.0, 1.0, 1.0]}
+Acc--> {'v(1)': [-7.0, 0.0, 0.0, 0.0, 0.0], 'v(2)': [0.0, 0.0, 0.0, 0.0, 0.0]}
+Sen--> {'v(1)': [['""None""', '""-1/1""', -1.0], ['""ag2""', '""3""', 3.0], ['""ag2""', '""3""', 3.0], ['""ag2""', '""3""', 3.0], ['""ag2""', '""3""', 3.0]], 'v(2)': [['""None""', '""-1/1""', -1.0], ['""ag2""', '""3""', 3.0], ['""ag2""', '""3""', 3.0], ['""ag2""', '""3""', 3.0], ['""ag2""', '""3""', 3.0]]}
+Error -> False
+distTar -->  [2.5, 2.4, 2.3, 2.2, 2.1]
+Safer -->  [1.5625, 1.5625, 1.5625, 1.5625, 1.5625]
+Safe -->  [1.0625, 1.0625, 1.0625, 1.0625, 1.0625]
+Bad -->  [0.5625, 0.5625, 0.5625, 0.5625, 0.5625]";;
+rta_exp_ped_no_errors_resilience12.py;load-pedestrian-resilience.maude;asysPedXLine(3,5/1,2/1,1/1,1/10);5-Resilience;90;Does not always reach safer.;"PosX--> {'v(1)': [5.0, 5.0, 5.0, 5.0, 5.0, 5.0], 'v(2)': [1.0, 1.1, 1.2, 1.3, 1.4, 1.5]}
+PosY--> {'v(1)': [0.5, 0.6, 0.7, 0.7999999999999999, 0.8999999999999999, 1.0], 'v(2)': [3.0, 3.0, 3.0, 3.0, 3.0, 3.0]}
+Spd--> {'v(1)': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0], 'v(2)': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]}
+Acc--> {'v(1)': [-7.0, 0.0, 0.0, 0.0, 0.0, 0.0], 'v(2)': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}
+Sen--> {'v(1)': [['""None""', '""-1/1""', -1.0], ['""ag2""', '""3""', 3.0], ['""ag2""', '""3""', 3.0], ['""ag2""', '""3""', 3.0], ['""ag2""', '""3""', 3.0], ['""ag2""', '""3""', 3.0]], 'v(2)': [['""None""', '""-1/1""', -1.0], ['""ag2""', '""3""', 3.0], ['""ag2""', '""3""', 3.0], ['""ag2""', '""3""', 3.0], ['""ag2""', '""3""', 3.0], ['""ag2""', '""3""', 3.0]]}
+Error -> False
+distTar -->  [2.5, 2.4, 2.3, 2.2, 2.1, 2.0]
+Safer -->  [1.5625, 1.5625, 1.5625, 1.5625, 1.5625, 1.5625]
+Safe -->  [1.0625, 1.0625, 1.0625, 1.0625, 1.0625, 1.0625]
+Bad -->  [0.5625, 0.5625, 0.5625, 0.5625, 0.5625, 0.5625]";;
+;Resilience Pedestrian Errors;;;;;;;
+rta_exp_ped_errors_25_resilience.py;load-pedestrian-error-pedS.maude;asysPedXLineErrorPedS(3,3/1,2/1,1/1,1/10,1/4);5-resilience;103;System does not reach safer within (5).NzNat time units;"PosX--> {'v(1)': [5.0, 5.0, 5.0, 5.0, 5.0, 5.0], 'v(2)': [1.0, 1.1, 1.2, 1.3, 1.4, 1.5]}
+PosY--> {'v(1)': [1.90625, 2.04625, 2.1462499999999998, 2.24625, 2.34625, 2.44625], 'v(2)': [4.0, 4.0, 4.0, 4.0, 4.0, 4.0]}
+Spd--> {'v(1)': [1.7999999999999998, 1.0, 1.0, 1.0, 1.0, 1.0], 'v(2)': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]}
+Acc--> {'v(1)': [-7.0, -8.0, 0.0, 0.0, 0.0, 0.0], 'v(2)': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}
+Sen--> {'v(1)': [['""None""', '""-1/1""', -1.0], ['""ag2""', '""4""', 4.0], ['""ag2""', '""17/4""', 4.25], ['""ag2""', '""17/4""', 4.25], ['""ag2""', '""35/8""', 4.375], ['""ag2""', '""1129/256""', 4.41015625]], 'v(2)': [['""None""', '""-1/1""', -1.0], ['""ag2""', '""4""', 4.0], ['""ag2""', '""17/4""', 4.25], ['""ag2""', '""17/4""', 4.25], ['""ag2""', '""35/8""', 4.375], ['""ag2""', '""1129/256""', 4.41015625]]}
+1/4
+Error -> 0.25
+distTar -->  [2.09375, 1.9537499999999999, 1.8537500000000002, 1.7537500000000001, 1.65375, 1.55375]
+Safer -->  [2.9025, 1.5625, 1.5625, 1.5625, 1.5625, 1.5625]
+Safe -->  [2.0025, 1.0625, 1.0625, 1.0625, 1.0625, 1.0625]
+Bad -->  [1.1024999999999998, 0.5625, 0.5625, 0.5625, 0.5625, 0.5625]";;
+rta_exp_ped_errors_33_resilience.py;load-pedestrian-error-pedS.maude;asysPedXLineErrorPedS(3,3/1,2/1,1/1,1/10,1/3);5-resilience;104;System does not reach safer within (5).NzNat time unit;"PosX--> {'v(1)': [5.0, 5.0, 5.0, 5.0, 5.0, 5.0], 'v(2)': [1.0, 1.1, 1.2, 1.3, 1.4, 1.5]}
+PosY--> {'v(1)': [1.9375, 2.0775, 2.1774999999999998, 2.2775, 2.3775, 2.4775], 'v(2)': [4.0, 4.0, 4.0, 4.0, 4.0, 4.0]}
+Spd--> {'v(1)': [1.7999999999999998, 1.0, 1.0, 1.0, 1.0, 1.0], 'v(2)': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]}
+Acc--> {'v(1)': [-7.0, -8.0, 0.0, 0.0, 0.0, 0.0], 'v(2)': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}
+Sen--> {'v(1)': [['""None""', '""-1/1""', -1.0], ['""ag2""', '""4""', 4.0], ['""ag2""', '""9/2""', 4.5], ['""ag2""', '""9/2""', 4.5], ['""ag2""', '""9/2""', 4.5], ['""ag2""', '""9/2""', 4.5]], 'v(2)': [['""None""', '""-1/1""', -1.0], ['""ag2""', '""4""', 4.0], ['""ag2""', '""9/2""', 4.5], ['""ag2""', '""9/2""', 4.5], ['""ag2""', '""9/2""', 4.5], ['""ag2""', '""9/2""', 4.5]]}
+3333333333333333/10000000000000000
+Error -> 0.3333333333333333
+distTar -->  [2.0625, 1.9224999999999999, 1.8225000000000002, 1.7225000000000001, 1.6225, 1.5225]
+Safer -->  [2.9025, 1.5625, 1.5625, 1.5625, 1.5625, 1.5625]
+Safe -->  [2.0025, 1.0625, 1.0625, 1.0625, 1.0625, 1.0625]
+Bad -->  [1.1024999999999998, 0.5625, 0.5625, 0.5625, 0.5625, 0.5625]";;
+rta_exp_ped_errors_125_resilience.py;load-pedestrian-error-pedS.maude;asysPedXLineErrorPedS(3,3/1,2/1,1/1,1/10,1/8);5-resilience;594;yes;;;
+rta_exp_ped_errors_10_resilience.py;load-pedestrian-error-pedS.maude;asysPedXLineErrorPedS(3,3/1,2/1,1/1,1/10,1/10);5-resilience;734;yes;;;
+;Platooning DT Checks (safe, safer, bad gaps);;;;;;;
+rta_exp_platooning_dt_bad.py;load-platooning-manh.maude;asys(36,basicCond and testBounds0(3/1,2/1,1/1,1/10),2);Bad DT;DNF;DNF;;;
+rta_exp_platooning_dt_bad2.py;load-platooning-manh.maude;asys(36,basicCond and testBounds0(6/1,4/1,2/1,1/10),2);Bad DT;51;Yes;;;
+rta_exp_platooning_dt_bad3.py;load-platooning-manh.maude;asys(36,basicCond and testBounds0(7/2,5/2,1/1,1/10),2);Bad DT;55;Yes;;;
+rta_exp_platooning_dt_bad4.py;load-platooning-manh.maude;asys(36,basicCond and testBounds0(10/3,7/3,1/1,1/10),2);Bad DT;50;Yes;;;
+rta_exp_platooning_dt_prec1.py;load-platooning-manh.maude;asys(36,basicCond and testBounds0(3/1,2/1,1/1,1/10),2);Prec DT;1413;Yes;;;
+rta_exp_platooning_dt_prec3.py;load-platooning-manh.maude;asys(36,basicCond and testBounds0(7/2,5/2,1/1,1/10),2);Prec DT;83;Yes;;;
+rta_exp_platooning_dt_prec4.py;load-platooning-manh.maude;asys(36,basicCond and testBounds0(10/3,7/3,1/1,1/10),2);Prec DT;106;Yes;;;
+rta_exp_platooning_dt_prec5.py;load-platooning-manh.maude;asys(36,basicCond and testBounds0(8/1,4/1,2/1,1/10),2);Prec DT;110;Yes;;;
+rta_exp_platooning_dt_prec7.py;load-platooning-manh.maude;asys(36,basicCond and testBounds0(6/1,4/1,2/1,1/10),2);Prec DT;52;No;;;
+;;;;;;;;
+;Platooning Resilience (safe, safer, bad, gaps);;;;;;;
+rta_exp_platooning_noerrors_resilience.py;following/load-platooning-manh.maude;asys(36,basicCond and testBounds0(6/1,4/1,1/1,1/10),2);5 Resilience;11;No;[[14.5, 14.519140624999999, 14.570908203124999, 14.633399414062499, 14.690641503906253, 14.743159384765628], [9.0, 7.717187499999996, 6.638281249999995, 6.8592968749999965, 7.058210937499998, 7.23723359375], [6.0, 5.017187499999997, 4.208007812499995, 4.373769531249996, 4.522955078124998, 4.6572220703125], [3.0, 2.317187499999996, 1.7777343749999956, 1.8882421874999964, 1.9876992187499973, 2.077210546874998]];;
+rta_exp_platooning_noerrors_resilience2.py;following/load-platooning-manh.maude;asys(36,basicCond and testBounds0(3/1,2/1,1/1,1/10),2);5 Resilience;12;No;"PosX--> {'v(0)': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0], 'v(1)': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}
+PosY--> {'v(0)': [12.0, 12.356875, 12.716875, 13.0684375, 13.410390625000002, 13.7424267578125], 'v(1)': [1.5, 1.885, 2.2414648437499998, 2.5849355468749997, 2.9290591796875, 3.27292669921875]}
+Spd--> {'v(0)': [3.5, 3.6375000000000024, 3.562500000000002, 3.468750000000002, 3.3703125000000025, 3.2704101562500023], 'v(1)': [4.0, 3.7, 3.429296875, 3.4401171875000003, 3.4423554687500006, 3.434994921875001]}
+Acc--> {'v(0)': [0.0, 1.375000000000024, -0.75, -0.9375, -0.984375, -0.9990234375], 'v(1)': [-7.0, -3.0, -2.70703125, 0.10820312500000233, 0.022382812500002104, -0.0736054687499981]}
+Sen--> {'v(0)': [['""None""', '""-1/1""', -1.0], ['""None""', '""-1/1""', -1.0], ['""None""', '""-1/1""', -1.0], ['""None""', '""-1/1""', -1.0], ['""None""', '""-1/1""', -1.0], ['""None""', '""-1/1""', -1.0]], 'v(1)': [['""None""', '""-1/1""', -1.0], ['""None""', '""-1/1""', -1.0], ['""None""', '""-1/1""', -1.0], ['""None""', '""-1/1""', -1.0], ['""None""', '""-1/1""', -1.0], ['""None""', '""-1/1""', -1.0]]}
+vminD -->  [2.5, 2.527343750000001, 2.5094775390625004, 2.4880629882812504, 2.462910986328126, 2.4349775537109384]
+dist -->  [10.5, 10.471875, 10.47541015625, 10.483501953125, 10.481331445312502, 10.46950005859375]
+Safer -->  [12.5, 11.162499999999998, 10.154687499999998, 10.29171875, 10.399109375, 10.469569531250002]
+Safe -->  [8.5, 7.462499999999999, 6.7253906249999975, 6.851601562499999, 6.956753906249999, 7.034574609375]
+Bad -->  [4.5, 3.762499999999998, 3.2960937499999976, 3.4114843749999983, 3.514398437499999, 3.5995796874999995]";;
+rta_exp_platooning_noerrors_resilience3.py;following/load-platooning-manh.maude;asys(36,basicCond and testBounds0(7/1,5/1,1/1,1/10),2);5 Resilience;12;No;"PosX--> {'v(0)': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0], 'v(1)': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}
+PosY--> {'v(0)': [18.0, 18.306875, 18.620625, 18.939375000000002, 19.263125000000002, 19.586875000000003], 'v(1)': [1.0, 1.285, 1.541513671875, 1.7875771484375, 2.03940927734375, 2.2969331933593753]}
+Spd--> {'v(0)': [3.0, 3.137500000000005, 3.137500000000005, 3.2375000000000047, 3.2375000000000047, 3.2375000000000047], 'v(1)': [3.0, 2.7, 2.4302734375, 2.4909960937500006, 2.545646484375001, 2.6048318359375013]}
+Acc--> {'v(0)': [0.0, 1.3750000000000488, 0.0, 1.0, 0.0, 0.0], 'v(1)': [-7.0, -3.0, -2.697265625, 0.6072265625000048, 0.5465039062500043, 0.5918535156250039]}
+Sen--> {'v(0)': [['""None""', '""-1/1""', -1.0], ['""None""', '""-1/1""', -1.0], ['""None""', '""-1/1""', -1.0], ['""None""', '""-1/1""', -1.0], ['""None""', '""-1/1""', -1.0], ['""None""', '""-1/1""', -1.0]], 'v(1)': [['""None""', '""-1/1""', -1.0], ['""None""', '""-1/1""', -1.0], ['""None""', '""-1/1""', -1.0], ['""None""', '""-1/1""', -1.0], ['""None""', '""-1/1""', -1.0], ['""None""', '""-1/1""', -1.0]]}
+vminD -->  [4.0, 4.039843750000002, 4.054152832031252, 4.097324462890627, 4.115303930664064, 4.131860451660158]
+dist -->  [17.0, 17.021875, 17.079111328125002, 17.151797851562502, 17.22371572265625, 17.289941806640627]
+Safer -->  [9.0, 7.662499999999996, 6.583593749999995, 6.726484374999998, 6.9450859375, 7.181827343750001]
+Safe -->  [6.0, 4.962499999999997, 4.153320312499995, 4.235488281249998, 4.399439453124998, 4.5769955078125]
+Bad -->  [3.0, 2.2624999999999953, 1.7230468749999948, 1.7444921874999966, 1.8537929687499974, 1.972163671874998]";;
+;Platooning DT Checks (RSS properties) (testCond0 is with -8, testCond1 is with -5 and testCond3 is with -2m/s^2);;;;;;;
+rta_exp_platooning_dt_bad2_rss.py;following_RSS/load-platooning-manh.maude;asys(36,basicCond(5/1,40/1) and testBounds0(6/1,4/1,2/1,1/10),2);Bad DT;DNF;;;;
+rta_exp_platooning_dt_bad2_rss2.py;following_RSS/load-platooning-manh.maude;asys(36,basicCond(5/1,40/1) and testBounds3(6/1,4/1,2/1,1/10),2);Bad DT;304;Yes;;;
+rta_exp_platooning_dt_bad2_rss3.py;following_RSS/load-platooning-manh.maude;asys(36,basicCond(5/1,40/1) and testBounds1(6/1,4/1,2/1,1/10),2);Bad DT;DNF;;;;
+rta_exp_platooning_dt_bad2_rss4.py;following_RSS/load-platooning-manh.maude;asys(36,basicCond(25/1,60/1) and testBounds1(6/1,4/1,2/1,1/10),2);Bad DT;DNF;;;;
+rta_exp_platooning_dt_prec1_rss.py;following_RSS/load-platooning-manh.maude;asys(36,basicCond(5/1,40/1) and testBounds0(6/1,4/1,2/1,1/10),2);Prec DT;DNF;;Stuck in safe -> safe;;
+rta_exp_platooning_dt_prec1_rss3.py;following_RSS/load-platooning-manh.maude;asys(36,basicCond(5/1,40/1) and testBounds1(6/1,4/1,2/1,1/10),2);PredDt;DNF;;Stuck in safe -> safe;;
+rta_exp_platooning_dt_prec1_rss2.py;following_RSS/load-platooning-manh.maude;asys(36,basicCond(5/1,40/1) and testBounds3(6/1,4/1,2/1,1/10),2);Prec DT;533;Yes;;;
+;;;;;;;;
+;Platooning Resilience (RSS properties) (testCond0 is with -8, testCond1 is with -5 and testCond0 is with -2m/s^2), the file load-platooning-manh2.maude uses an alternative controller that applies emergency braking always when safe.;;;;;;;
+rta_exp_platooning_RSS_noerrors_resilience.py;following_RSS/load-platooning-manh.maude;asys(36,basicCond(5/1,40/1) and testBounds3(6/1,4/1,1/1,1/10),2);2-resilience;43;yes;;;
+rta_exp_platooning_RSS_noerrors_resilience3.py;following_RSS/load-platooning-manh.maude;asys(36,basicCond(5/1,40/1) and testBounds1(6/1,4/1,1/1,1/10),2);2-resilience;5;no;[[29.0, 28.979999999999997, 28.919999999999998], [63.0, 63.4, 63.8], [42.0, 42.4, 42.8], [21.0, 21.4, 21.8]];;
+rta_exp_platooning_RSS_noerrors_resilience4.py;following_RSS/load-platooning-manh.maude;asys(36,basicCond(5/1,40/1) and testBounds1(6/1,4/1,1/1,1/10),2);3-resilience;81;no;[[29.0, 28.979999999999997, 28.919999999999998, 28.822], [63.0, 63.4, 63.8, 64.04], [42.0, 42.4, 42.8, 43.08], [21.0, 21.4, 21.8, 22.12]];;
+rta_exp_platooning_RSS_noerrors_resilience5.py;following_RSS/load-platooning-manh.maude;asys(36,basicCond(5/1,40/1) and testBounds1(6/1,4/1,1/1,1/10),2);4-resilience;1126;no;[[29.0, 28.979999999999997, 28.919999999999998, 28.822, 28.689799999999998], [63.0, 63.4, 63.8, 64.04, 64.136], [42.0, 42.4, 42.8, 43.08, 43.252], [21.0, 21.4, 21.8, 22.12, 22.368000000000002]];;
+rta_exp_platooning_RSS_noerrors_resilience6.py;following_RSS/load-platooning-manh2.maude;asys(36,basicCondReactTimeEqDT(5/1,40/1) and testBounds1(6/1,4/1,1/1,1/2),2);2-resilience;38;yes;Notice that this one uses an aggressive controller that always applies emergency braking;;

@@ -1,0 +1,241 @@
+***(
+This module specifies the function
+
+op checkTimeDur : ASystem SymTerm -> Bool .
+
+for checking whether a 
+a duration of tick time is sufficient to detect when at most 
+two transitions of properties has occurred.
+For example, assume properties in a total ordering P1 <= P2 <= P3
+One shall show that if:
+
+C1 ==>[dt] C2
+where 
+ P3[C1] and P3[C2]
+then 
+there is no dt1 <= dt
+such that
+C1 ==>[dt1] C3
+  not P3[C3] or P2[C3]
+
+Similarly, 
+C1 ==>[dt] C2
+where 
+ P3[C1] and P2[C2]
+then 
+there is no dt1 <= dt
+such that
+C1 ==>[dt1] C3
+  not P3[C3] or P2[C3]
+)
+
+fmod CHECK-DT-ADEQUACY is
+  inc TICK-DURATION-PROP .
+  inc UTILS-VEHICLE .
+
+vars id1 : Id .
+vars ids : IdSet .
+vars l l0 l1 nuLoc l11 l21 l22 l31 l32 : Loc .
+vars n k j j1 j2 j3 j4 t0 t1 t2 t3 t4 : Nat .
+vars cl1 : Class . 
+vars ekb kb ekb1 ekb0 ekb2 ekb3 kb1 : KB .
+vars spd vlb vub maxD maxA dt dt1 mag 
+     nuSpd acc auxv nuX nuY auxt : SymTerm . 
+vars cond0 condDtSP condDt1SPs condIniSP
+     condVel condAcc cond1 condNueqL1 
+     cond21 cond22 condNueqL2  
+     cond31 cond32 condNueqL3
+     condT condT1 condT2 condT3
+     condFinal condFinal1 condFinal2 condFinal3
+     condAux : Boolean .
+var conf : Conf .
+vars asys asys1 asys2 asys3 asys4 asys5 
+     asys6 asys7 : ASystem .
+vars sp sp1 sp2 spNot : SP .
+vars sps sps1 sps2 : SPSet .
+vars asysSet asysSet1 asysSet2 asysSet3 : ASystemSet .
+var kbSet : KBSet .
+var t : Time .
+
+op checkTimeDurSPtoSP1TimeStepsBot : SP SP ASystem SymTerm -> Bool .
+eq checkTimeDurSPtoSP1TimeStepsBot(sp,sp1,asys,dt) = true [owise] .
+ceq checkTimeDurSPtoSP1TimeStepsBot(sp,sp1,asys,dt)
+ = false 
+ if 
+ **** Enforce that the initial conf satisfies sp
+ asys1 := enforceSP(sp,asys)
+ --- /\ condIniSP := getBoolean(asys1)
+ **** Carry out a time step using the given time tick dt
+ /\ asys2 asysSet2 := timeSteps(asys1,dt)
+ **** Enforce that the resulting conf is also sp1, i.e., 
+ **** we have an sp --> sp1 transition.
+ /\ asys3 := enforceSP(sp1,asys2)
+ /\ condDtSP := getBoolean(asys3)
+ *** Alternative time tick such that 0/1 < dt1 <= dt
+ *** specified below.
+ /\ dt1 := vv(getSymCounter(asys3) + 1, "tick-size-alternative")
+ *** Change sym counter so that there is no symbol clash.
+ /\ asys4 := upSymCounter(asys1,getSymCounter(asys3) + 2)
+  *** Make a time tick with dt1.
+ /\ asys5 asysSet3 := timeSteps(asys4,dt1)
+ *** Enforce that the resulting conf does not satisfiy sp nor any of the directly related properties sps.
+ --- /\ sp2 sps2 := getBotSP(sp,sp1)
+ /\ sp2 := botSP(spset)
+ /\ asys6 := enforceSP(sp2,asys5)
+ /\ condDt1SPs := getBoolean(asys6)
+ *** If there is a dt1 that satisfies this condition, 
+ *** it means that asys6 passes through a property not in sp sps. 
+ *** Therefore dt is not fine enough.
+ /\ condFinal := condDtSP 
+            and (dt1 <= dt) and (dt1 > 0/1)
+            and condDt1SPs
+ /\ isSatwithPrint(condFinal,sp,sp1) .
+
+op isSatwithPrint : Boolean SP SP -> Bool .
+ eq isSatwithPrint(cond1,sp,sp1) 
+ = smtCheck(cond1)
+  [print "\nsolved = " sp " to " sp1 ] .
+
+sort CheckDurResult .
+op none : -> CheckDurResult .
+op [_,_,_,_] : ASystem SP ASystem SP -> CheckDurResult . 
+
+op getAsysNot : CheckDurResult -> ASystem .
+eq getAsysNot([asys,sp,asys6,spNot]) = asys6 .
+op getSPNot : CheckDurResult -> SP .
+eq getSPNot([asys,sp,asys6,spNot]) = spNot .
+
+op getAccCheckDur : ASystem -> KB .
+eq getAccCheckDur(asys) 
+ = getAccCheckDur(getIds(asys),envKB(asys)) .
+op getAccCheckDur : IdSet KB -> KB .
+eq getAccCheckDur(id:Id ids, (accel(id:Id,acc) @ t) kb)
+ = (accel(id:Id,acc) @ (s t)) getAccCheckDur(ids,kb) .
+eq getAccCheckDur(none,kb) = none .
+
+*** Function for check prec1 dur.
+op checkDTPrec1SPtoSP1 : SP SP ASystem SymTerm -> CheckDurResult .
+eq checkDTPrec1SPtoSP1(sp,sp1,asys,dt) = none [owise] .
+ceq checkDTPrec1SPtoSP1(sp,sp1,asys,dt)
+ = [asys,sp,asys7,spNot] 
+ if 
+ **** Enforce that the initial conf satisfies sp
+ asys1 := enforceSP(sp,asys)
+ --- /\ condIniSP := getBoolean(asys1)
+ **** Carry out a time step using the given time tick dt
+ /\ asys2 asysSet2 := timeSteps(asys1,dt)
+ **** Enforce that the resulting conf is also sp1, i.e., 
+ **** we have an sp --> sp1 transition.
+ /\ asys3 := enforceSP(sp1,asys2)
+ /\ condDtSP := getBoolean(asys3)
+ *** Alternative time tick such that 0/1 < dt1 <= dt
+ *** specified below.
+ /\ dt1 := vv(getSymCounter(asys3) + 1, "tick-size-alternative")
+ *** Change sym counter so that there is no symbol clash.
+ /\ asys4 := upSymCounter(asys1,getSymCounter(asys3) + 2)
+  *** Make a time tick with dt1.
+ /\ asys5 asysSet3 := timeSteps(asys4,dt1)
+ *** Enforce that the resulting conf does not satisfiy sp nor any of the directly related properties sps.
+ /\ sps1 := if sp == sp1 then sp getRelSP(sp,none)
+            else sp sp1 fi
+ /\ spNot sps2 := spset
+ /\ isLowerThanAll(spNot,sps1)
+ /\ asys6 := enforceSP(spNot,asys5)
+ /\ condDt1SPs := getBoolean(asys6)
+ *** If there is a dt1 that satisfies this condition, 
+ *** it means that asys6 passes through a property not in sp sps. 
+ *** Therefore dt is not fine enough.
+ /\ condFinal := condDtSP 
+            and (dt1 <= dt) and (dt1 > 0/1)
+            and condDt1SPs 
+ /\ isSatwithPrint(condFinal,sp,sp1)
+ /\ kb1 := getAccCheckDur(asys)
+ /\ asys7 := updateAsysLog(addEnvKB(incTime(asys6),kb1)) .
+
+*** Function for check prec1 dur.
+op checkTimeDurSPtoSP1Asys : SP SP ASystem SymTerm -> Bool .
+eq checkTimeDurSPtoSP1Asys(sp,sp1,asys,dt) = true [owise] .
+ceq checkTimeDurSPtoSP1Asys(sp,sp1,asys,dt)
+ = false 
+ if 
+ **** Enforce that the initial conf satisfies sp
+ asys1 := enforceSP(sp,asys)
+ --- /\ condIniSP := getBoolean(asys1)
+ **** Carry out a time step using the given time tick dt
+ /\ asys2 asysSet2 := timeSteps(asys1,dt)
+ **** Enforce that the resulting conf is also sp1, i.e., 
+ **** we have an sp --> sp1 transition.
+ /\ asys3 := enforceSP(sp1,asys2)
+ /\ condDtSP := getBoolean(asys3)
+ *** Alternative time tick such that 0/1 < dt1 <= dt
+ *** specified below.
+ /\ dt1 := vv(getSymCounter(asys3) + 1, "tick-size-alternative")
+ *** Change sym counter so that there is no symbol clash.
+ /\ asys4 := upSymCounter(asys1,getSymCounter(asys3) + 2)
+  *** Make a time tick with dt1.
+ /\ asys5 asysSet3 := timeSteps(asys4,dt1)
+ *** Enforce that the resulting conf does not satisfiy sp nor any of the directly related properties sps.
+ /\ sps1 := if sp == sp1 then sp getRelSP(sp,none)
+            else sp sp1 fi
+ /\ spNot sps2 := spset
+ /\ isLowerThanAll(spNot,sps1)
+ /\ asys6 := enforceSP(spNot,asys5)
+ /\ condDt1SPs := getBoolean(asys6)
+ *** If there is a dt1 that satisfies this condition, 
+ *** it means that asys6 passes through a property not in sp sps. 
+ *** Therefore dt is not fine enough.
+ /\ condFinal := condDtSP 
+            and (dt1 <= dt) and (dt1 > 0/1)
+            and condDt1SPs 
+ /\ isSatwithPrint(condFinal,sp,sp1) .
+
+op checkNoSkipProperty : SP SP ASystem SymTerm -> Bool .
+eq checkNoSkipProperty(sp,sp1,asys,dt) = true [owise] .
+ceq checkNoSkipProperty(sp,sp1,asys,dt) 
+ = false 
+ if **** Enforce that the initial conf satisfies sp
+ asys1 := enforceSP(sp,asys) 
+ **** Carry out a time step using the given time tick dt
+ /\ asys2 asysSet2 := timeSteps(asys1,dt)
+ /\ asys3 := enforceSP(sp1,asys2)
+ /\ condDtSP := getBoolean(asys3)
+ /\ isSat(condDtSP) .
+
+endfm
+
+eof
+
+
+*** TODO: condIniSP is repeated implicitly multiple times, e.g., in condDtSp.
+*** Room for improvement.
+ceq checkTimeDurSPtoSP1(sp,sp1,asys,dt)
+ = if isSat(condFinal) then false else true fi 
+ if 
+ **** Enforce that the initial conf satisfies sp
+ asys1 := enforceSP(sp,asys)
+ /\ condIniSP := getBoolean(asys1)
+ **** Carry out a time step using the given time tick dt
+ /\ asys2 := timeStep(0,asys1,dt)
+ **** Enforce that the resulting conf is also sp1, i.e., 
+ **** we have an sp --> sp1 transition.
+ /\ asys3 := enforceSP(sp1,asys2)
+ /\ condDtSP := getBoolean(asys3)
+ *** Alternative time tick such that 0/1 < dt1 <= dt
+ *** specified below.
+ /\ dt1 := vv(getSymCounter(asys3) + 1, "tick-size-alternative")
+ *** Change sym counter so that there is no symbol clash.
+ /\ asys4 := upSymCounter(asys1,getSymCounter(asys3) + 2)
+  *** Make a time tick with dt1.
+ /\ asys5 := timeStep(0,asys4,dt1)
+ *** Enforce that the resulting conf does not satisfiy sp nor any of the directly related properties sps.
+ /\ sps1 := if sp == sp1 then sp getRelSP(sp,none)
+            else sp sp1 fi
+ /\ asys6 := enforceNoSP(sps1,asys5)
+ /\ condDt1SPs := getBoolean(asys6)
+ *** If there is a dt1 that satisfies this condition, 
+ *** it means that asys6 passes through a property not in sp sps. 
+ *** Therefore dt is not fine enough.
+ /\ condFinal := condDtSP 
+            and (dt1 <= dt) and (dt1 > 0/1)
+            and condDt1SPs .
+

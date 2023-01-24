@@ -1,0 +1,459 @@
+fmod MODEL-KNOWLEDGE is
+  inc SOFT-AGENTS .
+	inc CONVERSION .
+	inc RANDOM .
+  inc RAT .
+  inc SYM-REAL .
+
+  vars t t0 t1 t2 t3 t4 t5 t6 : Time .
+  var n i j j0 j1 n0 n1 e e0 e1 e2 : Nat .
+  vars x y x1 y1 x0 y0 xll xur yll yur i0 i1 : Int .
+  vars id id0 id1 id2 id3 : Id .
+	var cl : Class .
+  vars l l0 l1 l2 l3 loc l4 : Loc .
+  vars ekb ekb0 ekb1 kb  lkb kb1 lkb0 kb0 kb2 :  KB .
+  vars  ff ff0 ff1 ff4 fp0 fp1 rp0 rp1 ff2 ff3 spd 
+        ffx ffy ffx0 ffx1 ffy0 ffy1 ffx2 ffy2
+        spd0 spd1 nuVar nuVarX 
+        nuVarY dist mag0 mag1 : SymTerm .
+	vars act act0 act1 : Action .
+  vars md md1 : Mode .
+  vars ids ids0 : IdSet .
+  vars cnt cnt1 : Content .
+  var mg : Msg .
+  vars idL idL0 : IdList .
+  vars trat trat0 trat1 : TimedRat .
+  vars nutrats trats : TimedRatList .
+  vars sym1 sym0 sym sym2 sym3 nuGap : RealSym .
+  var str? : [String] .
+  var str0 : String .
+  vars cond0 cond1 cond2 cond3 cond : Boolean .
+
+  *** Function to make a new var with an id 
+  *** if function string(id) is defined .
+  op mkNuVar : Nat Id String -> SymTerm .
+  ceq mkNuVar(i,id,str0) 
+   = nuVar 
+   if str? := string(id) 
+   /\ nuVar := if str? :: String  then 
+             vv(i,str? + str0)
+             else 
+             vv(i,str0) fi .
+
+**** Measure charge in % full
+**** Max is thus 100
+
+**** scenario parameters
+ op tickDelay : -> Nat .
+ --- dist to last to be considered joined
+ op joinThresh : -> SymTerm . 
+
+**** Model specific classes
+   sort VClass .
+   subsort VClass < Class .
+   ops veh infra pedestrian : -> VClass [ctor] .
+*** roles
+  sort Mode .
+  
+  *** leading(none) denotes that the vehicle
+  *** is leading and no vehicle wants to join the platoon.
+  *** leading(id) denotes that the vehicle
+  *** is leading and vehicle id wants to join the platoon.
+  *** These are the only cases.
+  op leading : IdSet -> Mode .
+  op fuseStartRear : Id Id -> Mode .
+  op fuseRear : Id Id SymTerm Loc -> Mode .
+  op following : Id -> Mode .
+  ops nonplatoon
+      fuseOutStart 
+      fuseOut emergency 
+      split : -> Mode .
+
+  *** In off mode, the second parameter is not important.
+  op mode : Id Mode -> Info .
+  *** platoon spec
+  op platoon : Id IdList -> Info .
+  op leader : Id -> Info .
+  op loc : SymTerm SymTerm -> Loc .
+  op getX : Loc -> SymTerm .
+  op getY : Loc -> SymTerm .
+  eq getX(loc(ffx0,ffy0)) = ffx0 .
+  eq getY(loc(ffx0,ffy0)) = ffy0 .
+
+  sorts NatSymTermBoolean NatLocBoolean .
+  op {_,_,_} : Nat SymTerm Boolean -> NatSymTermBoolean .
+  op {_,_,_} : Nat Loc Boolean -> NatLocBoolean .
+
+  op ldist : Nat Loc Loc -> NatSymTermBoolean .
+  ops xldist yldist manhdist : Nat Loc Loc -> NatSymTermBoolean .
+  op closestYdist : Nat Loc Loc Loc -> NatSymTermBoolean .
+  eq ldist(i,loc(ffx0,ffy0),loc(ffx1,ffy1))
+   = {s(i),vv(i,"distance"),
+      vv(i,"distance") * vv(i,"distance") === 
+       ((ffy1 - ffy0) * (ffy1 - ffy0) + 
+        (ffx1 - ffx0) * (ffx1 - ffx0)) 
+       and (vv(i,"distance") >= 0/1)} .
+  eq xldist(i,loc(ffx0,ffy0),loc(ffx1,ffy1))
+   = {s(i),vv(i),vv(i) === (ffx1 - ffx0) and (vv(i) >= 0/1)} .
+
+  eq yldist(i,loc(ffx0,ffy0),loc(ffx1,ffy1))
+   = {s(i),vv(i,"y-distance"),
+       vv(i,"y-distance") === (ffy1 - ffy0) and
+       (vv(i,"y-distance") >= 0/1)} .
+
+  eq manhdist(i,loc(ffx0,ffy0),loc(ffx1,ffy1))
+   = {i + 3,vv(i + 2,"manh-distance"),
+      ((ffx0 >= ffx1) implies vv(i) === (ffx0 - ffx1)) and 
+      ((ffx0 < ffx1) implies vv(i) === (ffx1 - ffx0)) and
+      ((ffy0 >= ffy1) implies vv(s(i)) === (ffy0 - ffy1)) and 
+      ((ffy0 < ffy1) implies vv(s(i)) === (ffy1 - ffy0)) and 
+      vv(i + 2,"manh-distance") === vv(i) + vv(s(i)) 
+      and (vv(i + 2,"manh-distance") >= 0/1)} .
+
+  ceq closestYdist(i,loc(ffx0,ffy0),loc(ffx1,ffy1),loc(ffx2,ffy2))
+   = {s(i),vv(i,"closest-distance"),cond0 or cond1}
+   if cond0 := (ffy1 <= ffy2) and (vv(i,"closest-distance") === (ffy1 - ffy0))
+   /\ cond1 := (ffy1 > ffy2) and (vv(i,"closest-distance") === (ffy2 - ffy0)) .
+
+*** Updates location of an agent moving on Y
+*** with a given speed
+***                      pos   dis   
+  op upVLocDirY : Nat Id Loc SymTerm -> NatLocBoolean .
+  ceq upVLocDirY(i,id,loc(ffx,ffy),spd)
+   = {i + 1,loc(ffx,nuVar),cond} 
+   if nuVar := mkNuVar(i,id,"-positionY")
+   /\ cond := nuVar === ffy + spd .
+
+***                  pos  spd      dir
+  op upVLoc : Nat Id Loc SymTerm Info -> NatLocBoolean .
+  ceq upVLoc(i,id,loc(ffx,ffy),spd,
+     dir(id,loc(ffx0,ffy0),loc(ffx1,ffy1),dist))
+   = {i + 2,loc(nuVarX,nuVarY),cond}
+   if nuVarX := mkNuVar(i,id,"-positionX")
+   /\ nuVarY := mkNuVar(i + 1,id,"-positionY")
+   *** Assumption is that the direction locations are different.
+   /\ cond1 := (ffx0 === ffx1) and
+               (not (ffy0 === ffy1)) and
+               (nuVarX === ffx) and 
+               (nuVarY === ffy + spd)
+   /\ cond2 := (ffy0 === ffy1) and
+               (not (ffx0 === ffx1)) and
+               (nuVarX === ffx + spd) and
+               (nuVarY === ffy)
+   /\ cond3 := (not (ffx0 === ffx1)) and 
+               (not (ffy0 === ffy1)) and
+               (nuVarX === (ffx + 
+                    spd * (ffx1 - ffx0) / dist)) and
+               (nuVarY === (ffy + 
+                    spd * (ffy1 - ffy0) / dist)) 
+   /\ cond := cond1 or cond2 or cond3 .
+
+op sameLoc : Loc Loc -> Boolean .
+eq sameLoc(loc(ff1,ff2),loc(ff3,ff4))
+ = ff1 === ff3 and ff2 === ff4 .
+  
+*** Protocol States
+op st : Id String PAttrs -> Info .
+
+sort PAttr PAttrs .
+subsort PAttr < PAttrs .
+op none : -> PAttrs [ctor] .
+op __ : PAttrs PAttrs -> PAttrs [ctor assoc comm id: none] .
+
+*** Infrastructure Knowledge 
+
+op sensedVeh : Id Id SymTerm -> Info .
+*** InfraId VehId Loc Tol Content
+op i2vTrigger : Id Id SymTerm SymTerm Content -> Info .
+
+*** Protocol Messages
+sort Msg . 
+sorts ProtName Content .
+**** from to (protocol name) content .
+op msg : Id Id String Content -> Msg . 
+op msg : Id Id Content -> Msg . 
+op hbl2f : Id SymTerm Loc KB -> Content .
+op hbf2l : Id SymTerm Loc -> Content .
+op hbl2j : Id Id SymTerm Loc -> Content .
+op hbj2l : Id Id SymTerm Loc -> Content .
+op joined : Id Id SymTerm Loc -> Content .
+op i2vmsg : Id Id Content -> Msg . 
+op d : Rat -> Content [ctor] .
+sort TMsg .
+op _@_ : Msg Nat -> TMsg .
+
+op getRecId : TMsg -> Id .
+op getRecId : Msg -> Id .
+eq getRecId(mg @ t) = getRecId(mg) .
+eq getRecId(msg(id,id1,s:String,cnt)) = id1 . 
+eq getRecId(msg(id,id1,cnt)) = id1 . 
+eq getRecId(i2vmsg(id,id1,cnt)) = id1 . 
+
+**** I2V Content
+op nuPlatoon : -> Content .
+op join : Id -> Content .
+op i2vEmergency : Id -> Content .
+
+**** Found Suitable Protocol 
+ops canJoin KO emergency : -> Content .
+op OK : Id SymTerm Loc -> Content .
+op snd`:_ : Id -> PAttr .
+op rec`:_ : Id -> PAttr .
+op name`:_ : String -> PAttr .
+
+*** Maximum acceleration
+  op maxAcc : Id SymTerm -> PKItem .
+  op maxDec : Id SymTerm -> PKItem .
+  op velb : Id SymTerm SymTerm -> PKItem .
+  op gapGreen : Id RealSym RealSym -> PKItem .
+  op gapSafety : Id RealSym RealSym -> PKItem .
+  op gapSafety : Id RealSym RealSym RealSym -> PKItem .
+**** max communication distance
+	op comDist : Nat -> PKItem [ctor] .
+  op getComDist : KB -> Nat .
+  eq getComDist(comDist(n) kb) = n .
+  eq getComDist(kb) = 0 [owise] .
+
+  op getComDistKI :  KB -> KB .
+  eq getComDistKI(comDist(n) kb) = comDist(n) .
+  eq getComDistKI(kb) = none [owise] .
+
+*** Comm sharing
+  *** v2all(true) denotes that all vehicles in the platoon
+  *** can share data among each other. 
+  *** v2all(false) denotes that only vehicle to leader comm
+  *** is allowed.
+***(
+  op v2all : Bool -> PKItem .
+  op v2v : Bool -> PKItem .
+  op i2v : Bool -> PKItem .
+)
+
+**** for modeling faults 
+  op randInc : Nat -> KItem .
+  op rand : Id Nat Nat -> Info .
+
+**** abstracting random numbers to [0,1]
+  ops randMax rand.25 rand.5 rand.75 rand.125 : -> Nat .
+  eq randMax = 4294967295 .
+	eq rand.25 = 1073741824 .
+	eq rand.5  = 2147483647 .
+	eq rand.75 = 3221225471 .
+  eq rand.125 = 536870912 .
+
+*** partial order
+****  eq (clock(t0)) << (clock(t1)) = t0 < t1 .
+  eq (mode(id,md) @ t0) << (mode(id,md1) @ t1) = t0 < t1 .
+  eq (rand(id,n0,j0) @ t0) << (rand(id,n1,j1) @ t1) 
+     = t0 < t1 .
+
+  eq (platoon(id,idL) @ t0) << (platoon(id,idL0) @ t1) 
+     = t0 < t1 .
+
+*** plausibilty knowledge facts
+sorts TimedRat TimedRatList .
+subsort TimedRat < TimedRatList .
+op _@_ : RealSym Nat -> TimedRat .
+*** Used to initialize the history of measurements
+*** when for example a vehicle joins a platoon.
+op noVal : -> TimedRat .
+op nil : -> TimedRatList .
+op _;_ : TimedRatList TimedRatList -> TimedRatList [assoc id: nil] .
+
+op upHist : Id KB -> KB .
+ceq upHist(id,kb) = kb2 
+ if kb0 (platoon(id1,idL) @ t0) := kb 
+ /\ kb1 := upHistGap(id,kb) 
+ *** we need to include the leader vehicle in the list.
+ /\ kb2 := upHistSpd(id,id1 ; idL,kb1) .
+
+eq upHist(id,kb) = kb [owise] .
+
+*** This info stores the last 
+*** gaps sensed by the car to the next car.
+op histGap : Id TimedRatList -> Info .
+
+*** This info stores the last 
+*** informed speeds of a vehicle.
+op histSpd : Id Id TimedRatList -> Info .
+
+op remLast : TimedRatList -> TimedRatList .
+eq remLast(trats ; trat) = trats .
+
+op upHistGap : Id KB -> KB .
+ceq upHistGap(id,kb
+    (gapNext(id,nuGap) @ t)
+    (histGap(id,trat0 ; trats) @ t2))
+ = kb (gapNext(id,nuGap) @ t)
+   (histGap(id,nutrats) @ t)
+ if not ((nuGap @ t) == trat0) 
+ /\ nutrats := (nuGap @ t) 
+               ; remLast(trat0 ; trats) .
+
+eq upHistGap(id,kb) = kb [owise] .
+
+*** TBD
+op upHistSpd : Id IdList KB -> KB .
+
+ceq upHistSpd(id,id1 ; idL,kb)
+ = upHistSpd(id,idL,kb1)
+ if kb0 (speed(id1,sym) @ t)
+   (histSpd(id,id1,trat0 ; trats) @ t1) := kb 
+ /\ not ((sym @ t) == trat0)
+ /\ nutrats := (sym @ t) 
+               ; remLast(trat0 ; trats) 
+ /\ kb1 := kb0 (speed(id1,sym) @ t)
+   (histSpd(id,id1,nutrats) @ t) .
+
+ eq upHistSpd(id,nil,kb) = kb .
+
+ eq upHistSpd(id,idL,kb) = kb [owise] .
+
+*** Sensor Types --- locS defined in Lib/knowledge
+ops  speedS gapS vehS : -> Sensor .
+op pedS : SymTerm -> Sensor .
+op pedS : SymTerm SymTerm -> Sensor .
+*** sensor info
+
+  --- op speed : Id Rat -> Info .
+  op speed : Id RealSym -> Info .
+  ---            dir  size of vector
+  op dir : Id Loc Loc SymTerm -> Info .
+  op gapNext : Id RealSym -> Info .
+
+  op ped : Id Loc SymTerm Loc Loc -> Info . 
+  op pedCaution : Id SymTerm -> Info . 
+
+  op accel : Id SymTerm -> Info .  --- desired speed - current speed
+  op commDelay : Id SymTerm -> Info .
+  op net : TMsg -> Info .  --- removal managed directly
+  op netI : TMsg -> Info .  --- removal managed directly
+  eq (speed(id,sym) @ t0) 
+         << (speed(id,sym1) @ t1) = t0 < t1 .
+  eq (accel(id,ff) @ t0) 
+         << (accel(id,ff1) @ t1) = t0 < t1 .
+  eq (gapNext(id,sym) @ t0) 
+         << (gapNext(id,sym1) @ t1) = t0 < t1 .
+  eq (commDelay(id,ff) @ t0) 
+         << (commDelay(id,ff1) @ t1) = t0 < t1 .
+  eq sensedVeh(id,id1,ff) @ t0 << 
+         sensedVeh(id,id2,ff1) @ t1 = t0 < t1 .
+  eq i2vTrigger(id,id2,ff,ff1,cnt) @ t0 <<
+         i2vTrigger(id,id2,ff2,ff3,cnt1) @ t1 = t0 < t1 . 
+  eq ped(id,l,spd0,l0,l1) @ t0 <<
+         ped(id,l4,spd1,l2,l3) @ t1 = t0 < t1 .
+  eq dir(id,l0,l1,mag0) @ t0 <<
+         dir(id,l2,l3,mag1) @ t1 = t0 < t1 .
+
+
+
+  *** These are used to set the mode of vehicles. 
+  *** E.g., mmsg(id,mode(id,leading(none)) specifies that the mode shall change to leading(none)
+  op mmsg : Id Info -> Info .
+
+  op idNext : Id Id -> Info .
+  eq (idNext(id,id1) @ t0) 
+        << (idNext(id,id1) @ t1) = t0 < t1 .
+    
+  op cybdelay : Rat -> PKItem .
+  op physdelay : Rat -> PKItem .
+
+  op lastComms : Id ActSet -> Info .
+
+  *** TASKS
+
+  op v2v : Id TMsg -> Task [ctor] .
+
+
+endfm	
+
+******** bot  actions
+fmod MODEL-ACTIONS is 
+  inc MODEL-KNOWLEDGE . 
+
+  vars t t0 t1 t2 t3 t4 t5 t6 : Time .
+  var n i j j0 j1 n0 n1 e e0 e1 e2 : Nat .
+	var cl : Class .
+  vars ekb ekb0 ekb1 kb  lkb kb1 lkb0 kb0 kb2 :  KB .
+  vars  ff ff0 ff1 ff2 fp0 fp1 rp0 rp1 spd acc : Rat .
+	vars act act0 act1 : Action .
+  var md : Mode .
+  var actsFuseStart : ActSet .
+  vars idList idList1 : IdList .
+  vars id id1 id2 id3 id0 : Id .
+  vars sym sym1 sym0 : RealSym .
+  vars stm stm1 stm0 stm2 : SymTerm .
+
+*** Added for simple sim.  should have two Rats
+  op actAcc : Id Rat -> Action [ctor] .
+  op actSpeed : Id SymTerm SymTerm -> Action [ctor] .
+  --- op actGap : Id -> Action [ctor] .
+  *** Send actions for the v2v communication
+  op getMinVel : Action -> SymTerm .
+  op getMaxVel : Action -> SymTerm .
+  eq getMinVel(actSpeed(id,stm1,stm2)) = stm1 .
+  eq getMaxVel(actSpeed(id,stm1,stm2)) = stm2 .
+
+  op actSnd : Id TMsg -> Action [ctor] .  
+  *** Send actions for the infrastructure
+  op actSndI : Id TMsg -> Action [ctor] .  
+  op actBCast : Id KB -> Action [ctor] . 
+  op actId : Action ~> Id .
+  eq actId(actSpeed(id,stm1,stm2)) = id .
+  eq actId(actSnd(id,tmsg:TMsg)) = id .
+  eq actId(actSndI(id,tmsg:TMsg)) = id .
+  eq actId(actBCast(id,kb)) = id .
+ 
+********* helpers
+
+  op getMode : KB -> Mode .
+  eq getMode((mode(id,md) @ t) kb) = md .
+  op getPlatoon : Id KB -> IdList .
+  eq getPlatoon(id1, (platoon(id,idList) @ t0) kb) 
+    = id ; idList .
+
+  **** Operator defined in Knowledge in Library.
+  ceq getNextVeh(id,kb) = id1   
+   if idList ; id1 ; id ; idList1 := getPlatoon(id,kb) .
+  
+  op getSpeed : Id KB -> RealSym .
+  eq getSpeed(id, (speed(id,sym) @ t0) kb) 
+    = sym .
+  ops getMaxAcc getMaxDec : Id KB -> SymTerm .
+  eq getMaxAcc(id,(maxAcc(id,stm)) kb) 
+    = stm .
+  eq getMaxDec(id,(maxDec(id,stm)) kb) 
+    = stm .
+
+  op mkSpeedAct : Id KB -> Action .  
+  ceq mkSpeedAct(id,lkb) 
+   = actSpeed(id,sym,sym) 
+   if sym := getSpeed(id,lkb) .
+
+**** Implement the mode automaton.
+ op myActs : Class Id KB -> ActSet .
+ 
+ *** non-platooning mode. 
+ eq myActs(cl,id,lkb) 
+  = mkSpeedAct(id,lkb)  [owise] .
+
+ ceq myActs(cl,id,lkb)
+  = actSpeed(id,sym + getMaxDec(id,lkb), sym + getMaxAcc(id,lkb) )
+ if sym := getSpeed(id,lkb) .
+
+*** agents model of action = maude physics when no interference
+*** returns the kb update
+
+*** actSpeed(id,ff1,ff2)
+*** actMode(id,md)  .
+op doAct :  Action KB -> KB .
+
+eq doAct(a:Action,kb) = none [owise] .
+  
+endfm
+
+fmod FAULT-MODEL is
+  inc MODEL-KNOWLEDGE .
+  
+endfm
+

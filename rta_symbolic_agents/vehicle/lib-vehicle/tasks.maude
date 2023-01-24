@@ -1,0 +1,559 @@
+*****  bot patroling from side to side (myDir flip)
+fmod MODEL-TASKS is
+  inc MODEL-ACTIONS .
+  inc VAL-SAFETY-ACTIONS .
+  inc DECIDE .
+  inc EXTERNAL-SMT .
+
+  var cl : Class .
+  var id id0 id1 idP idJ idLast idLast0 id2 idV : Id .
+  var ievs : EventSet .
+  var devs devs0 devs1 devs2 devsHB devBCs devV2V : EventSet .
+  var skb lkb lkb2 lkb1 lkb3 lkb4 lkb5 lkb0 kb0 kb kbp kbp0 kb1 : KB .
+  var racts : RActSet .
+  vars t t1 t0 t2 t3 n t4 t5 : Nat .
+  vars acts acts0 myActs : ActSet .
+  vars rv0 rval : RVal .
+  var tmsg : TMsg .
+  var mg : Msg .
+  vars ff ff0 ff1 dist ff2 ftol ff3 spd : SymTerm .
+  var act : Action .
+  var attrs : PAttrs .
+  vars kbevkbset kbevkbset0 : SKBEventsKBSet .
+  var tsk : Task .
+  vars tsks tsks1 : TaskSet .
+  var idL : IdList .
+  vars l l1 l2 l0 : Loc .
+  var cnt : Content .
+  var str : String .
+  var ids : IdSet .
+  vars i j : Nat .
+ var symRact : SymRAct .
+ vars symRacts symRacts0 symRacts1 : SymRActSet .
+ vars cond cond0 cond1 cond2 : Boolean .
+ vars u u1 : UVal .
+ vars dotasksACC doTaskRes doTaskRes1 : DoTaskResults .
+ vars nsrsAcc : NatSymRActSets .
+  ***( cl: Class
+   id: ID
+   tick: tick task to decide an action
+   ievs: immediate events that have to be carried
+         out at this tick, typically, the messages 
+         that are to be received.
+   devs: delayed events
+   skb: sensor knowledge base
+   lkb: local knowledge base
+  )
+
+*** VN: TO BE MOVED PROBABLY IN EVENTS
+ op {_,_} : UVal Action -> SRAct .
+
+ op getKBEventsKBSet : NatKBEventsKBSet -> SKBEventsKBSet .
+  op getNat : NatKBEventsKBSet -> Nat .
+  eq getKBEventsKBSet({j,kbevkbset}) = kbevkbset .
+  eq getNat({j,kbevkbset}) = j .
+
+  op selector : SKBEventsKBSet -> SKBEventsKBSet .
+  eq selector(kbset:SKBEventsKBSet) = kbset:SKBEventsKBSet [owise] .
+
+  op remember : Id Action KB -> KB .
+  eq remember(id,act,lkb clock(t)) = addK(lkb,lastAct(act) @ t) clock(t) .
+
+  ceq doTasks(cl,id,i,tsks,ievs,devs,skb,lkb,cond)
+   = doTasks$(cl,id,i,tsks1,devs,lkb3,none,none,cond)
+   if lkb0 := handleS(cl,id,lkb,ievs)
+   /\ lkb2 := proSensors(id,lkb0,skb)
+   *** Update history of plausibility checks.
+   *** In fact, on the gap history is updated.
+   /\ lkb3 := upHist(id,lkb2)
+   /\ tsks1 := validTasks(id,lkb,tsks,none) .
+
+op validTasks : Id KB TaskSet TaskSet -> TaskSet .
+eq validTasks(id,lkb,tick tsks,tsks1) 
+ = validTasks(id,lkb,tsks,tsks1 tick) .
+
+ceq validTasks(id,lkb 
+   (clock(t1)),v2v(id,mg @ t) tsks,tsks1)
+ = validTasks(id,lkb (clock(t1)),tsks,v2v(id,mg @ t) tsks1)
+ if (t1 < t + 3) .
+
+eq validTasks(id,lkb,tsks,tsks1) 
+ = tsks1 [owise] .
+
+  op doTasks$ : Class Id Nat TaskSet EventSet 
+                KB EventSet KB Boolean -> DoTaskResults . 
+
+*** Case tsk =/= tick
+  ceq doTasks$(cl,id,i,tsk tsks,devs,lkb,devs0,kb0,cond) 
+   = doTaskRes1
+   --- doTasks$(cl,id,j,tsks,devs,lkb1,devs1 devs0,kb1 kb0,cond1)
+   if not (tsk == tick)
+   --- /\ {j,{lkb1,devs1,kb1,cond1}} := doTask(cl,id,i,tsk,none,devs,none,lkb,cond) .
+   /\ doTaskRes := doTask(cl,id,i,tsk,none,devs,none,lkb,cond) 
+   *** Apply doTasks$ recursively to all cases in doTaskRes and remaining tasks tsk
+   /\ doTaskRes1 := doTasks$$(cl,id,tsks,devs,devs0,kb0,doTaskRes,none) .
+
+  op doTasks$$ : Class Id TaskSet EventSet EventSet KB
+                 DoTaskResults DoTaskResults -> DoTaskResults .
+  *** no more DoTaskResults to recurse on
+  eq doTasks$$(cl,id,tsks,devs,devs0,kb0,none,dotasksACC) = dotasksACC .
+  *** Continue processing the next tasks on one of the doTaskResults
+  ceq doTasks$$(cl,id,tsks,devs,devs0,kb0,
+                {j,{lkb1,devs1,kb1,cond1}} doTaskRes,dotasksACC)
+   = doTasks$$(cl,id,tsks,devs,devs0,kb0,
+                doTaskRes,doTaskRes1 dotasksACC)
+   if doTaskRes1 := doTasks$(cl,id,j,tsks,devs,lkb1,
+                             devs1 devs0,kb1 kb0,cond1) .
+
+ *** Case tsk == tick
+  ceq doTasks$(cl,id,i,tick,devs,lkb,devs0,kb0,cond)
+   = add(devs0,kb0,doTaskRes,none)
+   if doTaskRes := doTask(cl,id,i,tick,none,devs,none,lkb,cond) .
+
+  --- ceq doTasks$(cl,id,i,tick,devs,lkb,devs0,kb0,cond)
+  ---  = {j,add(devs0,kb0,kbevkbset,none)}
+  ---  if {j,kbevkbset} := doTask(cl,id,i,tick,none,devs,none,lkb,cond) .
+
+  op add : EventSet KB DoTaskResults DoTaskResults -> DoTaskResults .
+  eq add(devs0,kb0,none,dotasksACC) = dotasksACC .
+  eq add(devs0,kb0,{j,kbevkbset} doTaskRes,dotasksACC)
+   = add(devs0,kb0,doTaskRes,{j,add(devs0,kb0,kbevkbset,none)} dotasksACC) .
+
+ *** no tasks left
+  eq doTasks$(cl,id,i,none,devs,lkb,devs0,kb0,cond)
+   = none .
+
+  --- eq doTasks$(cl,id,i,none,devs,lkb,devs0,kb0,cond)
+  ---  = {i,{lkb,devs0,kb0,cond}} .
+
+  op add : EventSet KB SKBEventsKBSet SKBEventsKBSet -> SKBEventsKBSet .
+  eq add(devs,kb,{lkb1,devs1,kb1,cond} kbevkbset,kbevkbset0) 
+   = add(devs,kb,kbevkbset,{lkb1,devs devs1,kb kb1,cond} kbevkbset0) .
+  eq add(devs,kb,none,kbevkbset0) = kbevkbset0 .
+
+  eq doTask(infra,id,tick,ievs,devs,skb,lkb)
+   = {lkb,devs checkTriggers(id,lkb,none) (tick @ tickDelay),none} .
+  
+  *** This function check for Triggers sent by the infrastructure, such as, setting a new platoon, or fusing from rear.
+  op checkTriggers : Id KB EventSet -> EventSet .
+  ceq doTask(pedestrian,id,i,tick,ievs,devs,skb,lkb,cond) 
+   = {i,kbevkbset} 
+   if (speed(id,spd) @ t0) kb := lkb 
+   /\ symRacts := {u(1/1),actSpeed(id,spd,spd),cond} 
+   /\ kbevkbset := mkKBEvSets(lkb,devs (tick @ tickDelay),symRacts,none) .
+
+  ceq doTask(veh,id,i,tick,ievs,devs,skb,lkb,cond) 
+   = dotasksACC
+   if devsHB := hbComm(id,lkb)
+   /\ lkb2 := timeouts(id,lkb)
+   *** Send acts generated by mode switch.  
+   *** They should be performed immediately.
+   /\ nsrsAcc := actSCP(veh,i,id,lkb2,cond)
+   /\ dotasksACC :=  mkKBEvSets(lkb2,devs devsHB,nsrsAcc,none) .
+  
+  op actSCP : Class Nat Id KB Boolean -> NatSymRActSets .
+  ceq actSCP(cl,i,id,kb,cond) 
+   = nsrsAcc
+   if acts0 := myActs(cl,id,kb)
+   /\ nsrsAcc := vals(id,i,kb,acts0,cond) .
+   --- /\ symRacts0 := getSat(symRacts,none) .
+
+  op mkKBEvSets : KB EventSet NatSymRActSets
+            DoTaskResults -> DoTaskResults .
+  eq mkKBEvSets(lkb,devs,none,dotasksACC) = dotasksACC .
+  eq mkKBEvSets(lkb,devs,{j,symRacts} nsrsAcc,dotasksACC) 
+   = mkKBEvSets(lkb,devs,nsrsAcc,
+       {j, mkKBEvSets(lkb,devs (tick @ tickDelay),symRacts,none)} 
+       dotasksACC) .
+
+  op mkKBEvSets : KB EventSet SymRActSet  SKBEventsKBSet -> SKBEventsKBSet .
+  eq mkKBEvSets(lkb,devs,{u1,act,cond} symRacts, kbevkbset) 
+   = mkKBEvSets(lkb,devs,symRacts,
+      {lkb,devs ({u1,act} @ 0),none,cond} kbevkbset) .
+
+  eq mkKBEvSets(lkb,devs,none,kbevkbset)
+   = kbevkbset .
+   
+  op hbComm : Id KB -> EventSet .
+  eq hbComm(id,kb) = none [owise] .
+
+**** leader to follower
+*** It sends the current speed of all 
+*** vehicles in the platoon.
+  eq hbComm(id,lkb clock(t)
+     (atloc(id,l) @ t0) 
+     (speed(id,ff) @ t1)
+     (mode(id,leading(none)) @ t2)
+     platoon(id,idL) @ t3) 
+   = v2vBC(id,idL,hbl2f(id,ff,l,followerKB(idL,lkb,(platoon(id,idL) @ t3))),
+           t,none) .
+
+  ceq hbComm(id,lkb clock(t)
+     (atloc(id,l) @ t0) 
+     (speed(id,ff) @ t1) 
+     (mode(id,leading(id1)) @ t2)
+     (platoon(id,idL) @ t3)) 
+   = v2vBC(id,idL,hbl2f(id,ff,l,followerKB(idL,lkb,none)
+     (platoon(id,idL) @ t3)),
+           t,none)  
+     actSnd(id,msg(id,id1,hbl2j(id,id2,ff2,l2)) @ t) @ 0 
+   if id2 := getLast(id,idL) 
+   /\ (atloc(id2,l2) @ t4) (speed(id2,ff2) @ t5) lkb0 := lkb
+   .
+
+*** speed and loc K for idL
+op followerKB : IdList KB KB -> KB .
+eq followerKB(id ; idL, (atloc(id,l) @ t0) lkb, kb)
+    = followerKB(id ; idL,lkb,kb (atloc(id,l) @ t0)) .
+eq followerKB(id ; idL,(speed(id,ff) @ t0) lkb, kb)
+    = followerKB(id ; idL,  lkb, kb (speed(id,ff) @ t0)) .
+eq followerKB(id ; idL, lkb, kb)
+    = followerKB(idL, lkb, kb) [owise] .
+eq followerKB(nil, lkb,kb) = kb  .
+
+**** follower
+  eq hbComm(id,lkb clock(t)
+     (atloc(id,l) @ t0) 
+     (speed(id,ff) @ t1)
+     (mode(id,following(idP)) @ t2)) 
+   = actSnd(id,msg(id,idP,hbf2l(id,ff,l)) @ t) @ 0 .
+
+**** joiner
+  eq hbComm(id,lkb clock(t)
+     (atloc(id,l) @ t0) 
+     (speed(id,ff) @ t1)
+     (mode(id,fuseRear(idP,idLast,ff2,l2)) @ t2)) 
+   = actSnd(id,msg(id,idP,hbj2l(id,idLast,ff,l)) @ t) @ 0 .
+
+  op v2vBC : Id IdList Content Nat EventSet -> EventSet .
+  eq v2vBC(id,id1 ; idL,cnt,t,devs)
+   = v2vBC(id,idL,cnt,t,devs
+     actSnd(id,msg(id,id1,cnt) @ t) @ 0) .
+  eq v2vBC(id,nil,cnt,t,devs) = devs .
+
+  op timeouts : Id KB -> KB .
+  eq timeouts(id,kb) = kb [owise] .
+
+  *** Function simply integrates the sensing knowledge base into the local knowledge base
+  op proSensors : Id KB KB -> KB .
+  eq proSensors(id,lkb,skb) 
+   = addK(lkb,skb) .
+
+  sort KBEventsEvents .
+  op {_,_,_} : KB EventSet EventSet -> KBEventsEvents .
+  *** Join Protocol *** 
+  *** 
+  *** Function computes a mode from a KB. 
+  op setMode : Id KB -> KBEventsEvents .
+  *** mmsg produced by handleX processing v2v/i2v tasks
+**** rcd nuPlatoon
+  eq setMode(id,
+     (mode(id,nonplatoon) @ t1) clock(t)
+     (mmsg(id,mode(id,leading(none))) @ t2) kb) = 
+     {(mode(id,leading(none)) @ t) clock(t) kb, 
+        actBCast(id,leader(id) @ t) @ 0, none } .
+
+**** rcd join(idP)
+  eq setMode(id,(mode(id,leading(none)) @ t1) clock(t) 
+    (mmsg(id,(mode(id,fuseStartRear(id,idP)))) @ t2) kb)
+   = {(mode(id,fuseStartRear(id,idP)) @ t) clock(t)
+      (st(id,"fuse", (snd : id) (rec : idP) 
+                     (name : "CanJoin") ) @ t) kb, 
+      none,
+      actSnd(id,msg(id,idP,"fuse",canJoin) @ t) @ 0 } .
+
+**** rcvd OK
+  eq setMode(id,  
+      (mode(id,fuseStartRear(id,idP)) @ t1) 
+      (clock(t))
+      (mmsg(id,mode(id,fuseRear(idP,idLast,ff,l))) @ t2) kb)
+   = {(mode(id,fuseRear(idP,idLast,ff,l)) @ t) clock(t) kb, 
+      none, none} .
+
+**** rcvd KO
+  eq setMode(id,  
+      (mode(id,fuseStartRear(id,idP)) @ t1) 
+      (clock(t))
+      (mmsg(id,mode(id,leading(none))) @ t2) kb)
+   = {(mode(id,leading(none)) @ t) clock(t) kb, 
+      none, none} .
+
+**** rcvd CanJoin from id1 and accepted
+****  handleX sent the "fuse" protocol reply
+  eq setMode(id,(mode(id,leading(none)) @ t1) clock(t) 
+    (mmsg(id,(mode(id,leading(id1)))) @ t2) kb)
+   = {(mode(id,leading(id1)) @ t) clock(t) kb, 
+      none, none} .
+
+**** rcvd joined      
+  eq setMode(id,
+      (mode(id,fuseRear(idP,idLast,ff,l)) @ t1)
+      clock(t) 
+      (mmsg(id,mode(id,following(idP))) @ t2)  kb)
+   = {(mode(id,following(idP)) @ t) clock(t) kb, 
+      none, none} .
+
+ **** rcvd hbj2l triggering joined
+ **** handleX updated lkb and send joined
+  eq setMode(id,
+       (mode(id,leading(id1)) @ t1)
+       (mmsg(id,mode(id,leading(none))) @ t2) lkb)
+    = {(mode(id,leading(none)) @ t2)  lkb, none, none}
+    .
+
+*** leader setting mode to emergency 
+*** The leader shall inform all vehicles in 
+*** the platoon that there is an emergency.
+*** Notice that the platoon is disolved.
+*** This shall be thought of...
+
+  eq setMode(id,(mode(id,leading(none)) @ t1) clock(t) (platoon(id,idL) @ t3) 
+    (mmsg(id,(mode(id,emergency))) @ t2) kb)
+   = {(mode(id,emergency) @ t) clock(t) kb, 
+      none,
+      mkActSnds(id,idL,"emergency",emergency,t,0,none)} .
+
+op mkActSnds : Id IdList String Content Nat Nat EventSet -> EventSet .
+eq mkActSnds(id,id1 ; idL,str,cnt,t0,t1,devs)
+ = mkActSnds(id,idL,str,cnt,t0,t1,
+   (actSnd(id,msg(id,id1,str,cnt) @ t0) @ t1) devs) .
+eq mkActSnds(id,nil,str,cnt,t0,t1,devs) 
+ = devs .
+
+*** followers changing to emergency mode.
+  eq setMode(id,(mode(id,following(id1)) @ t1) clock(t) 
+    (mmsg(id,(mode(id,emergency))) @ t2) kb)
+   = {(mode(id,emergency) @ t) clock(t) kb,none,none} .
+
+*** Otherwise do nothing
+
+  eq setMode(id,kb) = {kb,none,none} [owise] .
+
+**** bot processes shared information (rcv(kb) events)
+**** This shall depend on the capabilities of the vehicle, e.g., v2v, i2v, v2all
+  op handleS : Class Id KB EventSet -> KB .
+  eq handleS(cl,id,lkb,rcv(kb) ievs) =
+        handleS(cl,id,addK(lkb,kb),ievs) .
+  eq handleS(cl,id,lkb,ievs) = lkb [owise] . 
+
+op rememberComms : Id ActSet KB -> KB .
+ eq rememberComms(id,acts,lkb clock(t)) = addK(lkb,lastComms(id,acts) @ t) clock(t) .
+  op tell : Id Action KB -> KB .
+  op tell : Id EventSet -> KBEvents .
+  eq tell(id,act,kb) = none [owise] .
+
+***  op actBCast : Id KB -> Action [ctor] . 
+  op tellX : Id EventSet KB -> KBEvents .
+  eq tell(id,devs) = tellX(id,devs,none) .
+  eq tellX(id,(actBCast(id,kb) @ t) devs,kb0) 
+     = tellX(id,devs,addK(kb,kb0)) .
+  eq tellX(id, devs,kb0) = {kb0,devs} [owise] .
+
+  *** Task for v2v, namely, running protocols between vehicles.
+
+  ceq doTask(cl,id,i,v2v(id,tmsg),
+             ievs,devs,skb,lkb,cond) 
+   = {j,kbevkbset0}
+       *** Handle immediate events
+   if  *** Handle the (cyber) communication, i.e., v2v message
+    {j,kbevkbset} := handleXBool(i,id,lkb,tmsg,cond)
+   *** Update the history used for 
+   *** plausibility checks (see knowledge). In fact, it only updates the speed history here.
+   --- /\ lkb5 := upHist(id,lkb3)
+       *** Update mode, e.g., emergency braking
+   /\ kbevkbset0 := setModes(id,kbevkbset,none) .
+
+*** HandleX computes possible mode changes and response
+*** according to the v2v protocol specifications.
+op setModes : Id SKBEventsKBSet SKBEventsKBSet -> SKBEventsKBSet .
+
+ ceq setModes(id,{lkb,devs,lkb2,cond} kbevkbset,kbevkbset0)
+  = setModes(id,kbevkbset, {lkb4,devs devV2V,kbp,cond} kbevkbset0)
+  if {lkb4,devBCs,devV2V} := setMode(id,lkb)
+  /\ {kbp,none} := tell(id,devBCs) .
+
+ eq setModes(id,none,kbevkbset0) 
+  = kbevkbset0 .
+ 
+op handleXBool : Nat Id KB TMsg Boolean -> NatKBEventsKBSet .
+op handleX : Nat Id KB TMsg Boolean -> NatKBEventsBoolean .
+
+************************
+****** HB joining Handles
+****** Case when the vehicle behind is close enough.
+************************
+ceq handleXBool(i,id,lkb,tmsg,cond)
+ = {j,{lkb1,devs,none,cond and cond1 and (dist < joinThresh)} 
+   {lkb,none,none,cond and cond1 and (dist >= joinThresh)}}
+ if (msg(id1,id,hbj2l(id1,idLast,ff,l1)) @ t3) := tmsg 
+  /\ (clock(t) 
+     (atloc(idLast,l0) @ t0)
+     (speed(idLast,ff3) @ t4) 
+     (mode(id,leading(id1)) @ t1) 
+     (platoon(id,idL) @ t2) lkb0)  := lkb
+  /\ {j,dist,cond1} := ldist(i,l1,l0)
+  /\ lkb1 := addK(lkb,
+         (platoon(id,idL ; id1) @ t)
+         (mmsg(id,mode(id,leading(none))) @ t) 
+         (atloc(id1,l1) @ t3) (speed(id1,ff) @ t3) )
+  /\ devs := actSnd(id,msg(id,id1,
+                  joined(id,idLast,ff3,l0)) @ t) @ 0 .
+
+ *** handleX are communications that do not involve constraints.
+ ceq handleXBool(i,id,lkb,tmsg,cond)
+  = {j,{lkb3,devs0,none,cond1}}
+ if {j,{lkb3,devs0},cond1} := handleX(i,id,lkb,tmsg,cond) [owise] .
+
+************************
+****** V2V/I2V Handles
+************************
+
+*** fuse protocol ****
+
+**** leader rcvs join request
+ceq handleX(i,id,lkb,
+       msg(idJ,id,"fuse",canJoin) @ t4,cond) 
+ = if canJoin?(id,idJ,lkb,t) then
+      {i,{(mmsg(id,mode(id,leading(idJ))) @ t) lkb,
+       actSnd(id,msg(id,idJ,"fuse",
+                     OK(id2,ff,l)) @ t) @ 0},cond}
+   else {i,{lkb, 
+    actSnd(id,msg(id,idJ,"fuse",KO) @ t) @ 0},cond} fi 
+ if id2 := getLast(id,lkb) 
+ /\ (mode(id,leading(none)) @ t1) 
+   clock(t) (atloc(id2,l) @ t2)
+   (speed(id2,ff) @ t3) lkb0 := lkb .
+
+**** joiner waiting for reply
+ eq handleX(i,id,lkb
+   (st(id,"fuse",
+     (snd : id) (rec : idP) 
+     (name : "CanJoin") attrs) @ t0)
+   clock(t) 
+   (mode(id,
+        fuseStartRear(id,idP)) @ t1),
+    msg(idP,id,"fuse",OK(idLast,ff,l)) @ t2,cond) 
+ =  if t2 <= 2 + t0 then 
+    {i,{lkb clock(t) (mode(id,fuseStartRear(id,idP)) @ t1) 
+     mmsg(id,mode(id,fuseRear(idP,idLast,ff,l))) @ t,none},cond}
+    else 
+    {i,{lkb clock(t) 
+     (mode(id,fuseStartRear(id,idP)) @ t1)
+     mmsg(id,mode(id,leading(none))) @ t,none},cond} fi .
+
+eq handleX(i,id,
+  (st(id,"fuse",(snd : id) (rec : idP) (name : "CanJoin") attrs) @ t0) 
+  clock(t)
+   (mode(id,fuseStartRear(id,idP)) @ t1) lkb,
+     msg(idP,id,"fuse",KO) @ t2,cond) 
+ =  {i,{lkb 
+     (mode(id,fuseStartRear(id,idP)) @ t1)
+     clock(t)
+     mmsg(id,mode(id,leading(none))) @ t,none},cond} .
+
+*** Followers receiving an emergency message from the leader. Then simply change mode to emergency.
+*** TODO: Here we should add the plausibility check mode instead.
+eq handleX(i,id,lkb clock(t) (mode(id,following(idP)) @ t1),
+       msg(idP,id,"emergency",emergency) @ t2,cond)
+ = {i,{lkb clock(t) 
+    (mode(id,following(idP)) @ t1)
+    (mmsg(id,mode(id,emergency)) @ t),none},cond} .
+
+*** handling i2v msgs ****
+eq handleX(i,id,lkb 
+       (mode(id,nonplatoon) @ t1)
+       clock(t), 
+       i2vmsg(id1,id,nuPlatoon) @ t2,cond)
+ =  {i,{lkb clock(t) 
+    (mode(id,nonplatoon) @ t1)
+     mmsg(id,mode(id,leading(none))) @ t,none},cond} .
+
+eq handleX(i,id,lkb 
+       (mode(id,leading(none)) @ t1)
+       clock(t), 
+       i2vmsg(id1,id,join(idP)) @ t2,cond)
+ =  {i,{lkb clock(t) 
+     (mode(id,leading(none)) @ t1)
+     mmsg(id,mode(id,fuseStartRear(id,idP))) @ t,none},cond} .
+
+*** Leader receiving an emergency
+eq handleX(i,id,lkb 
+       (mode(id,leading(ids)) @ t1)
+       clock(t), 
+       i2vmsg(id1,id,i2vEmergency(id)) @ t2,cond)
+ =  {i,{lkb clock(t) 
+     (mode(id,leading(ids)) @ t1)
+     mmsg(id,mode(id,emergency)) @ t,none},cond} .
+
+************************
+****** HB Handles
+************************
+---- follower updates its knowledge of platoon
+ceq handleX(i,id,lkb, 
+            (msg(id1,id,hbl2f(id1,ff,l,kb)) @ t3),cond)
+  = {i,{lkb2, none},cond}
+if (mode(id,following(id1)) @ t0) clock(t) lkb0 := lkb
+/\ lkb1 := kb (atloc(id1,l) @ t3) (speed(id1,ff) @ t3) 
+/\ lkb2 := addK(lkb,lkb0 lkb1 ) .
+
+***(
+op updateGap : Id KB KB -> KB .
+ceq updateGap(id,lkb,lkb1) = (gapNext(id,ldist(l1,l)) @ t)
+if (clock(t) (idNext(id,id1) @ t1) (atloc(id,l) @ t2) lkb0)
+   := lkb
+/\ (atloc(id1,l1) @ t2) lkb2 := lkb1 .
+
+eq updateGap(id,lkb,lkb1) = none [owise] .
+)
+------ leader updates its local kb with follower info
+ceq handleX(i,id,lkb, 
+           (msg(id1,id,hbf2l(id1,ff,l)) @ t3),cond)
+    = {i,{addK(lkb,(atloc(id1,l) @ t3) (speed(id1,ff) @ t3)),
+       none},cond}
+if (mode(id,leading(id?:IdSet)) @ t0) clock(t) 
+   (platoon(id,idL) @ t1) lkb0 := lkb
+/\ eltOf(id1,idL)    
+.
+
+************************
+****** HB joining Handles
+************************
+**** handleX needs to send the joined msg
+**** since it knows the last before joining
+*** Look for handleXBool for the case when the vehicle is close enough to finish the join maneauver.
+ eq handleX(i,id,lkb 
+       (mode(id,fuseRear(idP,idLast0,ff0,l0)) @ t1)
+       clock(t), 
+     msg(idP,id,hbl2j(idP,idLast,ff,l)) @ t3,cond)
+ =  {i,{lkb clock(t)
+      mode(id,fuseRear(idP,idLast,ff,l)) @ t,none},cond} .
+
+ceq handleX(i,id,lkb 
+       (mode(id,fuseRear(idP,idLast0,ff0,l0)) @ t1)
+       (atloc(id,l) @ t2) clock(t), 
+    msg(idP,id,joined(idP,idLast,ff1,l1)) @ t3,cond)
+ =  {j,{(lkb clock(t) (atloc(id,l) @ t2) 
+     (mode(id,fuseRear(idP,idLast0,ff0,l0)) @ t1)
+     (mmsg(id,mode(id,following(idP))) @ t)
+     (idNext(id,idLast) @ t) (gapNext(id,dist) @ t)
+     (atloc(idLast,l1) @ t3) (speed(idLast,ff1) @ t3)),
+      none},cond and cond1}
+ if {j,dist,cond1} := ldist(i,l1,l).
+
+eq handleX(i,id,lkb,tmsg,cond) = {i,{lkb,none},cond} [owise] .
+
+*** Returns true if a leader accepts a vehicle to join.
+op canJoin? : Id Id KB Nat -> Bool .
+eq canJoin?(id,id1,
+        (mode(id,leading(none)) @ t1) lkb,n) = true .
+eq canJoin?(id,id1,lkb,n) = false [owise] .
+
+*** Returns the id of the last veh in the platoon led by id.
+op getLast : Id KB -> Id .
+op getLast : Id IdList -> Id .
+eq getLast(id,(platoon(id,idL ; idLast) @ t) lkb) 
+ = idLast .
+eq getLast(id,lkb) = id [owise] .
+eq getLast(id,idL ; id1) = id1 .
+eq getLast(id,nil) = id .
+endfm

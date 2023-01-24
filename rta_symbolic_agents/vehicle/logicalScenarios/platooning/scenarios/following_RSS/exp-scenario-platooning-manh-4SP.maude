@@ -1,0 +1,184 @@
+***( Case when there is a crash without specifying 
+explicitly a gap or positions.)
+ mod SCENARIO-PLATOONING is
+ inc SCENARIO-TEMPLATE-PLATOONING-MAH .
+ 
+*** Define resolveKB
+*** Scenario where the vehicle in front is in
+*** constant speed, while the vehicle in the back is following.
+ vars numVars stp : Nat .
+vars b1 b2 b3 : Bool .
+var conf : Conf .
+var env : Env .
+var lkb : KB .
+var id0 : Id .
+vars ff0 ff1 ff2 ff3 : SymTerm .
+vars t t1 t2 n t3 t4 k : Nat .
+vars cond cond3 : Boolean . 
+vars smtRes1 smtRes2 smtRes3 : SmtCheckResult .
+var dtVal saferVal safeVal badVal : Real .
+var dist_lb dist_ub : Real .
+
+eq lkb0 = 
+    class(v(0),veh) 
+    (atloc(v(0),loc(v0posx,v0posy)) @ 0) 
+    (atloc(v(1),loc(v1posx,v1posy)) @ 0) 
+    (speed(v(0),v0vel) @ 0) 
+    (speed(v(1), v1vel) @ 0)
+    (accel(v(0),acc0) @ 0)
+    (dir(v(0),loc(v0inix,v0iniy),
+              loc(v0tarx,v0tary),v0mag) @ 0) 
+    --- (accel(v(0),acc0) @ 0) 
+    (mode(v(0), leading(none)) @ 0) 
+    (platoon(v(0),v(1)) @ 0)
+    gapSafety(v(0),safer0,safe0,bad0) 
+    velb(v(0),vellb0,velub0)
+    maxAcc(v(0),maxacc0)
+    maxDec(v(0),maxdec0) 
+     .
+
+eq lkb1 = 
+    class(v(1),veh) 
+    (atloc(v(0),loc(v0posx,v0posy)) @ 0) 
+    (atloc(v(1),loc(v1posx,v1posy)) @ 0) 
+    (speed(v(0),v0vel) @ 0) 
+    (speed(v(1), v1vel) @ 0)
+    (accel(v(1),acc1) @ 0)
+    (dir(v(1),loc(v1inix,v1iniy),
+              loc(v1tarx,v1tary),v1mag) @ 0) 
+    --- (accel(v(0),acc0) @ 0) 
+    (mode(v(1), following(v(0))) @ 0)
+    (platoon(v(0),v(1)) @ 0)
+    (gapNext(v(1),gapNxt) @ 0)  
+    gapSafety(v(1),safer1,safe1,bad1) 
+    velb(v(1),vellb1,velub1)
+    maxAcc(v(1),maxacc1)
+    maxDec(v(1),maxdec1) .
+
+eq ekb(numVars,cond,stp) =
+    clock(0) stop(stp)
+    tickSize(dt)
+    class(v(0),veh) 
+    class(v(1),veh) 
+    (atloc(v(0),loc(v0posx,v0posy)) @ 0) 
+    (atloc(v(1),loc(v1posx,v1posy)) @ 0) 
+    (speed(v(0),v0vel) @ 0) 
+    (speed(v(1), v1vel) @ 0)
+    (accel(v(0),acc0) @ 0)
+    (accel(v(1),acc1) @ 0)
+    (dir(v(0),loc(v0inix,v0iniy),
+              loc(v0tarx,v0tary),v0mag) @ 0) 
+    (dir(v(1),loc(v1inix,v1iniy),
+              loc(v1tarx,v1tary),v1mag) @ 0) 
+    (platoon(v(0),v(1)) @ 0) 
+    gapSafety(v(0),safer0,safe0,bad0) 
+    gapSafety(v(1),safer1,safe1,bad1) 
+    velb(v(0),vellb0,velub0)
+    velb(v(1),vellb1,velub1)
+    maxAcc(v(0),maxacc0)
+    maxDec(v(0),maxdec0) 
+    maxAcc(v(1),maxacc1)
+    maxDec(v(1),maxdec1)
+    constraint(numVars,cond) .
+
+*** We assume that the maximum velocity is the initial velocity.
+
+op condTick : -> Boolean .
+
+ops basicCond basicCondReactTimeEqDT : Real Real -> Boolean .
+*** Vehicles in a straight line moving upwards.
+*** Speeds within bounds.
+*** Positive positions
+eq basicCond(dist_lb,dist_ub)
+  = (v0posx === 0/1) and (v1posx === 0/1) and 
+  (v0inix === 0/1) and (v0tarx === 0/1) and
+  (v0iniy === 0/1) and (v0tary === 1/1) and
+  (v0mag === 1/1) and
+  (v1inix === 0/1) and (v1tarx === 0/1) and
+  (v1iniy === 0/1) and (v1tary === 1/1) and
+  (v1mag === 1/1) and 
+  (v0vel >= vellb0) and (v0vel <= velub0) and 
+  (v1vel >= vellb1) and (v1vel <= velub1) and 
+  (v0posy >= 0/1) and (v1posy >= 0/1) and 
+  (v0posy > v1posy) and 
+  (acc0 >= maxdec0) and (acc0 <= maxacc0) and
+  (acc1 >= maxdec1) and (acc1 <= maxacc1) and 
+  (gapNxt === (v0posy - v1posy)) and 
+  (gapNxt >= dist_lb) and (gapNxt <= dist_ub) and
+  (reactTime === 3/2 ) .
+
+eq basicCondReactTimeEqDT(dist_lb,dist_ub)
+  = (v0posx === 0/1) and (v1posx === 0/1) and 
+  (v0inix === 0/1) and (v0tarx === 0/1) and
+  (v0iniy === 0/1) and (v0tary === 1/1) and
+  (v0mag === 1/1) and
+  (v1inix === 0/1) and (v1tarx === 0/1) and
+  (v1iniy === 0/1) and (v1tary === 1/1) and
+  (v1mag === 1/1) and 
+  (v0vel >= vellb0) and (v0vel <= velub0) and 
+  (v1vel >= vellb1) and (v1vel <= velub1) and 
+  (v0posy >= 0/1) and (v1posy >= 0/1) and 
+  (v0posy > v1posy) and 
+  (acc0 >= maxdec0) and (acc0 <= maxacc0) and
+  (acc1 >= maxdec1) and (acc1 <= maxacc1) and 
+  (gapNxt === (v0posy - v1posy)) and 
+  (gapNxt >= dist_lb) and (gapNxt <= dist_ub) and
+  (reactTime === 3/2 ) .
+
+
+ops testBounds0 testBounds1 testBounds2 
+    testBounds3 testBounds4 : Real Real Real Real -> Boolean .
+eq testBounds0(saferVal,safeVal,badVal,dtVal) 
+ = (vellb0 === 20/1) and (velub0 === 25/1) and 
+   (vellb1 === 20/1) and (velub1 === 25/1) and 
+   (maxacc0 === 2/1) and (maxdec0 === - 8/1) and 
+   (maxacc1 === 2/1) and (maxdec1 === - 8/1) and 
+   (safer0 === saferVal) and (safe0 === safeVal) and 
+   (safer1 === saferVal) and (safe1 === safeVal) and 
+   (bad1 === badVal) and (bad0 === badVal) and 
+   (dt === dtVal) .
+
+eq testBounds1(saferVal,safeVal,badVal,dtVal) 
+ = (vellb0 === 20/1) and (velub0 === 25/1) and 
+   (vellb1 === 20/1) and (velub1 === 25/1) and 
+   (maxacc0 === 2/1) and (maxdec0 === - 5/1) and 
+   (maxacc1 === 2/1) and (maxdec1 === - 8/1) and 
+   (safer0 === saferVal) and (safe0 === safeVal) and 
+   (safer1 === saferVal) and (safe1 === safeVal) and 
+   (bad1 === badVal) and (bad0 === badVal) and 
+   (dt === dtVal) .
+
+eq testBounds2(saferVal,safeVal,badVal,dtVal) 
+ = (vellb0 === 20/1) and (velub0 === 25/1) and 
+   (vellb1 === 20/1) and (velub1 === 25/1) and 
+   (maxacc0 === 2/1) and (maxdec0 === - 7/2) and 
+   (maxacc1 === 2/1) and (maxdec1 === - 8/1) and 
+   (safer0 === saferVal) and (safe0 === safeVal) and 
+   (safer1 === saferVal) and (safe1 === safeVal) and 
+   (bad1 === badVal) and (bad0 === badVal) and 
+   (dt === dtVal) .
+
+eq testBounds3(saferVal,safeVal,badVal,dtVal) 
+ = (vellb0 === 20/1) and (velub0 === 25/1) and 
+   (vellb1 === 20/1) and (velub1 === 25/1) and 
+   (maxacc0 === 2/1) and (maxdec0 === - 2/1) and 
+   (maxacc1 === 2/1) and (maxdec1 === - 8/1) and 
+   (safer0 === saferVal) and (safe0 === safeVal) and 
+   (safer1 === saferVal) and (safe1 === safeVal) and 
+   (bad1 === badVal) and (bad0 === badVal) and 
+   (dt === dtVal) .
+
+eq testBounds4(saferVal,safeVal,badVal,dtVal) 
+ = (vellb0 === 20/1) and (velub0 === 25/1) and 
+   (vellb1 === 20/1) and (velub1 === 25/1) and 
+   (maxacc0 === 2/1) and (maxdec0 === - 8/1) and 
+   (maxacc1 === 2/1) and (maxdec1 === - 8/1) and 
+   (safer0 === saferVal) and (safe0 === safeVal) and 
+   (safer1 === saferVal) and (safe1 === safeVal) and 
+   (bad1 === badVal) and (bad0 === badVal) and 
+   (dt === dtVal) .
+
+
+endm
+
+eof

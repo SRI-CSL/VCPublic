@@ -1,0 +1,8 @@
+**** No skip property ***
+Maude Experiment:
+  ../logicalScenarios/pedestrian-crossing/scenarios/noSensorErrors/load-pedestrian.maude
+  SCENARIO-CROSSING
+  asysPedXLine(3,5/1,2/1,1/1,1/10)
+====> Total Time for no skip =0.5749894780019531
+Result (true).Bool
+0:00:00.574989

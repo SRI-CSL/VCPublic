@@ -1,0 +1,316 @@
+fmod SAFETY-PROPERTIES is
+  pr META-SEARCH .
+
+  vars sp sp1 sp2 sp3 sp4 safe bad safer : SP .
+  var smtRes1 : SmtCheckResult .
+  vars asys asysI asys0 asys1 asys2 asys3 : ASystem .
+  vars b1 b2 : Bool .
+  vars sps sps1 sps2 sps3 sps4 sps5 sps6 spsacc : SPSet .
+  vars cond0 cond1 condVar condSP : Boolean .
+  vars j k : Nat .
+  vars dt dt1 : SymTerm .
+  vars syms : SymTerms .
+  vars t t1 : Time .
+  var mname : Module .
+  vars asysT lastT condT asysT1 condT1 condTBad : Term .
+  vars asyses asyses1 asyses2 : ASystemSet .
+  vars asys? asys2? asys3? : ASystemSet? .
+
+
+  sorts SP SPSet . 
+  subsort SP < SPSet .
+  op none : -> SPSet .
+  op __ : SPSet SPSet -> SPSet [ctor assoc comm id: none] .
+
+  *** SP domain
+  op spset : -> SPSet .
+  *** SP pre-order
+  op _<_ : SP SP -> Bool [memo] .
+  eq sp1 < sp2 = false [owise] .
+
+  op mem : SP SPSet -> Bool [memo] .
+  eq mem(sp,sp sps) = true .
+  eq mem(sp,sps) = false [owise] .
+
+  op contained : SPSet SPSet -> Bool [memo] .
+  eq contained(sps1,sps1 sps) = true .
+  eq contained(sps1,sps) = false [owise] .
+
+  *** Gets all the properties that are more
+  *** than one step relation to bot input properties.
+  op getBotSP : SP SP -> SPSet .
+  op getBotSP$ : SPSet SPSet -> SPSet .
+  ceq getBotSP(sp1,sp2) 
+   = if sp1 < sp2 then sps6 else sps4 fi  
+   if not (sp1 == sp2)
+   /\ sps3 := getImLower(sp1,spset,none)
+   /\ sps4 := getAllLower(sps3,none)  
+   /\ sps5 := getImLower(sp2,spset,none) 
+   /\ sps6 := getAllLower(sps5,none) .
+
+  op botSP : SPSet -> SP .
+  eq botSP(sp1 sp2 sps) 
+   = if sp1 < sp2 then botSP(sp1 sps)
+     else botSP(sp2 sps) fi .
+  eq botSP(sp1) = sp1 . 
+
+  ceq getBotSP(sp1,sp2) = sps4
+   if sp1 == sp2
+   /\ sps3 := getImLower(sp1,spset,none) 
+   /\ sps4 := getAllLower(sps3,none) .
+
+  eq getBotSP$(sp1 sps1,sps)
+   = getBotSP$(sps1,getImLower(sp1,spset,none) sps) .
+  eq getBotSP$(none,sps) = sps .
+
+  op getRelSP : SP SPSet -> SPSet [memo] .
+  --- eq getRelSP(sp,sps) = sps [owise] .
+  eq getRelSP(sp,sps)
+   = getImGreater(sp,spset,none) 
+     getImLower(sp,spset,none) .
+
+  ****   prop, set to check, accumulator 
+  op getImGreater : SP SPSet SPSet -> SPSet [memo] .
+  eq getImGreater(sp,sp1 sps,sps2)
+   = if sp < sp1 
+     then getImGreater(sp,sps,sp1 sps2)
+     else getImGreater(sp,sps,sps2) fi .
+  eq getImGreater(sp,none,sps) = sps .
+
+  ****   prop, set to check, accumulator 
+  op getImLower : SP SPSet SPSet -> SPSet [memo] .
+  eq getImLower(sp,sp1 sps,sps2)
+   = if sp1 < sp 
+     then getImLower(sp,sps,sp1 sps2)
+     else getImLower(sp,sps,sps2) fi .
+  eq getImLower(sp,none,sps) = sps .
+
+  op getAllLower : SPSet SPSet -> SPSet .
+  ceq getAllLower(sp1 sps1,sps2)
+   = getAllLower(sps1 sps3,sps3 sps2)
+   if sps3 := getImLower(sp1,spset,none)
+   /\ not (sps3 == none)
+   /\ not (contained(sps3,sps2)) .
+  eq getAllLower(sps1,sps2) = sps2 [owise] .
+
+  op getAllLowerSPs : SPSet SPSet -> SPSet .
+  ceq getAllLowerSPs(sp1 sps,spsacc)
+   = getAllLowerSPs(sps,sps3)
+   if sps2 := getAllLower(sp1,none)
+   /\ sps3 := intersect(sps2,spsacc,none) .
+  eq getAllLowerSPs(none,spsacc) = spsacc .
+
+  op isLowerThanAll : SP SPSet -> Bool .
+  eq isLowerThanAll(sp,sps1)
+   = mem(sp,getAllLowerSPs(sps1,spset)) .
+  
+  op intersect : SPSet SPSet SPSet -> SPSet .
+  eq intersect(sp1 sps1,sp1 sps2,spsacc)
+   = intersect(sps1,sps2,sp1 spsacc) .
+  eq intersect(sps1,sps2,spsacc) = spsacc [owise] .
+
+  *** checks whether a ASystem satisfies a property
+  op checkSP : SP ASystem -> Bool .
+  op checkNotSP : SP ASystem -> Bool .
+  op checkSPModel : SP ASystem -> SmtCheckResult .
+  op alwaysSP : SP ASystem -> Bool .
+  op alwaysSP$ : SP ASystem SPSet -> Bool .
+  
+  *** THIS FUNCTION NEEDS TO BE SPECIFIED BY THE USER.
+  *** TODO: change this to return a condition instead of a system.
+
+  *** TODO: This should be a set, but it causes some functions to have distinct parses.
+  sort SymTerms .
+  subsort SymTerm < SymTerms .
+  op _;_ : SymTerms SymTerms -> SymTerms [ctor assoc id: none] .
+  op none : -> SymTerms .
+
+  *** SPSpec is composed of
+  *** Nat specifying the index of fresh symbols
+  *** SymTerms which is a list of auxiliary variables
+  ***          that are intuitively existentially quantified
+  *** Boolean specifying the conditions on the existentially quantified variables.
+  *** Boolean specifying the actual property.
+  *** For example, {n,s1 ; ... ; sn , b1 , b2} denotes the formula:
+  **** exists s1...sn. b1 and b2 
+  sort SPSpec .
+  op {_,_,_,_} : Nat SymTerms Boolean Boolean -> SPSpec .
+
+  *** Function that returns a system on which property SP is valid. 
+  *** The resulting ASystem may be unsatsifiable which 
+  *** means that there is no concrete ASystem corresponding to the symbolic ASystem.
+  op enforceSP : SP ASystem -> ASystem .
+  op enforceNotSP : SP ASystem -> ASystem .
+  *** Function that returns an ASystem for 
+  *** which no one of the properties in SPSet
+  *** is satisfiable.
+  op enforceNoSP : SPSet ASystem -> ASystem . 
+  op enforceNoSP : SPSet ASystem Nat Boolean -> ASystem . 
+  *** USER-DEFINED: This is the function that needs to be specified by the user.
+  op mkSPCond : SP ASystem -> SPSpec . 
+
+  ceq checkSP(sp,asys0)
+   = isSat(asys1)
+   if asys1 := enforceSP(sp,asys0) .
+
+  eq alwaysSP(sp,asys0)
+   = not isSat(enforceNotSP(sp,asys0)) .
+
+  --- eq alwaysSP$(sp,asys0,sp1 sps)
+  ---  = if checkSP(sp1,asys0) then false 
+  ---    else alwaysSP$(sp,asys0,sps) fi .
+  --- eq alwaysSP$(sp,asys0,none) = true .
+
+  ceq enforceSP(sp,asys0)
+   = asys2 
+   if {j,syms,cond0,cond1} := mkSPCond(sp,asys0)
+   /\ asys1 := addConstraint(asys0,cond0 and cond1)
+   /\ asys2 := upSymCounter(asys1,j) .
+
+  ceq enforceNotSP(sp,asys0)
+   = asys2 
+   if {j,syms,cond0,cond1} := mkSPCond(sp,asys0)
+   /\ asys1 := addConstraint(asys0,cond0 and (not cond1))
+   /\ asys2 := upSymCounter(asys1,j) .
+
+  ceq enforceNoSP(sps,asys0) 
+   = enforceNoSP(sps,asys0,j,false) 
+   if constraint(j,cond0) := getConstraint(asys0) .
+
+  eq enforceNoSP(none,asys0,j,cond0) 
+   = upSymCounter(addConstraint(asys0,(not cond0)),j) .
+  
+  ceq enforceNoSP(sp sps,asys0,j,cond0) 
+   = enforceNoSP(sps,asys1,k,cond0 or condSP) 
+   if {k,syms,condVar,condSP} := mkSPCond(sp,asys0)
+   /\ asys1 := upSymCounter(addConstraint(asys0,condVar),k + 1) .
+
+  *** Assume a linear total order amont SPs.
+  *** TODO: Need to check whether this makes sense for 
+  ***       partial orders.
+  *** Function that checks whether a given system 
+  *** asys such that safe[asys] does not reach
+  *** a state asysR such that bad[asysR] 
+  *** within t time units.
+  *** To check this, we need to check whether there is no trace such that:
+  *** a bad ASystem is reached.
+  *** Does not contain a transition 
+  ***   asys_i -->_tick asys_{i+1} 
+  *** such that sp[asys_1] and sp[asys_{i+1}] are true
+  *** where sp >1 bad (a property immediately above bad)
+  *** Notice that alternatively, we could check whether there 
+  *** exists an alternative 0 < dt1 < dt that leads 
+  *** asys_i to a bad ASystem 
+  op isResilient : Module ASystem Time SP SP SP -> Bool .
+  op isResilientDT : Module ASystem Time SP SP SP -> ASystemSet .
+  ceq isResilient(mname,asys,t,safe,bad,safer) 
+   = true
+   if asysI := enforceSP(safe,setStopTime(asys,t))
+   /\ dt := getTickSize(asysI)
+   /\ asysT := upTerm(asysI)
+   --- /\ afterTicksSP(mname,asysT,t + getTime(asys),safer)
+   *** afterTicks only safer configurations are reached.
+   /\ noasys == afterTicksSP(mname,asysT,t,safer)
+   *** a bad state is not reachable
+   /\ not checkReachable(mname,asysT,bad)
+   /\ sps := getImGreater(bad,spset,none)
+   *** for all sp:sps --> sp:sps transitions, no bad configuration is reached in between.
+   /\ b2 := checkImGrSP(mname,asysT,bad,sps,dt) .
+  eq isResilient(mname,asys,t,safe,bad,safer) = false [owise] . 
+  
+  ceq isResilientDT(mname,asys,t,safe,bad,safer) 
+   = asyses
+   if asysI := enforceSP(safe,setStopTime(asys,t))
+   /\ dt := getTickSize(asysI)
+   /\ asysT := upTerm(asysI)
+   --- /\ afterTicksSP(mname,asysT,t + getTime(asys),safer)
+   *** afterTicks only safer configurations are reached.
+   /\ noasys == afterTicksSP(mname,asysT,t,safer)
+   *** a bad state is not reachable
+   /\ not checkReachable(mname,asysT,bad)
+   /\ sps := getImGreater(bad,spset,none)
+   *** for all sp:sps --> sp:sps transitions, no bad configuration is reached in between.
+   /\ asyses := checkImGrSPDT(mname,asysT,bad,sps,dt) .
+  --- eq isResilientDT(mname,asys,t,safe,bad,safer) = false [owise] . 
+  
+--- TODO: Use search ! instead of +
+  op afterTicksSP : Module Term Time SP -> ASystemSet? .
+  ceq afterTicksSP(mname,asysT,t,safer)
+   = asys?
+   if condT := 
+      'if_then_else_fi['_==_['getTime['c:ASystem],upTerm(t)],
+                      '_and_['isSat['c:ASystem],
+                      'not_['alwaysSP[upTerm(safer),'c:ASystem]]],
+                      'false.Bool]
+   /\ asys? := searchAsys(mname,asysT,0,condT,unbounded) .
+  --- eq afterTicksSP(mname,asysT,t,safer) = false [owise] .
+
+  op checkReachable : Module Term SP -> Bool .
+  ceq checkReachable(mname,asysT,sp)
+   = not b1
+   if condT := 'checkSP[upTerm(sp),'c:ASystem]
+   /\ b1 := noasys == searchAsys(mname,asysT,0,condT,unbounded) .
+  
+  op checkImGrSP : Module Term SP SPSet SymTerm -> Bool .
+  eq checkImGrSP(mname,asysT,bad,sp sps,dt)
+   = if checkOneStepSP(mname,asysT,bad,sp,dt)
+     then checkImGrSP(mname,asysT,bad,sps,dt)
+     else false fi .
+  eq checkImGrSP(mname,asysT,bad,none,dt) = true .
+
+  op checkOneStepSP : Module Term SP SP SymTerm -> Bool .
+  ceq checkOneStepSP(mname,asysT,bad,sp,dt)
+   = false
+   if condT := 'checkSP[upTerm(sp),'c:ASystem]
+   /\ asys0 asyses := searchAsysAll(mname,asysT,0,condT,unbounded)
+   --- Ready to do a tick rule
+   /\ mte(getConf(asys0)) > 0 
+   /\ j := getSymCounter(asys0)
+   /\ dt1 := vv(j + 1,"new dt")
+   /\ asys1 := addConstraint(asys0,(dt1 < dt) and (dt1 > 0/1) )
+   /\ asys2 := upTickSize(asys1,dt1)
+   /\ asys3 := upSymCounter(asys2,j + 2)
+   /\ asysT1 := upTerm(asys3)
+   /\ condT1 := 'checkSP[upTerm(bad),'c:ASystem]
+   /\ asys? := searchAsys(mname,asysT1,0,condT1,1)
+   /\ not (noasys == asys?) 
+   [print "\ncheckOneStep found bad state = " sp " to " bad ] .
+  
+  eq checkOneStepSP(mname,asysT,bad,sp,dt) = true 
+    [owise print "\ncheckOneStep proved bad state not reachable = " sp " to " bad ] 
+    .
+
+op checkImGrSPDT : Module Term SP SPSet SymTerm -> ASystemSet .
+
+ceq checkImGrSPDT(mname,asysT,bad,sp sps,dt)
+   = asyses1
+   if asyses := checkOneStepSPDT(mname,asysT,bad,sp,dt)
+   /\ asyses1 := if asyses == none then
+                checkImGrSPDT(mname,asysT,bad,sps,dt)
+                else asyses fi .
+  eq checkImGrSPDT(mname,asysT,bad,none,dt) = none .
+
+--- TODO: Remove the asys2??
+op checkOneStepSPDT : Module Term SP SP SymTerm -> ASystemSet .
+  ceq checkOneStepSPDT(mname,asysT,bad,sp,dt)
+   = asyses2
+   if condT := 'checkSP[upTerm(sp),'c:ASystem]
+   /\ condTBad := 'checkSP[upTerm(bad),'c:ASystem]
+   /\ asys0 asyses := searchAsysAll(mname,asysT,0,condT,unbounded)
+   --- Ready to do a tick rule
+   /\ mte(getConf(asys0)) > 0 
+   /\ asysT1 := upTerm(asys0)
+   /\ asys? := searchAsys(mname,asysT1,0,condT,1)
+   /\ asys2? := searchAsys(mname,asysT1,0,condTBad,1)
+   /\ asyses2 := if (not (noasys == asys?)) then asys?
+                else 
+                     (if (not (noasys == asys2?)) then asys2? 
+                     else none fi) fi 
+   /\ (not (none == asyses2))
+   [print "\ncheckOneStep found bad state = " sp " to " bad ] .
+  
+  eq checkOneStepSPDT(mname,asysT,bad,sp,dt) = none 
+    [owise print "\ncheckOneStep proved bad state not reachable = " sp " to " bad ] 
+    .
+
+endfm

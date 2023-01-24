@@ -1,0 +1,260 @@
+ **** Unit Real Interval -- should be between 0 and 1 inclusive
+ fmod UVAL is
+  pr CONVERSION .
+  inc SYM-REAL .
+
+  vars u0 u1 u2 : UVal .
+  vars f0 f1 f2 : SymTerm .
+
+  sort UVal .
+  op u : SymTerm -> UVal . 
+  
+  op symEquivZero : UVal -> Boolean .
+  eq symEquivZero(u(0/1)) = true .
+  eq symEquivZero(u1) = false [owise] .
+  
+  op _<_ : UVal UVal -> Boolean .
+  op _>_ : UVal UVal -> Boolean .
+
+  eq u(f0) < u(f1) = (f0 < f1) .
+  eq u(f0) > u(f1) = f0 > f1 .
+
+  op symEquivOne : UVal -> Boolean .
+  eq symEquivOne(u(1/1)) = true .
+  eq symEquivOne(u1) = false [owise] .
+  
+endfm
+
+fmod AUX-SCP is 
+  inc RAT .
+  inc UVAL .
+  inc MODEL-KNOWLEDGE .
+  
+  vars ffx,ffy ff ff1 ff2 v1 v2 vmin 
+       spd vmax vminD vmaxD nuVar : SymTerm .
+  vars cond cond1 cond2 cond3 cond4 cond5 cond6
+       cond0 cond11 cond21 
+       cond31 cond41 cond51 cond61 : Boolean .
+  vars l0 l1 l2 : Loc .
+  vars u1 u2 : UVal .
+  vars id id0 id1 : Id .
+  vars kb kb1 : KB .
+  vars t t0 : Nat .
+  vars idL idL2 : IdList . 
+  var i : Nat .
+  var seg : SymSegment .
+  var segs : SymSegments .
+  vars str str0 str1 str2 str3 : String .
+  var str? : [String] .
+
+  op getPedestrians : KB KB -> KB .
+  eq getPedestrians((ped(id1,l0,spd,l1,l2) @ t) kb,kb1)
+   = getPedestrians(kb,kb1 (ped(id1,l0,spd,l1,l2) @ t)) .
+  eq getPedestrians(kb,kb1) = kb1 [owise] .
+
+  op getVelNext : Id KB -> SymTerm .
+  
+  eq getVelNext(id,(platoon(id0,idL ; id1 ; id ; idL2) @ t0)
+   (speed(id1,ff) @ t) kb) = ff .
+
+*** Case with platoon of two
+ eq getVelNext(id,(platoon(id0,id) @ t0)
+   (speed(id0,ff) @ t) kb) = ff .
+
+  eq getVelNext(id,(speed(id,ff) @ t) kb) = ff [owise] .
+
+  sorts SymSegment SymSegments .
+  subsort SymSegment < SymSegments .
+  op [_,_,_,_,_]  : SymTerm UVal
+            SymTerm UVal Boolean -> SymSegment [ctor] .
+
+  ops getTerm1 getTerm2 : SymSegment -> SymTerm .
+  ops getUVal1 getUVal2 : SymSegment -> UVal .
+  op getBoolean : SymSegment -> Boolean .
+  eq getTerm1([ff1,u1,ff2,u2,cond]) = ff1 .
+  eq getTerm2([ff1,u1,ff2,u2,cond]) = ff2 .
+  eq getUVal1([ff1,u1,ff2,u2,cond]) = u1 .
+  eq getUVal2([ff1,u1,ff2,u2,cond]) = u2 .
+  eq getBoolean([ff1,u1,ff2,u2,cond]) = cond .
+
+  op none : -> SymSegments .
+  op __ : SymSegments SymSegments -> SymSegments [ctor assoc comm id: none format (d ni d)] .
+
+  sorts NatSymSegments NatSymSegmentsSet .
+  subsort NatSymSegments < NatSymSegmentsSet .
+  op {_,_} : Nat SymSegments -> NatSymSegments .
+  op none : -> NatSymSegmentsSet .
+  op __ : NatSymSegmentsSet NatSymSegmentsSet -> NatSymSegmentsSet [assoc comm id: none] .
+
+  op getSymSegs : NatSymSegments -> SymSegments .
+  op getNat : NatSymSegments -> Nat .
+  eq getSymSegs({i,segs}) = segs .
+  eq getNat({i,segs}) = i .
+
+  op sizeSegs : SymSegments -> Nat .
+  eq sizeSegs(seg segs) = s(sizeSegs(segs)) .
+  eq sizeSegs(none) = 0 .
+
+  sort NatBoolUVal .
+  op {_,_,_} : Nat UVal Boolean -> NatBoolUVal . 
+
+*** TODO: insert condition when ff is not in the segment.
+  op eval : Nat SymTerm SymSegment -> NatBoolUVal .
+  ceq eval(i,ff,[v1,u(ff1),v2,u(ff2),cond])
+   = {i + 1,u(vv(i)),cond1}
+   if cond1 := cond and 
+     ((v2 === v1 and vv(i) === ff1) or 
+     ((not (v2 === v1)) and 
+     (vv(i) === ff1 + (ff2 - ff1) * ((ff - v1) / (v2 - v1))))) .
+endfm
+
+fmod VAL-SAFETY is 
+  inc SOFT-AGENTS .
+  inc UVAL .
+  inc MODEL-ACTIONS .
+  inc AUX-SCP .
+
+  op val-safety : Id Nat KB Action Boolean -> NatSymSegmentsSet .
+
+endfm
+
+fmod VAL-SAFETY-ACTIONS is
+  inc VAL-SAFETY .
+  
+  vars id id1 : Id .
+  vars ract1 ract2 ract ract3 : SymRAct .
+  vars racts racts0 racts1 ractsAcc : SymRActSet .
+  vars v1 v2 v3 v4 mx mn ff0 ff
+       ff1 ff2 ff3 ff4 
+       ff11 ff12 ff21 ff22 ff31 ff32 ff41 ff42
+       ff111 ff112 nuVar nuVar2 vmin vmax : SymTerm .
+  var act : Action .
+  vars kb kb1 kb0 : KB .
+  vars seg seg1 seg2 newSeg segs0 : SymSegment .
+  vars segSaf segGr segs segs1 segs2 segsAcc nusegs segSafer : SymSegments .
+  vars u u1 u2 u3 u4 umn umx umn1 umn2 umx1 umx2 : UVal .
+  vars t0 t i j k i1 i2 i3 i4 : Nat .
+  var ids : IdSet .
+  vars cond cond0 cond1 cond2 cond3 cond4 cond5 cond6 cond31 cond41 cond51 cond61 : Boolean .
+  vars str0 str1 str2 : String .
+  vars nsrsAcc : NatSymRActSets .
+  vars nsss : NatSymSegmentsSet .
+
+  sorts SymRAct SymRActSet NatSymRActSet NatSymRActSets .
+  subsort SymRAct < SymRActSet .
+  op {_,_,_} : UVal Action Boolean -> SymRAct .
+  op none : -> SymRActSet .
+  op __ : SymRActSet SymRActSet -> SymRActSet [ctor assoc comm id: none format (d ni d)] .
+
+  op getUVAL : SymRAct -> UVal .
+  op getAction : SymRAct -> Action .
+  op getBoolean : SymRAct -> Boolean .
+  eq getUVAL({u,act,cond}) = u .
+  eq getAction({u,act,cond}) = act .
+  eq getBoolean({u,act,cond}) = cond .
+
+  subsort NatSymRActSet < NatSymRActSets .
+  op none : -> NatSymRActSets .
+  op __ : NatSymRActSets NatSymRActSets -> NatSymRActSets [ctor assoc comm id: none] .
+
+  op {_,_} : Nat SymRActSet -> NatSymRActSet .  
+  op getNat : NatSymRActSet -> Nat .
+  op getSymRActs : NatSymRActSet -> SymRActSet .
+  eq getNat({i,racts}) = i .
+  eq getSymRActs({i,racts}) = racts .
+
+  op sizeActs : SymRActSet -> Nat .
+  eq sizeActs(ract racts) = s(sizeActs(racts)) .
+  eq sizeActs(none) = 0 .
+
+  op vals : Id Nat KB Action Boolean -> NatSymRActSets .
+
+  *** Leader just uses the current actions.
+  *** Depends on whether there is a pedestrian in front or not.
+  *** Assuming just one pedestrian for now. 
+ ceq vals(id,i,kb,act,cond) 
+   = nsrsAcc 
+   if (mode(id,leading(ids)) @
+    t0) kb1 := kb 
+   /\ kb0 := getPedestrians(kb,none) 
+   /\ sizeKB(kb0) > 0
+   /\ nsss := val-safety(id,i,kb,act,cond)
+   /\ nsrsAcc := toSymRActsSets(id,nsss,none) .
+   
+***( no pedestrians detected. 
+ ceq vals(id,i,kb,act,cond) 
+   =  {i,{u(1/1),actSpeed(id,ff1,ff1),cond}}
+   if (mode(id,leading(ids)) @
+    t0) (speed(id,ff1) @ t1:Time) kb1 := kb 
+    /\ none == getPedestrians(kb,none) .
+)
+
+ ceq vals(id,i,kb,act,cond) 
+   =  {i,{u(1/1),act,cond}}
+   if (mode(id,leading(ids)) @
+    t0) kb1 := kb 
+    /\ none == getPedestrians(kb,none) .
+
+ 
+  **** The use of val-safety and val-green only make sense when in following mode.
+  ceq vals(id,i,kb,act,cond0) 
+   = nsrsAcc
+   if (mode(id,following(id1)) @
+    t0) kb1 := kb
+   /\ nsss := val-safety(id,i,kb,act,cond0)
+   /\ nsrsAcc := toSymRActsSets(id,nsss,none) .
+ 
+*** When in emergency mode, then 
+*** reduce to the min velocity  
+ ceq vals(id,i,kb,actSpeed(id,vmin,vmax),cond0) 
+   = {i,{u(1/1),actSpeed(id,vmin,vmin),cond0}}
+   if (mode(id,emergency) @
+    t0) kb1 := kb .
+
+*** If no cases applies, keep the same speed.
+ eq vals(id,i,kb (speed(id,ff1) @ t0),actSpeed(id,vmin,vmax),cond0) 
+  = {i,{u(1/1),actSpeed(id,ff1,ff1),cond0}} [owise] . 
+
+  op toSymRActsSets : Id NatSymSegmentsSet NatSymRActSets -> NatSymRActSet .
+  eq toSymRActsSets(id,none,nsrsAcc) = nsrsAcc .
+  eq toSymRActsSets(id,{j,segSaf} nsss,nsrsAcc)
+   = toSymRActsSets(id,nsss, (toSymRActs(j,id,segSaf,none)) nsrsAcc) .
+
+*** TODO: One could further decompose the following function.
+  op toSymRActs : Nat Id SymSegments SymRActSet -> NatSymRActSet .
+  eq toSymRActs(i,id,none,racts) 
+   = {i,racts} .
+  ceq toSymRActs(i,id,[v1,u(ff1),v2,u(ff2),cond]
+                      segs,racts0)
+   = toSymRActs(i + 3,id,segs,ract1 racts0)
+   if ff1 == ff2
+   /\ ract1 := {u(ff1),actSpeed(id,v1,v2),cond} .
+
+  eq toSymRActs(i,id,none,racts) 
+   = {i,racts} .
+  ceq toSymRActs(i,id,[v1,u(ff1),v2,u(ff2),cond]
+                      segs,racts0)
+   = toSymRActs(i + 3,id,segs,ract1 racts0)
+   if not (ff1 == ff2)
+   /\ str0 := "actUVal"
+   /\ str1 := "actVmin"
+   /\ str2 := "actVmax"
+   /\ cond1 := ff1 > ff2 and 
+               vv(i,str0) === ff1 and
+               vv(i + 1,str1) === v1 and 
+               vv(i + 2,str2) === v1 
+   /\ cond2 := ff1 < ff2 and 
+               vv(i,str0) === ff2 and
+               vv(i + 1,str1) === v2 and 
+               vv(i + 2,str2) === v2 
+   /\ cond3 := ff1 === ff2 and 
+               vv(i,str0) === ff1 and
+               vv(i + 1,str1) === v1 and 
+               vv(i + 2,str2) === v2 
+   /\ cond4 := cond1 or cond2 or cond3 
+   *** We are considering only actions that can be evaluated greater than zero. This may not be sound though as technically one only gets the most highly ranked action.
+   /\ ract1 := {u(vv(i,str0)),
+          actSpeed(id,vv(i + 1,str1), vv(i + 2,str2)),
+          cond4 and cond} .
+
+endfm

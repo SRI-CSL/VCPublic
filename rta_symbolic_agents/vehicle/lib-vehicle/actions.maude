@@ -1,0 +1,195 @@
+fmod ENV-ACTIONS is
+  inc MODEL-ACTIONS .
+  inc RANDOM .
+  inc FAULT-MODEL .
+  inc MODEL-TASKS . 
+  inc META-LEVEL . --- v2v is defined here.  Should be in knowledge ?
+  inc TICK-DURATION-PROP .
+  
+  vars t t' t0 t1 t2 t3 t4 t5 t6 n1 : Nat .
+  var nzt : NzTime .
+  var str? : [String] .
+  vars id id' id0 id1 st eid : Id .
+  vars l l0 l1 l2 l3 loc nuLoc l11 : Loc .
+  vars lkb ekb ekb' ekb0 ekb1 kb kb0 : KB .
+  var b b0 b1 b2 : Bool .
+  var evs : EventSet .
+  vars fp0 fp1 rp0 rp1 ff ff0 ff1 ff2 ff3 
+       ff4 ff5 nuVar nuVar1 nuVar2 mag 
+       acc lb ub nuAcc nuSpd spd
+       dt nuX nuY : SymTerm .
+  var n r j i  e e0 e1 : Nat .
+***  var act : Act .
+*** var ftype : FType .
+***  var fpars : FPars .
+  var rv : UVal .
+  var cl : Class .
+  var tmsg : TMsg .
+  var cnt : Content .
+  var ats : AttributeSet . 
+  var aconf : Conf .
+  vars cond cond0 cond1 condAcc cond2 : Boolean .
+  vars nkb nkb1 nkb2 nkbAcc : NatKBBooleanSet .
+  vars kbs kbs1 kbs2 kbs3 kbsAcc : KBSet .
+  
+  eq okEnv(class(id,veh)  (atloc(id, l1) @ t) 
+           class(id',veh) (atloc(id',l1) @ t) ekb) = false .
+
+ ***(
+ newLocff(oldLocff,sp,acc) = oldLocff + sp + (acc / 2)
+ done for all veh before individual acts
+
+ op actSpeed : Id Rat Rat -> Action [ctor] .  
+      next speed range -- pick middle
+      next accel is next speed - old speed
+     
+ op actSnd : Id TMsg -> Action [ctor] .  
+
+ actSnd(id,tmsg) should become v2v(id,tmsg) @ 0 (after timeEffect)
+ in devs of msg target
+ doEAct collects these tasks in 
+ op netTasks : Tasks -> Info .
+ updateConf can deliverthem
+
+   op actBCast : Id KB -> Action [ctor] . 
+     kb to be shared -- handled by doTask$
+ )
+ 
+ *** physics model of action
+ *** returns only the updates (so far only local to action id)
+ *** Notice that KB does not contain the constraints.
+
+op doEActX : Time Action KBSet KBSet -> KBSet .
+eq doEActX(t,a:Action,noKBs,kbsAcc) = kbsAcc .
+ceq doEActX(t,a:Action,ekb ; kbs,kbsAcc) 
+ = doEActX(t,a:Action,kbs,kbs1 ; kbsAcc)  
+ if kbs1 := doEAct(t,a:Action,ekb) .
+
+*** Apply doEact to all NKBs.
+op doEActX : Time Action NatKBBooleanSet NatKBBooleanSet -> NatKBBooleanSet .
+eq doEActX(t,a:Action,none,nkbAcc) = nkbAcc .
+ceq doEActX(t,a:Action,{j,ekb,cond} nkb,nkbAcc) 
+ = doEActX(t,a:Action,nkb,nkb1 nkbAcc)  
+ if nkb1 := doEAct(j,t,a:Action,ekb,cond) .
+
+op doEAct : Time Action KB -> KBSet .
+eq doEAct(t,actSnd(id,tmsg),ekb) 
+ = (net(tmsg) @ s t) ekb .
+
+*** We are assuming that any speed between ff0 and ff1 can be chosen.
+ceq doEAct(t,actSpeed(id1,ff0,ff1),ekb)
+ = kbs
+ *** Compute the acceleration bounds.
+ if (speed(id1,spd) @ t1)
+    (accel(id1,acc) @ t2) 
+    constraint(n,cond0) kb := ekb
+ /\ nuAcc := mkNuVar(n + 1,id1,"-acc")
+ /\ condAcc := nuAcc >= (ff0 - spd) and nuAcc <= (ff1 - spd)
+ /\ ekb0 := 
+      (speed(id1,spd) @ t1)
+      (accel(id1,nuAcc) @ t) 
+      constraint(n + 2,cond0 and condAcc) kb
+ /\ dt := getTickSize(ekb)
+ **** TimeStepCond updates the speed and location according to the  bounds.
+ /\ kbs := timeStepCond(t,id1,ekb0,dt) 
+ /\ kbs1 := addACC(id1,kbs,nuAcc,t,noKBs) .
+
+ op addACC : Id KBSet SymTerm Time KBSet -> KBSet .
+ eq addACC(id1,noKBs,nuAcc,t,kbsAcc) = kbsAcc .
+ eq addACC(id1,ekb ; kbs,nuAcc,t,kbsAcc) 
+  = kbsAcc .
+
+ceq addACC(id1,kb ; kbs,nuAcc,t,kbsAcc)
+  = addACC(id1,kbs,nuAcc,t,
+       (atloc(id1,nuLoc) @ s t) 
+       (speed(id1,nuSpd) @ s t) 
+       (accel(id1,nuAcc) @ s t)
+       kb0 ; kbsAcc)
+  if (atloc(id1,nuLoc) @ t1) 
+     (speed(id1,nuSpd) @ t2) kb0 := kb .
+
+op doEAct : Time Nat Action KB Boolean -> NatKBBooleanSet .
+
+eq doEAct(i,t,actSnd(id,tmsg),ekb,cond) 
+ = {i,(net(tmsg) @ s t) ekb,cond} .
+
+*** We are assuming that any speed between ff0 and ff1 can be chosen.
+ceq doEAct(n,t,actSpeed(id1,ff0,ff1),ekb,cond0)
+ = nkb
+ *** Compute the acceleration bounds.
+ if (speed(id1,spd) @ t1)
+    (accel(id1,acc) @ t2)
+    constraint(n1,cond1) 
+    kb := ekb
+ /\ nuAcc := mkNuVar(n1 + 1,id1,"-acc")
+ /\ condAcc := nuAcc >= (ff0 - spd) and nuAcc <= (ff1 - spd)
+ /\ ekb0 := 
+      (speed(id1,spd) @ t1)
+      (accel(id1,nuAcc) @ t) 
+      constraint(n1 + 2,cond1 and condAcc) kb
+ /\ dt := getTickSize(ekb)
+ **** TimeStepCond updates the speed and location according to the  bounds.
+ /\ kbs := timeStepCond(t,id1,ekb0,dt) 
+ /\ nkb := mkNKB(id1,kbs,nuAcc,t,none) .
+
+ **** Makes an NatKBBoolean from each EKB
+ *** computed by timeSteps. 
+ op mkNKB : Id KBSet SymTerm Time NatKBBooleanSet -> NatKBBooleanSet .
+ eq mkNKB(id1,noKBs,nuAcc,t,nkbAcc) = nkbAcc . 
+ ceq mkNKB(id1,kb ; kbs,nuAcc,t,nkbAcc)
+  = mkNKB(id1,kbs,nuAcc,t,
+      {n1 + 1,kb,cond1} nkbAcc)
+  if constraint(n1,cond1) kb0 := kb .
+
+*** It seems that I have to accumulate the whole kbs, and not only the changes.
+
+---- performs actions for one-time unit 
+op doUnitEnvActX : Nat Time KB KB EventSet Boolean -> NatKBBoolean .
+op doUnitEnvActX : Time EventSet 
+    NatKBBoolean -> NatKBBoolean .
+
+op doUnitEnvActX : Time EventSet 
+    KBSet -> KBSet .
+eq doUnitEnvAct(t,ekb,evs) 
+  = doUnitEnvActX(t,evs,ekb) .
+
+eq doUnitEnvActX(t,none,kbs) = kbs .
+
+ceq doUnitEnvActX(t,(a:Action @ 0) evs,kbs1)
+ = doUnitEnvActX(t,evs,kbs2)
+ *** Assuming that each action can only be applied to one agent.
+ if kbs2 := doEActX(t,a:Action,kbs1,noKBs) .
+
+ceq doUnitEnvActX(t,({rv, a:Action} @ 0) evs,kbs1)
+ = doUnitEnvActX(t,evs,kbs2)
+ *** Assuming that each action can only be applied to one agent.
+ if kbs2 := doEActX(t,a:Action,kbs1,noKBs) .
+
+eq doUnitEnvAct(i,t,ekb,evs,cond) 
+  = doUnitEnvActX(t,evs,{i,ekb,cond}) .
+
+ceq doUnitEnvActX(t,(a:Action @ 0) evs,nkb1)
+ = doUnitEnvActX(t,evs,nkb2)
+ *** Assuming that each action can only be applied to one agent.
+ if nkb2 := doEActX(t,a:Action,nkb1,none) .
+
+ceq doUnitEnvActX(t,({rv, a:Action} @ 0) evs,nkb1)
+ = doUnitEnvActX(t,evs,nkb2)
+ *** Assuming that each action can only be applied to one agent.
+ if nkb2 := doEActX(t,a:Action,nkb1,none) .
+eq doUnitEnvActX(t,none,nkbAcc) = nkbAcc .
+
+***** for instrumenting
+***  op processNet : Conf -> Conf .
+***  eq processNet(aconf) = aconf [owise] .
+
+
+ceq processNet([id : cl | evs : evs, ats] aconf
+              [eid | ekb (net(tmsg) @ t1)])
+=
+processNet([id : cl | evs : (evs (v2v(id,tmsg) @ 0)), ats] 
+          aconf
+          [eid | ekb]) 
+ if getRecId(tmsg) == id .
+
+endfm

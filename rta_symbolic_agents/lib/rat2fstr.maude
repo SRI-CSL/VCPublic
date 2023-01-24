@@ -1,0 +1,34 @@
+fmod RAT2FSTRING is
+ pr CONVERSION .
+
+ var r : Rat .
+ vars nz  nzt : NzNat .
+ var S : Int .
+ var M : String .
+ var E : Int .
+ var N : Nat .
+ 
+***** digits after ., total digits 
+ op rat2fstr : Rat NzNat NzNat -> String .
+ ceq rat2fstr(r, nz,nzt) = sign(S) +
+     (if (E >= 0)
+      then  (if (E >= nzt) 
+            then substr(M,0,E) + zeros(E - nzt)
+            else substr(M,0,E) + "." + substr(M,E,min(nz,nzt - E))
+            fi)
+      else "." + zeros(- E) + (if (nz + E < 0) then "" else substr(M,0,nz + E) fi)
+     fi)
+ if < S, M, E > := decFloat(float(r),nzt) .
+
+
+ op sign : Int -> String .
+ eq sign(-1) = "-" .
+ eq sign(0) = "" .
+ eq sign(1) = "" .
+ 
+ op zeros : Nat -> String .
+ eq zeros(0) = "" .
+ eq zeros(s N) = "0" + zeros(N) . 
+ 
+
+endfm

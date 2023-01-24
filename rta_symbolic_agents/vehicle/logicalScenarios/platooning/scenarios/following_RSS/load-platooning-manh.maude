@@ -1,0 +1,5 @@
+load ../../../../lib-vehicle/loadPre
+load decide-split
+load ../../../../lib-vehicle/loadPos-timestepSimple
+load scenario-template-platooning-manh-4SP.maude
+load exp-scenario-platooning-manh-4SP.maude

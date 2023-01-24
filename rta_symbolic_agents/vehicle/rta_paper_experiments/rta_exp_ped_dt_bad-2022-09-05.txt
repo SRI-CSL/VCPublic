@@ -1,0 +1,17 @@
+**** Check Dur using Dt Bad Adequacy ***
+Maude Experiment:
+  ../logicalScenarios/pedestrian-crossing/scenarios/noSensorErrors/load-pedestrian-resilience.maude
+  SCENARIO-CROSSING
+  asysPedXLine(3,3/1,2/1,1/1,1/10)
+====> Total Time for Dt Bad Adequacy =172.47105345000455
+0:02:52.471053
+['saferSP', 'saferSP', '(true).Bool']
+['saferSP', 'safeSP', '(true).Bool']
+['safeSP', 'saferSP', '(true).Bool']
+['safeSP', 'safeSP', '(true).Bool']
+['safeSP', 'unsafeSP', '(true).Bool']
+['unsafeSP', 'safeSP', '(true).Bool']
+['unsafeSP', 'unsafeSP', '(false).Bool']
+['unsafeSP', 'badSP', '(false).Bool']
+['badSP', 'unsafeSP', '(false).Bool']
+['badSP', 'badSP', '(false).Bool']

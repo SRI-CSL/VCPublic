@@ -1,0 +1,220 @@
+*** In this version, actions/tasks are only annotated with delays, 
+*** not exact times. For example, task @ t means that task will be
+*** performed after t time units. 
+ 
+
+fmod EVENTS is
+  pr KNOWLEDGE .
+  pr RVAL .
+  sort Event EventSet . 
+  subsort Event < EventSet .
+  op none : -> EventSet .
+  op __ : EventSet EventSet -> EventSet [ctor assoc comm id: none] .
+
+*** tasks 
+  sorts Task TaskSet .
+  subsort Task < TaskSet .
+  op none : -> TaskSet [ctor] .
+  op __ : TaskSet TaskSet -> TaskSet [ctor assoc comm id: none] .
+  op tick : -> Task [ctor] .  --- default tasks
+
+*** actions (must be annotated by ids)
+  sorts Action ActSet .
+  subsort Action < ActSet .
+  op none : -> ActSet [ctor] .
+  op __ : ActSet ActSet -> ActSet [ctor assoc comm id: none] .
+
+  op noAct : -> Action [ctor] .
+  
+  sorts RAct RActSet .  --- ranked action
+  subsort RAct < RActSet .
+  op {_,_} : RVal Action -> RAct [ctor] .
+  op none : -> RActSet [ctor] .
+  op __ : RActSet RActSet -> RActSet [ctor assoc comm id: none] .
+
+ sort SRAct .
+
+*** immediate events .
+  sort IEvent .
+  subsort IEvent < Event . 
+  op rcv : KB -> IEvent [ctor] .
+  op post : InfoSet -> IEvent [ctor] .
+
+*** delayed events
+  sort DEvent .
+  subsort DEvent < Event .  
+
+  op _@_ : Task Time -> DEvent .    --- for agent todo: task @ delay
+  op _@_ : Action Time -> DEvent .  --- for the envt: action @ delay 
+                          --- sitl style, duration determined by action
+   op _@_ : RAct Time -> DEvent .  --- for the envt: {rval,act} @ delay 
+   op _@_ : SRAct Time -> DEvent .
+   
+  var info : Info .  var iset : InfoSet .  vars t t' t0 t1 : Time .
+  var tsk : Task .  var act act0 act1 : Action . var ract : RAct .
+  var acts : ActSet .
+  var dev : DEvent .	var iev : IEvent .
+  var ievs evs evs0 evs1 devs devs1 : EventSet .
+	var rval rval0 rval1 : RVal .
+  var lkb kb0 kb1 kb skb : KB .
+  var id : Id .
+  var cl : Class .
+  var task : Task .
+  var tasks : TaskSet .
+  vars kek0 kek1 kek : KBEventsKB .
+  var  kekset : KBEventsKBSet . 
+  var i : Nat .
+  var cond : Boolean .
+  
+  op getTime : DEvent -> Time .
+  eq getTime(tsk @ t) = t .
+  eq getTime(act @ t) = t .
+  eq getTime(ract @ t) = t .
+  eq getTime(dev) = (zero).Time [owise] .
+  
+  op tstamp : InfoSet Time -> KB .
+  eq tstamp(info iset, t) = (info @ t) tstamp(iset,t)  .
+  eq tstamp((none).InfoSet, t) = (none).KB .
+
+  op tstamp : ActSet Time -> EventSet .
+  eq tstamp(act acts, t) = (act @ t) tstamp(acts,t)  .
+  eq tstamp((none).ActSet, t) = (none).EventSet .
+
+	sort EventsPair .
+	op {_,_} : EventSet EventSet -> EventsPair [ctor] .
+  op splitEvents : EventSet  EventSet -> EventsPair  .
+	eq splitEvents(iev evs, ievs) = splitEvents(evs, ievs iev) .
+	eq splitEvents(evs, ievs) = {ievs,evs} [owise] .
+
+	sort TasksEvents .
+	op {_,_} : TaskSet EventSet -> TasksEvents [ctor] .
+  op splitTasks0 : EventSet  TaskSet -> TasksEvents .
+	eq splitTasks0((task @ 0) evs, tasks) 
+        = splitTasks0(evs, tasks task) .
+	eq splitTasks0(evs, tasks) = {tasks,evs} [owise] .
+
+  op getRankedEvs : EventSet -> EventSet .
+  eq getRankedEvs((ract @ t) evs) = (ract @ t) getRankedEvs(evs) .
+  eq getRankedEvs(evs) = none [owise] .
+
+***** remembering last action
+  op lastAct : Action  -> Info .
+  eq lastAct(act0) @ t0 << lastAct(act1) @ t1 = t0 < t1 .
+
+  op getLastAct : KB -> Action .
+  eq getLastAct(kb (lastAct(act0) @ t0)) = act0 .
+  eq getLastAct(kb) = noAct [owise] .
+  
+  op thresh : Id RVal -> PKItem .
+  op getThresh : Id KB -> RVal .
+  eq getThresh(id,thresh(id,rval) lkb) = rval .
+  eq getThresh(id, lkb) = (zero).RVal [owise] .
+  
+  sorts KBEvents NatKBEventsBoolean .
+  op {_,_} : KB EventSet -> KBEvents [ctor] .
+  op {_,_,_} : Nat KBEvents Boolean -> NatKBEventsBoolean [ctor] .
+
+  sort KBEventsKB .
+  op {_,_,_} : KB EventSet KB -> KBEventsKB [ctor] .
+  op getKEKEvents : KBEventsKB -> EventSet .
+  eq getKEKEvents({kb0,evs,kb1}) = evs .
+
+  sort KBEventsKBSet .
+  subsort KBEventsKB < KBEventsKBSet .
+  op none : -> KBEventsKBSet [ctor] .
+  op __ : KBEventsKBSet KBEventsKBSet -> KBEventsKBSet [ctor assoc comm id: none] .
+
+  *** Agents have class specific procedures for
+  *** executing scheduled tasks
+  *** doTask returns new local knowledge, events, and posts
+  ****                       ievs     devs  sensor lkb
+  op doTask : Class Id Task EventSet EventSet KB KB 
+                 -> KBEventsKBSet .
+
+****  tasks ievs devs
+  op doTasks : Class Id TaskSet EventSet EventSet KB KB 
+                 -> KBEventsKBSet .
+  eq doTasks(cl,id,task,ievs,devs,skb,lkb) = 
+       doTask(cl,id,task,ievs,devs,skb,lkb) [owise] .
+
+ sort SKBEvents .
+  op {_,_,_} : KB EventSet Boolean -> SKBEvents [ctor] .
+
+  sort SKBEventsKB .
+  op {_,_,_,_} : KB EventSet KB Boolean -> SKBEventsKB [ctor] .
+  op getKB1 : SKBEventsKB -> KB .
+  op getKB2 : SKBEventsKB -> KB .
+  op getEvs : SKBEventsKB -> EventSet .
+  op getBoolean : SKBEventsKB -> Boolean .
+
+  eq getKB1({kb0,evs,kb1,cond}) = kb0 .
+  eq getKB2({kb0,evs,kb1,cond}) = kb1 .
+  eq getEvs({kb0,evs,kb1,cond}) = evs .
+  eq getBoolean({kb0,evs,kb1,cond}) = cond .
+
+  sort SKBEventsKBSet .
+  subsort SKBEventsKB < SKBEventsKBSet .
+  op none : -> SKBEventsKBSet [ctor] .
+  op __ : SKBEventsKBSet SKBEventsKBSet -> SKBEventsKBSet [ctor assoc comm id: none] .
+
+  op size : SKBEventsKBSet -> Nat .
+  eq size(none) = 0 .
+  eq size(skb:SKBEventsKB skbs:SKBEventsKBSet)
+   = s(size(skbs:SKBEventsKBSet)) .
+
+  sort NatKBEventsKBSet DoTaskResults .
+  subsort NatKBEventsKBSet < DoTaskResults .
+  op none : -> DoTaskResults .
+  op __ : DoTaskResults DoTaskResults -> DoTaskResults [comm assoc id: none] .
+  op {_,_} : Nat SKBEventsKBSet -> NatKBEventsKBSet [ctor] .
+  op getNat : NatKBEventsKBSet -> Nat .
+  eq getNat({i,skbs:SKBEventsKBSet}) = i .
+  op getSKBEventsKBSet : NatKBEventsKBSet -> SKBEventsKBSet .
+  eq getSKBEventsKBSet({i,skbs:SKBEventsKBSet})
+   = skbs:SKBEventsKBSet .
+
+  *** doTask returns new fresh identifier, new local knowledge, events, and posts
+  ****                       ievs     devs  sensor lkb and boolean
+  op doTask : Class Id Nat Task EventSet EventSet KB KB Boolean
+                 -> NatKBEventsKBSet .
+  op doTask : Class Id Nat Task EventSet EventSet KB KB Boolean
+                 -> DoTaskResults .
+
+  op doTasks : Class Id Nat TaskSet EventSet EventSet KB KB Boolean 
+                 -> NatKBEventsKBSet .
+
+
+  **** to be used by doTask for soft constraint solving
+  op solveSCP : Id KB ActSet -> RActSet .
+  op selectKeK : KB KBEventsKBSet -> KBEventsKBSet .
+  op selectKeK : KB SKBEventsKBSet -> SKBEventsKBSet .
+  eq selectKeK(kb:KB,skb:SKBEventsKBSet) 
+   = skb:SKBEventsKBSet [owise] .
+
+***(
+  op allKeK : KB KBEventsKBSet -> KBEventsKBSet .
+  op bestKeK : KB KBEventsKBSet ->  KBEventsKBSet .
+  op bestKeKX :  KBEventsKBSet KBEventsKB ->  KBEventsKBSet .
+
+  eq allKeK(kb,kek kekset) = kek kekset .
+  eq allKeK(kb,kekset) = {kb,(tick @ botDelay),none} [owise] .
+  eq bestKeK(kb,kek kekset) = bestKeKX(kekset, kek) .  
+  eq bestKeK(kb,kekset) = {kb,(tick @ botDelay),none} [owise] .
+  eq bestKeKX( kek0 kekset, kek1) =
+       bestKeKX(kekset, betterEvs(kek0, kek1)) .
+  eq bestKeKX(none, kek1) = kek1 .
+  
+  op betterEvs : KBEventsKB KBEventsKB -> KBEventsKB .
+  ceq betterEvs(kek0,kek1) =  (if (rval0 < rval1) then kek1 else kek0 fi) 
+    if ({rval0,act0} @ t0) evs0 := getKEKEvents(kek0)
+    /\ ({rval1,act1} @ t1) evs1 := getKEKEvents(kek1)   
+    .
+    
+  eq selectKeK(kb,kekset) = bestKeK(kb,kekset) .
+  eq selectKeK(kb,kekset) = allKeK(kb,kekset) .
+)
+
+
+
+  
+endfm

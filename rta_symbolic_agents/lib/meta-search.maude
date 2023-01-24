@@ -1,0 +1,99 @@
+fmod META-SEARCH is
+  inc SOFT-AGENTS .
+  inc META-LEVEL .
+
+ vars mname module : Module .
+ vars asysT lastT condT asysT1 : Term .
+ vars asys1 asys0 : ASystem .
+ var asyss : ASystemSet .
+ var asys? : ASystemSet? .
+ var sres?? : [ResultTriple] .
+ var kb? : KB? .
+ var kb : KB .
+ vars n n1 : Nat .
+ var cond : Boolean .
+ vars res? : [ResultPair?] .
+ var bound : Bound .
+
+ sorts ASystemSet ASystemSet? .
+ subsort ASystem < ASystemSet .
+ subsort ASystemSet < ASystemSet? .
+ op none : -> ASystemSet .
+ op __ : ASystemSet ASystemSet -> ASystemSet [ctor comm assoc id: none] .
+
+  op size : ASystemSet -> Nat .
+  eq size (asys1 asyss) = s( size(asyss) ) .
+  eq size((none).ASystemSet) = 0 .
+
+ sort KB? .
+ subsort KB < KB? .
+ op noKB : -> KB? .
+ op mtasys : -> ASystem .
+ op noasys : -> ASystemSet? .
+
+*** condT has to be of the form:
+*** 'checkSP['unsafeSP,c:ASystem]
+*** bound is typically unbounded
+  op searchAsysAll :  Module Term Nat Term Bound -> ASystemSet [memo] .
+  op searchAsysAll :  Module Term Nat Term -> ASystemSet [memo] .
+  op searchAsys :  Module Term Nat Term Bound -> ASystemSet? [memo] .
+ ceq searchAsysAll(mname,asysT,n,condT,bound) 
+  = asys1 searchAsysAll(mname,asysT,s n,condT,bound)
+  if asys1 := searchAsys(mname,asysT,n,condT,bound) .
+ eq searchAsysAll(mname,asysT,n,condT,bound) = none [owise] .
+
+ ceq searchAsys(mname,asysT,n,condT,bound) 
+  =  asys?
+  if sres?? := metaSearch(mname,asysT,'c:ASystem,condT = 'true.Bool,'+,bound,n)
+  /\ lastT := (if sres?? :: ResultTriple
+               then getTerm(sres??)
+               else 'mtasys.ASystem fi)
+  /\ asys1 := downTerm(lastT,mtasys) 
+  /\ asys? := if lastT == 'mtasys.ASystem then 
+            noasys else asys1 fi .
+
+ op getFinalConstraints :  Module Term Nat -> KB [memo] .
+ op getFinalConstraints$ :  Module Term Nat -> KB? .
+ ceq getFinalConstraints(mname,asysT,n) 
+  = kb getFinalConstraints(mname,asysT,s n)
+  if kb := getFinalConstraints$(mname,asysT,n) 
+  /\ kb :: KB .
+ eq getFinalConstraints(mname,asysT,n) = none [owise] .
+
+ ceq getFinalConstraints$(mname,asysT,n) 
+  =  kb?
+  if sres?? := metaSearch(mname,asysT,'c:ASystem,nil,'+,unbounded,n)
+  /\ lastT := (if sres?? :: ResultTriple
+               then getTerm(sres??)
+               else 'mtasys.ASystem fi)
+  /\ asys1 := downTerm(lastT,mtasys) 
+  /\ kb? := if lastT == 'mtasys.ASystem then 
+            noKB else getConstraint(asys1) fi .
+
+ op noSystem : -> ASystem .
+
+ op getRewASys : Module ASystem Nat -> ASystem .
+ ceq getRewASys(module,asys0,n) 
+  = asys1
+  if asysT := upTerm(asys0) 
+  /\ res? := metaRewrite(module,asysT,n) 
+  /\ asysT1 := (if res? :: ResultPair 
+               then getTerm(res?) 
+               else upTerm(noSystem) fi) 
+  /\ asys1 := downTerm(asysT1,noSystem) .
+
+op getRewBool : Module ASystem Nat -> Boolean .
+ceq getRewBool(module,asys0,n) 
+ = cond
+ if asysT := upTerm(asys0) 
+ /\ res? := metaRewrite(module,asysT,n) 
+ /\ asysT1 := (if res? :: ResultPair 
+               then getTerm(res?) 
+               else upTerm(noSystem) fi)  
+ /\ asys1 := downTerm(asysT1,noSystem) 
+ /\ constraint(n1,cond) := getConstraint(asys1) .
+
+endfm 
+
+
+

@@ -1,0 +1,10 @@
+**** Resilience Check ***
+Maude Experiment:
+  ../logicalScenarios/platooning/scenarios/following_RSS/load-platooning-manh2.maude
+  SCENARIO-PLATOONING
+  asys(36,basicCondReactTimeEqDT(5/1,40/1) and testBounds1(6/1,4/1,1/1,1/2),2)
+  time = 2
+  maxdec1 = -8
+====> Total Time for Resilience =38.724164569051936
+0:00:38.724165
+System is resilient

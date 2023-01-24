@@ -1,0 +1,8 @@
+**** Check Dur using Dt Bad Adequacy ***
+Maude Experiment:
+  ../logicalScenarios/platooning/scenarios/following/load-platooning-manh.maude
+  SCENARIO-PLATOONING
+  asys(36,basicCond and testBounds0(3/1,2/1,1/1,1/10),2)
+====> Total Time for no skip =0.5973689130041748
+Result (true).Bool
+0:00:00.597369

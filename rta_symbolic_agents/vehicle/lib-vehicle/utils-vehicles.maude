@@ -1,0 +1,161 @@
+fmod UTILS-VEHICLE is
+  inc MODEL-TASKS .
+
+ var id0 : Id .
+ vars lkb kbAcc kb ekb kbacc kbAcc2 : KB .
+ var attrs : AttributeSet .
+ vars l1 l2 l3 l11 l22 l33 : Loc .
+ vars vvel acc vmag posx posy spd : SymTerm .
+ var kblist kbl kblacc : KBList .
+ var conf : Conf .
+ var t : Time .
+ var n : Nat .
+ vars str1 str2 : String .
+ vars model model1 : SmtModel .
+ var asys : ASystem .
+
+ op sset : -> SensorSet .
+ op cl : -> Class .
+ eq cl = veh .
+
+ op task : -> Task .
+ eq task = tick .
+
+ op evs : -> EventSet .
+ eq evs = task @ 0 .
+
+ op mkAsys : Conf -> ASystem .
+ eq mkAsys(conf) = { updateLog(conf mkLog) } . 
+
+ sort SymLog .
+ subsort SymLog < ConfElt .
+
+ op mkLog : -> SymLog .
+ op mkEnv : Id KB -> Env .
+ op mkVeh : Id KB -> Agent .
+ op mkPed : Id KB -> Agent .
+ op log : KBList -> SymLog .
+
+ op getSymLog : ASystem -> SymLog .
+ op getSymLog : Conf -> SymLog .
+ eq getSymLog({ log:SymLog conf }) = log:SymLog .
+ eq getSymLog(log:SymLog conf) = log:SymLog .
+
+ op length : SymLog -> Nat .
+ eq length(log(kblist)) = length(kblist) .
+ op getEle : Nat SymLog -> KB .
+ eq getEle(n,log(kblist)) = getEle(n,kblist) .
+
+ eq mkLog = log(nilKB) . 
+ eq mkEnv(id:Id,ekb) = [id:Id | ekb] .
+
+ eq mkVeh(id0,lkb) 
+  = [id0 : veh |
+  lkb : (lkb (clock(0))),
+  ckb : none,
+  sensors : sset,
+  evs : ((tick @ 0))] .
+ 
+ eq mkPed(id0,lkb) 
+  = [id0 : pedestrian |
+  lkb : ((clock(0)) lkb),
+  ckb : none,
+  sensors : none,
+  evs : ((tick @ 0))] . 
+
+  op updateAsysLog : ASystem -> ASystem .
+  eq updateAsysLog({ conf }) = { updateLog(conf) } .
+
+  op updateLog : Conf -> Conf .
+  ceq updateLog(log(kblist) conf)
+   = log(kblist :: (kbAcc kbAcc2))  conf
+   if t := getTime(conf)
+   /\ ekb := envKB(conf)
+   /\ kbAcc := getLogEle(t,ekb,none) 
+   /\ kbAcc2 := getSensedLog(t,conf,none) .
+
+  op getLogEle : Time KB KB -> KB . 
+  eq getLogEle(t,(dir(id:Id,l1,l2,vmag) @ t) kb,kbAcc)
+   = getLogEle(t,kb,(dir(id:Id,l1,l2,vmag) @ t) kbAcc) .
+  eq getLogEle(t,(atloc(id:Id,l1) @ t) kb,kbAcc)
+   = getLogEle(t,kb,(atloc(id:Id,l1) @ t) kbAcc) .
+  eq getLogEle(t,(speed(id:Id, vvel) @ t) kb,kbAcc)
+   = getLogEle(t,kb,(speed(id:Id, vvel) @ t) kbAcc) .
+  eq getLogEle(t,(speed(id:Id, vvel) @ t) kb,kbAcc)
+   = getLogEle(t,kb,(speed(id:Id, vvel) @ t) kbAcc) .
+  eq getLogEle(t,(accel(id:Id,acc) @ t) kb,kbAcc)
+   = getLogEle(t,kb,(accel(id:Id,acc) @ t) kbAcc) .
+  eq getLogEle(t,kb,kbAcc) = kbAcc [owise] .
+
+  op test : -> KB .
+
+  op getSensedLog : Time Conf KB -> KB .
+  ceq getSensedLog(t,ag:Agent conf,kbAcc)
+   = getSensedLog(t,conf,kb kbAcc)
+   if kb := getSensedEle(t,getLKB(ag:Agent),none) .
+  eq getSensedLog(t,conf,kbAcc) =  kbAcc [owise] .
+ 
+  op getSensedEle : Time KB KB -> KB .
+  eq getSensedEle(s t,(ped(id:Id,l1,spd,l2,l3) @ t) kb,kbAcc)
+   = getSensedEle(s t,kb,(ped(id:Id,l1,spd,l2,l3) @ t) kbAcc) .
+  eq getSensedEle(t,kb,kbAcc) = kbAcc [owise] .
+
+  op evalLog : SmtModel ASystem -> KBList .
+  eq evalLog(model,asys) = evalLog(model,getSymLog(asys)) .  
+  op evalLog : SmtModel SymLog -> KBList .
+  op evalLog$ : SmtModel KBList KBList  -> KBList .
+
+  eq evalLog(model,log(kbl)) = evalLog$(model,kbl,nilKB) .
+  eq evalLog$(model,kb :: kbl,kblacc) 
+   = evalLog$(model,kbl,kblacc :: evalKB(model,kb,none)) . 
+  eq evalLog$(model,nilKB,kblacc) = kblacc .
+
+  op evalLoc : SmtModel Loc -> Loc .
+  eq evalLoc((posx |-> str1) (posy |-> str2) model,
+             loc(posx,posy))
+   = loc(rs(str1),rs(str2)) .
+
+  op evalKB : SmtModel KB KB -> KB .
+  eq evalKB(model,(atloc(id:Id,l1) @ t) kb,kbacc) 
+    = evalKB(model,kb,(atloc(id:Id,evalLoc(model,l1)) @ t) kbacc)  .
+  eq evalKB((vvel |-> str1) model,
+             (speed(id:Id, vvel) @ t) kb,kbacc) 
+    = evalKB((vvel |-> str1) model,
+             kb,(speed(id:Id,rs(str1)) @ t) kbacc)  .
+  eq evalKB((acc |-> str1) model,
+             (accel(id:Id,acc) @ t) kb,kbacc) 
+    = evalKB((acc |-> str1) model,
+             kb,(accel(id:Id,rs(str1)) @ t) kbacc)  .
+  ceq evalKB(model,(ped(id:Id,l1,spd,l2,l3) @ t) kb,kbacc) 
+    = evalKB(model,kb,(ped(id:Id,l11,rs(str1),l22,l33) @ t) kbacc)
+   if l11 := evalLoc(model,l1)
+   /\ l22 := evalLoc(model,l2)
+   /\ l33 := evalLoc(model,l3)
+   /\ (spd |-> str1) model1 := model .
+  eq evalKB(model,kb,kbacc) = kbacc [owise] .
+
+  op getPosX : Id KB -> SymTerm .
+  eq getPosX(id:Id, (atloc(id:Id,loc(posx,posy)) @ t) kb) = posx .
+  op getPosY : Id KB -> SymTerm .
+  eq getPosY(id:Id, (atloc(id:Id,loc(posx,posy)) @ t) kb) = posy .
+  op getSpd : Id KB -> SymTerm .
+  eq getSpd(id:Id, (speed(id:Id, vvel) @ t) kb) = vvel .
+  op getAcc : Id KB -> SymTerm .
+  eq getAcc(id:Id, (accel(id:Id,acc) @ t) kb) = acc .
+  op getSenPedId : Id KB -> String .
+  eq getSenPedId(id:Id,(ped(id1:Id,l1,spd,l2,l3) @ t) kb)
+    = string(id1:Id) .
+  eq getSenPedId(id:Id,kb) = "None" [owise] .
+  op getSenPedX : Id KB -> SymTerm .
+  eq getSenPedX(id:Id,(ped(id1:Id,l1,spd,loc(posx,posy),l3) @ t) kb)
+    = posx .
+  eq getSenPedX(id:Id,kb) = rs("-1/1") [owise] .
+  op getSenPedY : Id KB -> SymTerm .
+  eq getSenPedY(id:Id,(ped(id1:Id,l1,spd,loc(posx,posy),l3) @ t) kb)
+    = posy .
+  eq getSenPedY(id:Id,kb) = rs("-1/1") [owise] .
+  *** TODO: getDirection
+endfm
+
+
+

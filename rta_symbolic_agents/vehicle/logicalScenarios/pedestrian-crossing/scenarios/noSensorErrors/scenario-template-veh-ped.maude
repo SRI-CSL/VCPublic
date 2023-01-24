@@ -1,0 +1,169 @@
+ mod SCENARIO-TEMPLATE-VEH-PED is
+ inc SENSOR-FAULTS .
+ inc SOFT-AGENT-RULES .
+ inc ENV-ACTIONS .
+ inc UTILS-VEHICLE .
+ inc SAFETY-PROPERTIES .
+ inc META-SEARCH .
+ inc TICK-DURATION-PROP .
+ inc CHECK-DT-ADEQUACY .
+
+ vars lkb ekb0 ekb1 kb kb1 : KB .
+ var id0 : Id .
+ vars conf conf1 conf2 conf3 : Conf .
+ var env : Env .
+ vars cond cond1 cond00 nucond : Boolean . 
+ vars ff0 ff1 ff2 ff3 disTar dstop vel : SymTerm .
+ vars t t0 t1 t2 n t3 t4 k stp : Nat .
+ var numVars : Nat .
+ var b1 : Bool .
+ var smtRes1 : SmtCheckResult .
+ vars l l1 l2 : Loc .
+ vars asys0 asys1 : ASystem .
+ vars gapSafe gapSafer gapBad : RealSym .
+
+ op v : Nat -> Id .
+ eq string(v(k:Nat)) = "ag" + string(k:Nat,10) .
+
+ op stopTick : -> Nat .
+
+**** Initial symbols
+ ops vposx vposy pposx pposy
+     vvel pvel maxacc1 maxdec1 maxacc2 maxdec2 acc1 acc2
+     pinix piniy ptarx ptary 
+     vmin vmax pedSDist vinix viniy 
+     vtarx vtary pmag vmag safer safe bad tickSize 
+     vellb1 velub1 vellb2 velub2 dt : -> SymTerm .
+ eq vposx = vv(0,"ag1-positionX") .
+ eq vposy = vv(1,"ag1-positionY") .
+ eq pposx = vv(2,"ag2-positionX") .
+ eq pposy = vv(3,"ag2-positionY") .
+ eq vvel = vv(4,"ag1-speed") .
+ eq pvel = vv(6,"ag2-speed") .
+ eq maxacc1 = vv(7,"ag1-maxAcc") .
+ eq maxdec1 = vv(8,"ag1-maxDec") .
+ eq pinix = vv(9,"pinix") .
+ eq piniy = vv(10,"piniy") .
+ eq ptarx = vv(11,"ptarx") .
+ eq ptary = vv(12,"ptary") .
+ eq vmin = vv(13,"v1min") .
+ eq vmax = vv(14,"v1max") .
+ eq pedSDist = vv(15,"peds-distance") .
+ eq vinix = vv(16,"vinix") .
+ eq viniy = vv(17,"viniy") .
+ eq vtarx = vv(18,"vtarx") .
+ eq vtary = vv(19,"vtary") .
+ eq pmag = vv(20,"ped-dir-mag") .
+ eq vmag = vv(21,"veh1-dir-mag") .
+ eq acc1 = vv(22,"veh1-acc") .
+ eq acc2 = vv(23,"ped-acc") .
+ eq tickSize = vv(24,"veh1-safe") .
+ eq vellb1 = vv(25,"ag1-speed-lower-bound") .
+ eq velub1 = vv(26,"ag1-speed-upper-bound") .
+ eq vellb2 = vv(27,"ag2-speed-lower-bound") .
+ eq velub2 = vv(28,"ag2-speed-upper-bound") .
+ eq maxacc2 = vv(29,"ag1-maxAcc") .
+ eq maxdec2 = vv(30,"ag1-maxDec") .
+ eq dt = vv(31,"tick-size") .
+ eq safer = vv(32,"ag1-safer") .
+ eq safe = vv(33,"ag1-safe") .
+ eq bad = vv(34,"ag1-bad") .
+
+*** Safety Properties
+ops saferSP safeSP unsafeSP badSP : -> SP .
+eq spset = safeSP saferSP unsafeSP badSP .
+eq badSP < unsafeSP = true .
+eq unsafeSP < safeSP = true .
+eq safeSP < saferSP = true .
+
+**** Safer property
+ceq mkSPCond(saferSP, { conf env })
+  = {k + 1,dstop ; disTar,cond1,nucond}
+  if [id0 | kb] := env
+  /\ (atloc(v(1),l) @ t1)
+     (speed(v(1),vel) @ t3) 
+     (constraint(n,cond)) 
+     (gapSafety(v(1),gapSafer,gapSafe,gapBad)) 
+     kb1 := kb
+  /\ {k,disTar,cond00} := closestYdist(n,l,loc(ptarx,ptary),loc(pinix,piniy)) 
+  /\ dstop := mkNuVar(k,v(1),"-dist-to-stop") 
+  /\ cond1 := cond00 and (dstop === - (vel * vel) / (2/1 * maxdec1))
+  /\ nucond := (disTar >= dstop + (gapSafer * (vel / 2/1))) .  
+
+**** Safe property
+ceq mkSPCond(safeSP, { conf env })
+  = {k + 1,dstop ; disTar,cond1,nucond}
+  if [id0 | kb] := env
+  /\ (atloc(v(1),l) @ t1)
+     (speed(v(1),vel) @ t3) 
+     (gapSafety(v(1),gapSafer,gapSafe,gapBad)) 
+     (constraint(n,cond)) kb1 := kb
+  /\ {k,disTar,cond00} := closestYdist(n,l,loc(ptarx,ptary),loc(pinix,piniy)) 
+  /\ dstop := mkNuVar(k,v(1),"-dist-to-stop-property") 
+  /\ cond1 := cond00 and (dstop === - (vel * vel) / (2/1 * maxdec1))
+  /\ nucond := (disTar < dstop + (gapSafer * (vel / 2/1)))
+               and (disTar >= dstop + (gapSafe * (vel / 2/1))) .
+                 
+
+**** unsafe property
+ceq mkSPCond(unsafeSP, { conf env })
+  = {k + 1,dstop ; disTar,cond1,nucond}
+  if [id0 | kb] := env
+  /\ (atloc(v(1),l) @ t1)
+     (speed(v(1),vel) @ t3) 
+     (gapSafety(v(1),gapSafer,gapSafe,gapBad)) 
+     (constraint(n,cond)) kb1 := kb
+  /\ {k,disTar,cond00} := closestYdist(n,l,loc(ptarx,ptary),loc(pinix,piniy)) 
+  /\ dstop := mkNuVar(k,v(1),"-dist-to-stop-property") 
+  /\ cond1 := cond00 and (dstop === - (vel * vel) / (2/1 * maxdec1))
+  /\ nucond := (disTar < dstop + (gapSafe * (vel / 2/1)))
+               and (disTar >= dstop + (gapBad * (vel / 2/1))) .  
+
+ceq mkSPCond(badSP, { conf env })
+  = {k + 1,dstop ; disTar,cond1,nucond}
+  if [id0 | kb] := env
+  /\ (atloc(v(1),l) @ t1)
+     (speed(v(1),vel) @ t3) 
+     (gapSafety(v(1),gapSafer,gapSafe,gapBad)) 
+     (constraint(n,cond)) kb1 := kb
+  /\ {k,disTar,cond00} := closestYdist(n,l,loc(ptarx,ptary),loc(pinix,piniy)) 
+  /\ dstop := mkNuVar(k,v(1),"-dist-to-stop-property") 
+  /\ cond1 := cond00 and (dstop === - (vel * vel) / (2/1 * maxdec1))
+  /\ nucond := (disTar < dstop + (gapBad * (vel / 2/1))) .
+
+*** Initial LKBs
+ ops lkb0 lkb1 lkbPed : -> KB .
+ op ekb : Nat Boolean Nat -> KB .
+
+ eq tickDelay = 1 .
+
+ op stop : Nat -> PKItem .
+ ceq updateConf(conf) 
+  = conf3 
+  if conf1 := updateLog(conf) 
+  /\ [ eId | clock(t0) stop(t1) lkb] log:SymLog conf2 := conf1
+  /\ conf3 := if t0 == t1 then [ eId | clock(t0) lkb] log:SymLog 
+              else conf1 fi .
+
+**** SENSORS
+ eq sset = (locS speedS pedS(pedSDist)) .
+
+*** Environment and Agent IDs and initial configurations
+*** Use functions in UTILS-VEHICLE
+ op eId : -> Id .
+ ops veh1 ped veh0 : -> Agent .
+ eq veh1 = mkVeh(v(1),lkb1) .
+ eq ped = mkPed(v(2),lkbPed) .
+
+
+ op scenarioCrossing : Nat Boolean Nat -> Conf .
+ eq scenarioCrossing(numVars,cond,stp) 
+   = veh1 ped [eId | ekb(numVars,cond,stp) ] .
+
+ op asysCrossing : Nat Boolean Nat -> ASystem .
+ eq asysCrossing(numVars,cond,stp) 
+  = mkAsys(scenarioCrossing(numVars,cond,stp)) .
+
+endm
+
+eof

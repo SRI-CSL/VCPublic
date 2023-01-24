@@ -1,0 +1,52 @@
+fmod DECIDE is 
+  inc VAL-SAFETY .
+
+  vars id id2 id1 : Id .
+  vars kb kb1 kb2 : KB .
+  vars f c vnxt vmin vmax vminD vmaxD vel dis 
+       vminAct uminAct vmaxAct vc dstop caution
+       umaxAct time dcc spd accmin disTar : SymTerm .
+  vars t t2 t3 i j k t4 : Nat .
+  vars cond cond0 cond00
+       cond1 cond2 cond3 cond4 cond5 : Boolean .
+  vars l l0 l1 l2 : Loc .
+  var ids : IdSet .
+
+  --- op val-safety : Id Nat KB Action Boolean -> NatSymSegments .
+ ceq val-safety(id,i,kb,actSpeed(id,vmin,vmax),cond)
+   =  {k + 1, [vminAct,u(uminAct),vmaxAct,u(umaxAct),cond5]}
+   if (atloc(id,l) @ t)
+      (speed(id,vel) @ t2) 
+      (maxDec(id,dcc))
+      (mode(id,leading(ids)) @ t3)
+      (pedCaution(id,caution) @ t4) kb1 := kb
+   /\ vminAct := mkNuVar(i,id,"-vminAct")
+   /\ uminAct := mkNuVar(i + 1,id,"-uminAct")
+   /\ vmaxAct := mkNuVar(i + 2,id,"-vmaxAct")
+   /\ umaxAct := mkNuVar(i + 3,id,"-umaxAct")
+   /\ (ped(id1,l0,spd,l1,l2) @ t) kb2 := getPedestrians(kb,none)
+   /\ {k,disTar,cond00} := closestYdist(i + 4,l,l1,l2)
+   /\ dstop := mkNuVar(k,id,"-dist-to-stop")
+   /\ cond1 := dstop === (- (vel * vel) / (2/1 * dcc)) 
+               and cond00
+   /\ cond2 := (dstop < disTar - caution - vel) and 
+               (vminAct === vel) and  
+               (vmaxAct === vel) and 
+               (uminAct === 1/1) and 
+               (umaxAct === 1/1) 
+   /\ cond3 := (dstop >= disTar - caution - vel) and
+               (vel + dcc >= 0/1) and
+               (vminAct === vel + dcc) and  
+               (vmaxAct === vel + dcc) and 
+               (uminAct === 1/1) and 
+               (umaxAct === 1/1) 
+   /\ cond4 := (dstop >= disTar - caution - vel) and
+               (vel + dcc < 0/1) and
+               (vminAct === 0/1) and  
+               (vmaxAct === 0/1) and 
+               (uminAct === 1/1) and 
+               (umaxAct === 1/1) 
+   /\ cond5 := cond and cond1 and 
+               (cond2 or cond3 or cond4) .
+
+endfm
