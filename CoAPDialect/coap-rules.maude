@@ -1,0 +1,158 @@
+
+
+
+***(
+base device
+[epid  | sendReqs(amsgl) ---- immediate action
+         ctr(n) 
+         w4Ack(dmsgsA) w4Rsp(dmsgsR)  
+             --- mte is least timer, 0 timer is enabled action
+         rsrcsr(rmap)  --- no time dependence
+         config(....)   ---- ""
+          attrs]  
+
+attacker
+[atid | 
+  kb(mcLearnedDerived) 
+  caps(capsLeft) 
+  attrs]  
+
+dialected device
+[epid | devc(aconf net) dialectAttrs]
+
+)  
+  
+mod COAP-RULES is
+  inc COAP-TIME .
+  inc COAP-RULE-AUX .
+  inc COAP-ATTACKER .
+  
+vars epid aid src dst tok : String .
+var amsg : AMsg .
+var amsgl : AMsgL .  
+vars dmsgs dmsgs0 dmsgs1 dmsgs2  ddmsgs0 ddmsgs1 : DMsgS .
+vars devatts devatts1 devatts2 attrs attrs1  dattrs dattrs1
+       : Attrs .
+vars opts  opts0 : Options .
+var hd : Head .
+var body : Body .
+vars msg msgd : Msg .
+var cbnds : CBnds .
+var n  delay : Nat .
+var nz : NzNat .
+var dmsg ddmsg : DMsg .
+var acaps :  Caps .
+var acap : Cap .
+vars conf conf1 : Conf .
+vars net0 net1 : Net .
+
+  
+crl[devsend]:
+[epid  | sendReqs(amsg ; amsgl) devatts ]
+net(dmsgs0,dmsgs1)
+=>
+[epid  |  sendReqs(amsgl) devatts1] 
+net(dmsgs0 dmsgs,dmsgs1)
+if noW4Ack(devatts)
+/\ canSend(devatts)
+/\ devatts1  toSend(dmsgs) := sndAMsg(epid,amsg, devatts)
+[print "\n[devsend] by" epid "\n msg " dmsgs] 
+.
+
+
+crl[rcv]:
+{[epid | devatts] net(dmsgs0,dmsgs1 msg @ 0 ) conf}
+=>
+{[epid | devatts2 ] net(dmsgs0 dmsgs,dmsgs1) conf1}
+if getTgt(msg) == epid
+/\ toSend(dmsgs) devatts1 := rcvMsg(epid, devatts, msg)
+/\ conf1 := doLog(conf,devatts1)
+/\ devatts2 := clearToLog(devatts1) 
+[print "\n[rcv] by" epid "\n msg " msg] 
+.
+
+***(
+p21 4.2
+For a new Confirmable message, the initial timeout is set
+to a random duration (often not an integral number of
+seconds) between ACK_TIMEOUT and (ACK_TIMEOUT *
+ACK_RANDOM_FACTOR) (see Section 4.8), and the
+retransmission counter is set to 0. When the timeout is
+triggered and the retransmission counter is less than
+Shelby, et al. Standards Track [Page 21] RFC 7252 The
+Constrained Application Protocol (CoAP) June 2014
+MAX_RETRANSMIT, the message is retransmitted, the
+retransmission counter is incremented, and the timeout is
+doubled. If the retransmission counter reaches
+MAX_RETRANSMIT on a timeout, or if the endpoint receives a
+Reset message, then the attempt to transmit the message is
+canceled and the application process informed of failure.
+On the other hand, if the endpoint receives an
+acknowledgement in time, transmission is considered
+successful.
+
+  cb("ACK_TIMEOUT", 2)
+  cb("ACK_RANDOM_FACTOR", 2)
+  cb("MAX_RETRANSMIT", 4)
+)
+**** resend con msg if ack timer is 0 
+**** rstart ack timer if nacks remaining > 0
+
+crl[ackTimeout]:
+ [epid | w4Ack((msg @ 0) dmsgs) config(cbnds) attrs]
+ net(dmsgs0,dmsgs1)
+ =>
+ [epid | w4Ack(dmsgs2 dmsgs) 
+         **** config(cbnds) attrs
+         resetSndCtr(attrs1 config(cbnds))]
+ net(dmsgs0 dmsg, dmsgs1)
+if  m(dst,epid,c(hd,tok,opts o("rcnt",n),body)) := msg
+/\ opts0 :=  o("rcnt",s n )
+/\ delay := backOff(getAckWait4(cbnds), s n)
+/\ dmsg :=  m(dst,epid,c(hd,tok,opts,body)) @ 
+              getMsgSndDelay(cbnds)
+/\ dmsgs2 :=  (if n < getMaxReSnd(cbnds) 
+               then m(dst,epid,c(hd,tok,opts opts0,body)) @ 
+                    delay
+               else mtDM  --- give up
+               fi)
+/\ attrs1 := (if n >= getMaxReSnd(cbnds) 
+             then addW4Rsp(attrs,
+                           m(dst,epid,c(hd,tok,opts,body))) 
+             else attrs
+             fi)
+[print "\n[ackTimeout] by" epid "\n msg " msg] 
+.
+
+op backOff : Nat Nat -> Nat .
+eq backOff(delay,0) = delay .
+eq backOff(delay,s n) = backOff(delay + delay,n) .
+
+
+**** move msg from net entrance to net exit
+rl[net]:
+net(dmsgs0 dmsg,dmsgs1) => net(dmsgs0,dmsgs1 dmsg)
+[print "\n[net] "] 
+ .
+
+**** apply an attacker capability
+crl[attack]:
+[aid  |  caps(acaps acap) attrs] 
+net(dmsgs0 dmsg,dmsgs1)
+=>
+[aid  |  addALog(attrs1,dmsg,acap)] 
+net(dmsgs0,dmsgs1 dmsgs)
+if toSend(dmsgs) attrs1 := 
+      doAttack(attrs caps(acaps),dmsg,acap)
+[print "\n[attack] " acap "\nmsg " dmsg] 
+.
+
+crl[tick]:
+{conf} => {passTime(conf,nz,mt)}
+if nz := mte({conf}) 
+[print "\n[tick] nz " nz] 
+.
+
+endm
+
+eof

@@ -1,0 +1,219 @@
+**** cb( "msgQD", 5) no "w4AckBd" == 0
+**** maude load
+
+set print attribute on .
+
+**************************************************
+**** testing non-confirmable get
+*** aMgetN is non-confirmable get
+*** no attacker
+rew {tCS(mkGetN("agetN","dev1","door"),rb("door","locked"),mtC)} .
+
+[devsend] by"dev0"
+ msg m("dev1", "dev0", c(h("NON", "0.GET", "agetN.0"), "agetN:1", o("Uri-Path", "door") o(
+    "Uri-Query", ""), mtBody)) @ 2
+
+[tick] nz 2
+
+[net]
+
+[rcv] by"dev1"
+ msg m("dev1", "dev0", c(h("NON", "0.GET", "agetN.0"), "agetN:1", o("Uri-Path", "door") o(
+    "Uri-Query", ""), mtBody))
+
+[tick] nz 2
+
+[net]
+
+[rcv] by"dev0"
+ msg m("dev0", "dev1", c(h("NON", "2.05", "dev1.0"), "agetN:1", mtO, b("locked")))
+rewrites: 392 in 0ms cpu (0ms real) (1116809 rewrites/second)
+result Sys: {
+net(mtDM, mtDM)
+["dev0" | w4Ack(mtDM) w4Rsp(mtM) rspSntD(mtDM) rspRcd(m("dev0", "dev1", c(h("NON", "2.05", "dev1.0"), "agetN:1", mtO, b("locked")))) rsrcs(mtR) ctr(2) sendReqs(nilAM) config(cb( "ACK_RANDOM_FACTOR", 2) cb("ACK_TIMEOUT", 5) cb("MAX_RETRANSMIT", 1) cb("msgQD", 5) cb( "msgSD", 2) cb("ttl", 10) cb("w4AckBd", 0)) sndCtr(1)]
+
+[dev1" | w4Ack(mtDM) w4Rsp(mtM) rspSntD(m("dev0", "dev1", c(h("NON", "2.05", "dev1.0"), "agetN:1", mtO, b("locked"))) @ 8) rspRcd(mtM) rsrcs(rb("door", "locked")) ctr(1) sendReqs(nilAM) config(cb("ACK_RANDOM_FACTOR", 2) cb("ACK_TIMEOUT", 5) cb( "MAX_RETRANSMIT", 1) cb("msgQD", 5) cb("msgSD", 2) cb("ttl", 10) cb("w4AckBd", 0)) sndCtr(0)]
+}
+**************************************************
+*** aMgetC confirmable get
+*** no attacker
+rew {tCS(mkGetC("agetC","dev1","door"),rb("door","locked"),mtC)} .
+
+[devsend] by"dev0"
+ msg m("dev1", "dev0", c(h("CON", "0.GET", "agetC.0"), "agetC:1", o("Uri-Path", "door") o( "Uri-Query", ""), mtBody)) @ 2
+
+[tick] nz 2
+
+[net]
+
+[rcv] by"dev1"
+ msg m("dev1", "dev0", c(h("CON", "0.GET", "agetC.0"), "agetC:1", o("Uri-Path", "door") o( "Uri-Query", ""), mtBody))
+
+[tick] nz 2
+
+[net]
+
+[rcv] by"dev0"
+ msg m("dev0", "dev1", c(h("ACK", "2.05", "dev1.0"), "agetC:1", mtO, b("locked")))
+
+rewrites: 398 in 1ms cpu (1ms real) (262879 rewrites/second)
+result Sys: {
+net(mtDM, mtDM)
+["dev0" | w4Ack(mtDM) w4Rsp(mtM) rspSntD(mtDM) rspRcd(m("dev0", "dev1", c(h("ACK", "2.05", "dev1.0"), "agetC:1", mtO, b("locked")))) rsrcs(mtR) ctr(2) sendReqs(nilAM) config(cb( "ACK_RANDOM_FACTOR", 2) cb("ACK_TIMEOUT", 5) cb("MAX_RETRANSMIT", 1) cb("msgQD", 5) cb( "msgSD", 2) cb("ttl", 10) cb("w4AckBd", 0)) sndCtr(1)]
+
+["dev1" | w4Ack(mtDM) w4Rsp(mtM) rspSntD(m("dev0", "dev1", c(h("ACK", "2.05", "dev1.0"), "agetC:1", mtO, b("locked"))) @ 8) rspRcd(mtM) rsrcs(rb("door", "locked")) ctr(1) sendReqs(nilAM) config(cb("ACK_RANDOM_FACTOR", 2) cb("ACK_TIMEOUT", 5) cb( "MAX_RETRANSMIT", 1) cb("msgQD", 5) cb("msgSD", 2) cb("ttl", 10) cb("w4AckBd", 0)) sndCtr(0)]
+}
+
+**************************************************
+****** testing get for non-existent resource
+*** no attacker
+rew {tCS(mkGetC("agetC","dev1","door"),mtR,mtC)} .
+
+[devsend] by"dev0"
+ msg m("dev1", "dev0", c(h("CON", "0.GET", "agetC.0"), "agetC:1", o("Uri-Path", "door") o( "Uri-Query", ""), mtBody)) @ 2
+
+[tick] nz 2
+
+[net]
+
+[rcv] by"dev1"
+ msg m("dev1", "dev0", c(h("CON", "0.GET", "agetC.0"), "agetC:1", o("Uri-Path", "door") o( "Uri-Query", ""), mtBody))
+
+[tick] nz 2
+
+[net]
+
+[rcv] by"dev0"
+ msg m("dev0", "dev1", c(h("ACK", "4.04", "dev1.0"), "agetC:1", mtO, mtBody))
+
+rewrites: 397 in 0ms cpu (1ms real) (400201 rewrites/second)
+result Sys: {
+net(mtDM, mtDM)
+["dev0" | w4Ack(mtDM) w4Rsp(mtM) rspSntD(mtDM) rspRcd(m("dev0", "dev1", c(h("ACK", "4.04", "dev1.0"), "agetC:1", mtO, mtBody))) rsrcs(mtR) ctr(2) sendReqs(nilAM) config(cb( "ACK_RANDOM_FACTOR", 2) cb("ACK_TIMEOUT", 5) cb("MAX_RETRANSMIT", 1) cb("msgQD", 5) cb( "msgSD", 2) cb("ttl", 10) cb("w4AckBd", 0)) sndCtr(1)]
+
+["dev1" | w4Ack(mtDM) w4Rsp(mtM) rspSntD(m("dev0", "dev1", c(h("ACK", "4.04", "dev1.0"), "agetC:1", mtO, mtBody)) @ 8) rspRcd(mtM) rsrcs(mtR) ctr(1) sendReqs(nilAM) config(cb( "ACK_RANDOM_FACTOR", 2) cb("ACK_TIMEOUT", 5) cb("MAX_RETRANSMIT", 1) cb("msgQD", 5) cb( "msgSD", 2) cb("ttl", 10) cb("w4AckBd", 0)) sndCtr(0)]
+}
+
+
+**************************************************
+*** testing delete after put,get
+*** no attacker
+rew {tCS(mkPutC("aputC","dev1","door","lock") ; mkGetN("agetN","dev1","door") ; mkDelN("adelN","dev1","door") ; mkGetN("agetN1","dev1","door"),mtR,mtC)} .
+
+
+*******************************************************
+*** adding attacker that can drop
+*******************************************************
+rew {tCS(mkPutC("aputC","dev1","door","lock") ; mkGetN("agetN","dev1","door"), rb("door","unlock"),drop)} .
+
+[devsend] by"dev0"
+ msg m("dev1", "dev0", c(h("CON", "0.PUT", "aputC.0"), "aputC:1", o("Uri-Path", "door") o( "Uri-Query", ""), b("lock"))) @ 2
+
+[tick] nz 2
+
+[attack] drop
+msg m("dev1", "dev0", c(h("CON", "0.PUT", "aputC.0"), "aputC:1", o("Uri-Path", "door") o( "Uri-Query", ""), b("lock"))) @ 0
+
+[tick] nz 3
+
+[ackTimeout] by"dev0"
+ msg m("dev1", "dev0", c(h("CON", "0.PUT", "aputC.0"), "aputC:1", o("Uri-Path", "door") o( "Uri-Query", "") o("rcnt", 1), b("lock")))
+
+[tick] nz 2
+
+[net]
+
+toLog: path = "door" val = "lock"
+
+[rcv] by"dev1"
+ msg m("dev1", "dev0", c(h("CON", "0.PUT", "aputC.0"), "aputC:1", o("Uri-Path", "door") o( "Uri-Query", ""), b("lock")))
+
+[tick] nz 2
+
+[net]
+
+[rcv] by"dev0"
+ msg m("dev0", "dev1", c(h("ACK", "0.00", "aputC.0"), "", mtO, mtBody))
+
+[tick] nz 1
+
+[devsend] by"dev0"
+ msg m("dev1", "dev0", c(h("NON", "0.GET", "agetN.2"), "agetN:3", o("Uri-Path", "door") o( "Uri-Query", ""), mtBody)) @ 2
+
+[net]
+
+[rcv] by"dev0"
+ msg m("dev0", "dev1", c(h("NON", "2.04", "dev1.0"), "aputC:1", mtO, mtBody))
+
+[tick] nz 2
+
+[net]
+
+[rcv] by"dev1"
+ msg m("dev1", "dev0", c(h("NON", "0.GET", "agetN.2"), "agetN:3", o("Uri-Path", "door") o( "Uri-Query", ""), mtBody))
+
+[tick] nz 2
+
+[net]
+
+[rcv] by"dev0"
+ msg m("dev0", "dev1", c(h("NON", "2.05", "dev1.1"), "agetN:3", mtO, b("lock")))
+rewrites: 1405 in 2ms cpu (2ms real) (544151 rewrites/second)
+result Sys: {
+net(mtDM, mtDM)
+["dev0" | w4Ack(mtDM) w4Rsp(mtM) rspSntD(mtDM) rspRcd(m("dev0", "dev1", c(h("NON", "2.04", "dev1.0"), "aputC:1", mtO, mtBody)) m("dev0", "dev1", c(h("NON", "2.05", "dev1.1"), "agetN:3", mtO, b("lock")))) rsrcs(mtR) ctr(4) sendReqs(nilAM) config(cb( "ACK_RANDOM_FACTOR", 2) cb("ACK_TIMEOUT", 5) cb("MAX_RETRANSMIT", 1) cb("msgQD", 5) cb( "msgSD", 2) cb("ttl", 10) cb("w4AckBd", 0)) sndCtr(1)]
+
+["dev1" | w4Ack(mtDM) w4Rsp(mtM) rspSntD((m("dev0", "dev1", c(h("NON", "2.04", "dev1.0"), "aputC:1", mtO, mtBody)) @ 3) m("dev0", "dev1", c(h("NON", "2.05", "dev1.1"), "agetN:3", mtO, b("lock"))) @ 8) rspRcd(mtM) rsrcs(rb("door", "lock")) ctr(2) sendReqs(nilAM) config(cb("ACK_RANDOM_FACTOR", 2) cb("ACK_TIMEOUT", 5) cb("MAX_RETRANSMIT", 1) cb( "msgQD", 5) cb("msgSD", 2) cb("ttl", 10) cb("w4AckBd", 0)) sndCtr(0)]
+
+["eve" | kb(m("dev1", "dev0", c(h("CON", "0.PUT", "aputC.0"), "aputC:1", o("Uri-Path", "door") o("Uri-Query", ""), b("lock"))) @ 0) caps(mtC) alog(al(m("dev1", "dev0", c(h( "CON", "0.PUT", "aputC.0"), "aputC:1", o("Uri-Path", "door") o("Uri-Query", ""), b( "lock"))) @ 0, drop))]
+}
+*********************************************************
+****** can attacker prevent locking the door 
+****** by dropping messages? 
+****** It takes at least 3 drops
+
+search [1] {tCS(mkPutC("aputC","dev1","door","lock") ; mkGetN("agetN","dev1","door") ; mkDelN("adelN","dev1","door"),rb("door","unlock"),drop)} =>! {c:Conf} such that checkRsrc(c:Conf,"dev1","door","unlock") .
+
+No solution.
+states: 377  rewrites: 32031 in 18ms cpu
+
+search [1] {tCS(mkPutC("aputC","dev1","door","lock") ; mkGetN("agetN","dev1","door") ; mkDelN("adelN","dev1","door"),rb("door","unlock"),drop drop)} =>! {c:Conf} such that checkRsrc(c:Conf,"dev1","door","unlock") .
+
+No solution.
+states: 1727  rewrites: 139173 in 49ms cpu
+
+search [1] {tCS(mkPutC("aputC","dev1","door","lock") ; mkGetN("agetN","dev1","door") ; mkDelN("adelN","dev1","door"),rb("door","unlock"),drop drop drop)} =>! {c:Conf} such that checkRsrc(c:Conf,"dev1","door","unlock") .
+
+
+Solution 1 (state 1153)
+states: 1410  rewrites: 103897 in 38ms cpu 
+c:Conf -->
+net(mtDM, mtDM)
+["dev0" | w4Ack(mtDM) w4Rsp(m("dev1", "dev0", c(h("CON", "0.PUT", "aputC.0"), "aputC:1", o( "Uri-Path", "door") o("Uri-Query", ""), b("lock"))) m("dev1", "dev0", c(h("NON", "0.DELETE", "adelN.4"), "adelN:5", o("Uri-Path", "door") o("Uri-Query", ""), mtBody))) rspSntD(mtDM) rspRcd(m("dev0", "dev1", c(h("NON", "2.05", "dev1.0"), "agetN:3", mtO, b( "unlock")))) rsrcs(mtR) ctr(6) sendReqs(nilAM) config(cb("ACK_RANDOM_FACTOR", 2) cb( "ACK_TIMEOUT", 5) cb("MAX_RETRANSMIT", 1) cb("msgQD", 5) cb("msgSD", 2) cb("ttl", 10) cb("w4AckBd", 0)) sndCtr(5)]
+
+["dev1" | w4Ack(mtDM) w4Rsp(mtM) rspSntD(m("dev0", "dev1", c(h("NON", "2.05", "dev1.0"), "agetN:3", mtO, b("unlock"))) @ 7) rspRcd(mtM) rsrcs(rb("door", "unlock")) ctr(1) sendReqs(nilAM) config(cb("ACK_RANDOM_FACTOR", 2) cb("ACK_TIMEOUT", 5) cb( "MAX_RETRANSMIT", 1) cb("msgQD", 5) cb("msgSD", 2) cb("ttl", 10) cb("w4AckBd", 0)) sndCtr(0)]
+
+["eve" | kb((m("dev1", "dev0", c(h("CON", "0.PUT", "aputC.0"), "aputC:1", o("Uri-Path", "door") o("Uri-Query", ""), b("lock"))) @ 2) (m("dev1", "dev0", c(h("CON", "0.PUT", "aputC.0"), "aputC:1", o("Uri-Path", "door") o("Uri-Query", ""), b("lock"))) @ 2) m( "dev1", "dev0", c(h("NON", "0.DELETE", "adelN.4"), "adelN:5", o("Uri-Path", "door") o( "Uri-Query", ""), mtBody)) @ 2) caps(mtC) alog(al(m("dev1", "dev0", c(h("CON", "0.PUT", "aputC.0"), "aputC:1", o("Uri-Path", "door") o("Uri-Query", ""), b("lock"))) @ 2, drop) ; al(m("dev1", "dev0", c(h("CON", "0.PUT", "aputC.0"), "aputC:1", o("Uri-Path", "door") o("Uri-Query", ""), b("lock"))) @ 2, drop) ; al(m("dev1", "dev0", c(h("NON", "0.DELETE", "adelN.4"), "adelN:5", o("Uri-Path", "door") o("Uri-Query", ""), mtBody)) @ 2, drop))]
+    
+*******************************************************
+**** can attacker cause client to receive get reply
+**** from dev1 as reply from dev2 
+
+search [1] {tCSS(mkGetN("agetN1","dev1","door")  ; mkGetN("agetN2","dev2","door"),rb("door","lock"),rb("door","unlock"),redirect("dev2","dev1") unredirect("dev2","dev1"))} =>! {c:Conf} such that hasGetRsp(c:Conf,"dev0","dev2","agetN2","lock") .
+
+Solution 1 (state 84)
+states: 94  rewrites: 8223 in 7ms cpu 
+c:Conf -->
+net(mtDM, mtDM)
+["dev0" | w4Ack(mtDM) w4Rsp(mtM) rspSntD(mtDM) rspRcd(m("dev0", "dev1", c(h( "NON", "2.05", "dev1.0"), "agetN1:1", mtO, b("lock"))) m("dev0", "dev2", c( h("NON", "2.05", "dev1.1"), "agetN2:3", mtO, b("lock")))) rsrcs(mtR) ctr(4) sendReqs(nilAM) config(cb("ACK_RANDOM_FACTOR", 2) cb("ACK_TIMEOUT", 5) cb( "MAX_RETRANSMIT", 1) cb("msgQD", 5) cb("msgSD", 2) cb("ttl", 10) cb( "w4AckBd", 0)) sndCtr(1)]
+
+["dev1" | w4Ack(mtDM) w4Rsp(mtM) rspSntD((m("dev0", "dev1", c(h("NON", "2.05", "dev1.0"), "agetN1:1", mtO, b("lock"))) @ 3) m("dev0", "dev1", c(h("NON", "2.05", "dev1.1"), "agetN2:3", mtO, b("lock"))) @ 8) rspRcd(mtM) rsrcs(rb( "door", "lock")) ctr(2) sendReqs(nilAM) config(cb("ACK_RANDOM_FACTOR", 2) cb("ACK_TIMEOUT", 5) cb("MAX_RETRANSMIT", 1) cb("msgQD", 5) cb("msgSD", 2) cb("ttl", 10) cb("w4AckBd", 0)) sndCtr(0)]
+
+["dev2" | w4Ack(mtDM) w4Rsp(mtM) rspSntD(mtDM) rspRcd(mtM) rsrcs(rb("door", "unlock")) ctr(0) sendReqs(nilAM) config(cb("ACK_RANDOM_FACTOR", 2) cb( "ACK_TIMEOUT", 5) cb("MAX_RETRANSMIT", 1) cb("msgQD", 5) cb("msgSD", 2) cb( "ttl", 10) cb("w4AckBd", 0)) sndCtr(0)]
+
+["eve" | kb((m("dev0", "dev1", c(h("NON", "2.05", "dev1.1"), "agetN2:3", mtO, b( "lock"))) @ 0) m("dev2", "dev0", c(h("NON", "0.GET", "agetN2.2"), "agetN2:3", o("Uri-Path", "door") o("Uri-Query", ""), mtBody)) @ 0) caps( mtC) alog(al(m("dev2", "dev0", c(h("NON", "0.GET", "agetN2.2"), "agetN2:3", o("Uri-Path", "door") o("Uri-Query", ""), mtBody)) @ 0, redirect("dev2", "dev1")) ; al(m("dev0", "dev1", c(h("NON", "2.05", "dev1.1"), "agetN2:3", mtO, b("lock"))) @ 0, unredirect("dev2", "dev1")))]
+    
+show path labels 84 .
+devsend tick net rcv tick net rcv tick devsend tick attack rcv tick attack rcv
+
+*******************************************************

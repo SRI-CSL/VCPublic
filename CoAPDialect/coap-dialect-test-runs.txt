@@ -1,0 +1,87 @@
+maude dload.maude
+set print attribute on .
+**************************************************
+**** testing non-confirmable get --- in dialected system
+*** aMgetN is non-confirmable get
+*** no attacker
+
+rew D({tCS(mkGetN("agetN","dev1","door"),rb("door","locked"),mtC)}) .
+
+[devsend] by"dev0"
+ msg m("dev1", "dev0", c(h("NON", "0.GET", "agetN.0"), "agetN:1", o("Uri-Path", "door") o("Uri-Query", ""), mtBody)) @ 2
+
+[ddevsend]
+ddmsg m("dev1", "dev0", dc(f1(g("xxxxdev1dev0", 128, 0), {c(h("NON", "0.GET", "agetN.0"), "agetN:1", o("Uri-Path", "door") o("Uri-Query", ""), mtBody), 0}), 0)) @ 2
+
+[tick] nz 2
+
+[net]
+
+[ddevrcv]
+msgd m("dev1", "dev0", dc(f1(g("xxxxdev1dev0", 128, 0), {c(h("NON", "0.GET", "agetN.0"), "agetN:1", o("Uri-Path", "door") o("Uri-Query", ""), mtBody), 0}), 0))
+dmsgs m("dev1", "dev0", c(h("NON", "0.GET", "agetN.0"), "agetN:1", o("Uri-Path", "door") o("Uri-Query", ""), mtBody)) @ 0
+
+[ddevsend]
+ddmsg m("dev0", "dev1", dc(f1(g("xxxxdev0dev1", 128, 0), {c(h("NON", "2.05", "dev1.0"), "agetN:1", mtO, b("locked")),0}), 0)) @ 2
+
+[tick] nz 2
+
+[net]
+
+[ddevrcv]
+msgd m("dev0", "dev1", dc(f1(g("xxxxdev0dev1", 128, 0), {c(h("NON", "2.05", "dev1.0"), "agetN:1", mtO, b("locked")),0}), 0))
+dmsgs m("dev0", "dev1", c(h("NON", "2.05", "dev1.0"), "agetN:1", mtO, b( "locked"))) @ 0
+
+rewrites: 583 in 0ms cpu (0ms real) (1041071 rewrites/second)
+result Sys: {
+net(mtDM, mtDM)
+["dev0" | conf(net(mtDM, mtDM)
+  ["dev0" | w4Ack(mtDM) w4Rsp(mtM) rspSntD(mtDM) rspRcd(m("dev0", "dev1", c(h( "NON", "2.05", "dev1.0"), "agetN:1", mtO, b("locked")))) rsrcs(mtR) ctr(2) sendReqs(nilAM) config(cb("ACK_RANDOM_FACTOR", 2) cb("ACK_TIMEOUT", 5) cb( "MAX_RETRANSMIT", 1) cb("msgQD", 5) cb("msgSD", 2) cb("ttl", 10) cb( "w4AckBd", 0)) sndCtr(1)]) 
+  
+used(ub("dev1", 0)) randSize(128) seedTo("dev1", "xxxxdev1dev0") seedFr("dev1", "xxxxdev0dev1") ixCtr("dev1", 1)]
+["dev1" | conf(net(mtDM, mtDM)
+  ["dev1" | w4Ack(mtDM) w4Rsp(mtM) rspSntD(m("dev0", "dev1", c(h("NON", "2.05", "dev1.0"), "agetN:1", mtO, b("locked"))) @ 8) rspRcd(mtM) rsrcs(rb("door", "locked")) ctr(1) sendReqs(nilAM) config(cb("ACK_RANDOM_FACTOR", 2) cb( "ACK_TIMEOUT", 5) cb("MAX_RETRANSMIT", 1) cb("msgQD", 5) cb("msgSD", 2) cb( "ttl", 10) cb("w4AckBd", 0)) sndCtr(0)]) 
+
+used(ub("dev0", 0)) randSize(128) seedTo("dev0", "xxxxdev0dev1") seedFr("dev0", "xxxxdev1dev0") ixCtr("dev0", 1)]}
+
+**************************************************
+**** Try more rew  examples from coap-test-runs.txt
+**** Just apply D to the CoAP system configuration to get
+**** the dialected form as above.
+
+
+**************************************************
+set print attribute off .
+*********************************************************
+****** can attacker prevent locking the door 
+****** by dropping messages? 
+****** It takes at least 3 drops
+***** dialected version --- UDC undialects the solution config
+
+search [1] D({tCS(mkPutC("aputC","dev1","door","lock") ; mkGetN("agetN","dev1","door") ; mkDelN("adelN","dev1","door"),rb("door","unlock"),drop drop drop)}) =>! {c:Conf} such that checkRsrc(UDC(c:Conf),"dev1","door","unlock") .
+
+**** dialecting doesn't prevent the attack
+Solution 1 (state 2615)
+states: 3093  rewrites: 216033 in 156ms cpu 
+c:Conf -->
+net(mtDM, mtDM)
+["dev0" | conf( net(mtDM, mtDM) ["dev0" | w4Ack(mtDM) w4Rsp(m("dev1", "dev0", c(h("CON", "0.PUT", "aputC.0"), "aputC:1", o("Uri-Path", "door") o("Uri-Query", ""), b("lock"))) m("dev1", "dev0", c(h("NON", "0.DELETE", "adelN.4"), "adelN:5", o("Uri-Path", "door") o("Uri-Query", ""), mtBody))) rspSntD(mtDM) rspRcd(m("dev0", "dev1", c(h( "NON", "2.05", "dev1.0"), "agetN:3", mtO, b("unlock")))) rsrcs(mtR) ctr(6) sendReqs(nilAM) config(cb("ACK_RANDOM_FACTOR", 2) cb("ACK_TIMEOUT", 5) cb( "MAX_RETRANSMIT", 1) cb("msgQD", 5) cb("msgSD", 2) cb("ttl", 10) cb( "w4AckBd", 0)) sndCtr(5)]) used(ub("dev1", 0)) randSize(128) seedTo("dev1", "xxxxdev1dev0") seedFr("dev1", "xxxxdev0dev1") ixCtr("dev1", 4)]
+
+["dev1" | conf( net(mtDM, mtDM) ["dev1" | w4Ack(mtDM) w4Rsp(mtM) rspSntD(m("dev0", "dev1", c(h("NON", "2.05", "dev1.0"), "agetN:3", mtO, b("unlock"))) @ 7) rspRcd(mtM) rsrcs(rb("door", "unlock")) ctr(1) sendReqs(nilAM) config(cb("ACK_RANDOM_FACTOR", 2) cb( "ACK_TIMEOUT", 5) cb("MAX_RETRANSMIT", 1) cb("msgQD", 5) cb("msgSD", 2) cb( "ttl", 10) cb("w4AckBd", 0)) sndCtr(0)]) used(ub("dev0", 2)) randSize(128) seedTo("dev0", "xxxxdev0dev1") seedFr("dev0", "xxxxdev1dev0") ixCtr("dev0", 1)]
+
+["eve" | kb((m("dev1", "dev0", dc(f1(g("xxxxdev1dev0", 128, 0), {c(h("CON", "0.PUT", "aputC.0"), "aputC:1", o("Uri-Path", "door") o("Uri-Query", ""), b( "lock")),0}), 0)) @ 2) (m("dev1", "dev0", dc(f1(g("xxxxdev1dev0", 128, 1), { c(h("CON", "0.PUT", "aputC.0"), "aputC:1", o("Uri-Path", "door") o( "Uri-Query", ""), b("lock")),1}), 1)) @ 2) m("dev1", "dev0", dc(f1(g( "xxxxdev1dev0", 128, 3), {c(h("NON", "0.DELETE", "adelN.4"), "adelN:5", o( "Uri-Path", "door") o("Uri-Query", ""), mtBody),3}), 3)) @ 2) caps(mtC) alog(al(m("dev1", "dev0", dc(f1(g("xxxxdev1dev0", 128, 0), {c(h("CON", "0.PUT", "aputC.0"), "aputC:1", o("Uri-Path", "door") o("Uri-Query", ""), b( "lock")),0}), 0)) @ 2, drop) ; al(m("dev1", "dev0", dc(f1(g("xxxxdev1dev0", 128, 1), {c(h("CON", "0.PUT", "aputC.0"), "aputC:1", o("Uri-Path", "door") o("Uri-Query", ""), b("lock")),1}), 1)) @ 2, drop) ; al(m("dev1", "dev0", dc(f1(g("xxxxdev1dev0", 128, 3), {c(h("NON", "0.DELETE", "adelN.4"), "adelN:5", o("Uri-Path", "door") o("Uri-Query", ""), mtBody),3}), 3)) @ 2, drop))]
+
+*********************************************************
+**** can attacker cause client to receive get reply
+**** from dev1 as reply from dev2 
+**** dialected form
+
+search [1] D({tCSS(mkGetN("agetN1","dev1","door")  ; mkGetN("agetN2","dev2","door"),rb("door","lock"),rb("door","unlock"),redirect("dev2","dev1") unredirect("dev2","dev1"))}) =>! {c:Conf} such that hasGetRsp(UDC(c:Conf),"dev0","dev2","agetN2","lock") .
+
+No solution.
+states: 76  rewrites: 7784 in 11ms cpu
+
+**** dialecting mitigates redirectiom attacks
+
+*******************************************************
+***** try dialecting other searches from coap-test-runs.txt

@@ -1,0 +1,464 @@
+
+fmod COAP-CONF is
+  inc COAP-MSG .
+
+vars id epid appid mid meth dst src type : String .
+vars tok path val pat str epat ppat vpat : String .
+vars epat0 ppat0 vpat0 epat1 ppat1 vpat1 : String .
+vars epid0 path0 val0 epid1 path1 val1 : String .
+var strs : Strings .
+vars dmsgs dmsgs0 dmsgs1 : DMsgS .
+vars n n1 n0 delay : Nat .
+vars attrs attrs0 attrs1 devatts devatts1 devatts2 
+      : Attrs .
+vars cbnds cbnds0 : CBnds .
+vars msg msg0 : Msg .
+vars msgs msgs0  msgs1 : MsgS .
+vars amsg : AMsg .
+vars opts opts0 : Options .
+vars head : Head .
+var sys : Sys .
+var conf : Conf .
+var body : Body .
+var ix : FindResult .
+var rbnds : RMap .
+var bseen b b1 b2 : Bool .
+vars litl plitl : LogItemL .
+  
+  
+  ***(
+          Conf
+          / . 
+      AConf . 
+      /   | .    
+     /   MtConf    
+     |      .          
+     |  ConfElt    
+      \  .    .   
+    Agent     Net 
+        
+  )
+  
+  sort Strings .
+  subsort String < Strings .
+  op mtS : -> Strings [ctor] .
+  op __ : Strings Strings -> Strings 
+          [ctor comm assoc id: mtS] . 
+
+  op size : Strings -> Nat .
+  eq size(mtS) = 0 .
+  eq size(str strs) = s size(strs) .
+
+
+  sorts Agent Net  ConfElt Conf MtConf AConf  .
+  subsort ConfElt < Conf .
+  subsort Agent  < ConfElt .
+  subsort Net < ConfElt .
+  subsort Agent < AConf .
+  subsort AConf < Conf .
+  subsort MtConf < AConf .
+
+  sort Log .
+  subsort Log < ConfElt .
+    
+  op mt : -> MtConf [ctor] .
+  op __ : Conf Conf -> Conf [ctor assoc comm id: mt] .
+  op __ : AConf AConf -> AConf [ctor ditto] .
+
+****      inset  outset
+  op net : DMsgS DMsgS -> Net [ctor format (n d )] .
+
+**** top level system for passing time
+  sort Sys .
+  op `{_`} : Conf -> Sys [ctor] .
+  
+  op sys2conf : Sys -> Conf .
+  eq sys2conf({conf}) = conf .
+  
+  
+  
+sorts Attr Attrs .
+subsort Attr < Attrs .
+op mtA : -> Attrs [ctor] .
+op __ : Attrs Attrs -> Attrs [ctor assoc comm id: mtA] .
+
+op [_|_] : String Attrs -> Agent 
+          [ctor format (n d d d d d)] .
+
+**** endpoint attrs
+**** resource map for server role
+sorts RBnd RMap .
+subsort RBnd < RMap .
+op mtR : -> RMap .
+op __ : RMap RMap -> RMap [ctor assoc comm id: mtR] .
+****    path   value
+op rb : String String -> RBnd [ctor] .
+op getRBndVal : RBnd -> String .
+eq getRBndVal(rb(path,val)) = val .
+
+**** configuration parameters
+sorts CBnd CBnds .
+subsort CBnd < CBnds .
+op mtC : -> CBnds .
+op __ : CBnds CBnds -> CBnds [ctor assoc comm id: mtC] .
+
+****    param   value
+op cb : String String -> CBnd [ctor] .
+op cb : String Int -> CBnd [ctor] .
+
+
+op w4Ack  : DMsgS -> Attr [ctor] .
+op w4Rsp : MsgS -> Attr [ctor] .
+op rspSnt : MsgS -> Attr [ctor] .
+op rspSntD : DMsgS -> Attr [ctor] .
+op rspRcd : MsgS -> Attr [ctor] .
+
+
+op rsrcs : RMap -> Attr [ctor] .
+op ctr : Nat -> Attr [ctor] .
+op sendReqs : AMsgL -> Attr [ctor] .
+op config : CBnds -> Attr [ctor] .
+
+op sndCtr : Nat -> Attr [ctor] .
+
+sorts LogItem LogItemL .
+subsort LogItem < LogItemL .
+op nilLI : -> LogItemL [ctor] .
+op _;_ : LogItemL LogItemL -> LogItemL 
+          [ctor assoc id: nilLI] .
+op getLI : LogItemL Nat -> [LogItem] .
+eq getLI(li:LogItem ; lil:LogItemL, 0) = li:LogItem .
+eq getLI(li:LogItem ; lil:LogItemL, s n) = 
+       getLI(lil:LogItemL, n) .
+
+op nthCdr : LogItemL Nat -> LogItemL .
+eq nthCdr(nilLI,n) = nilLI .
+eq nthCdr(li:LogItem ; lil:LogItemL, s n) =
+      nthCdr(lil:LogItemL,  n) .
+eq nthCdr(lil:LogItemL,  0)  = lil:LogItemL .
+
+**** rcvP(epid,path,val) --- rcv put
+op rcvP : String String String -> LogItem [ctor] .
+op log : LogItemL -> Log [ctor] .
+
+sort LogItemIx .
+op `{_`,_`} : LogItem Nat -> LogItemIx [ctor] .
+
+op findRcvLI : LogItemL Nat String String String ->  [LogItemIx] .
+op findRcvLIX : LogItemL String String String  Nat ->  [LogItemIx] .
+
+eq  findRcvLI(lil:LogItemL,n,epat,ppat,vpat)  
+= findRcvLIX(nthCdr(lil:LogItemL,n),epat,ppat,vpat,n) .
+
+eq findRcvLIX(li:LogItem ; lil:LogItemL,epat,ppat,vpat,n) =
+  (if matchesLI(li:LogItem,epat,ppat,vpat)
+  then {li:LogItem,n}  
+  else findRcvLIX(lil:LogItemL,epat,ppat,vpat,s n)
+  fi) .
+  
+***** rcv event at epat0 before rcv event at epat1
+op rcvBefore : Conf String String String String String String -> Bool .
+ceq rcvBefore(c:Conf,epat0,ppat0,vpat0,epat1,ppat1,vpat1) = true
+  if log(lil:LogItemL) c1:Conf := c:Conf
+   /\ {rcvP(epid0,path0,val0), n0} :=
+             findRcvLI(lil:LogItemL,0,epat0,ppat0,vpat0) 
+   /\ {rcvP(epid1,path1,val1), n1} :=
+             findRcvLI(lil:LogItemL,n0,epat1,ppat0,vpat1)
+  /\ n0 < n1 
+  .
+  
+eq rcvBefore(c:Conf,epat0,ppat0,vpat0,epat1,ppat1,vpat1) 
+    =  false [owise] .
+    
+**** eq findRcvLIX(nilLI,epat,ppat,vpat,n) = ??? .
+********     val   pat
+op pmatch : String String -> Bool .
+eq pmatch(val,"") = true .
+eq pmatch(val,val) = true .
+eq pmatch(val,pat) = false [owise] .
+
+op matchesLI : LogItem String String String -> Bool .
+eq matchesLI(rcvP(epid,path,val),epat,ppat,vpat) =
+    pmatch(epid,epat) and
+    pmatch(path,ppat) and
+    pmatch(val,vpat) .
+
+op subLIL : Conf LogItemL -> Bool .
+eq subLIL(c:Conf log(litl),plitl) = subLILX(litl,plitl,0) .
+
+op subLIL : LogItemL LogItemL -> Bool .
+op subLILX : LogItemL LogItemL Nat -> Bool .
+
+eq subLIL(litl,plitl)  = subLILX(litl,plitl,0) .
+ceq subLILX(litl,rcvP(epat,ppat,vpat) ; plitl,n) =
+      subLILX(litl, plitl,n0) 
+ if {rcvP(epid0,path0,val0), n0} :=
+         findRcvLI(litl,n,epat,ppat,vpat) .
+eq subLILX(litl,nilLI,n) = true .
+eq subLILX(litl,plitl,n) = false [owise] .
+
+
+op toSend : DMsg -> Attr [ctor] .  --- ephemeral
+op ansB : Bool -> Attr [ctor] .    --- ephemeral
+op toLog : LogItemL -> Attr [ctor] .
+
+op doLog : Conf Attrs -> Conf .
+eq doLog(conf log(li:LogItemL), 
+         attrs:Attrs toLog(li1:LogItemL)) =
+         conf log(li:LogItemL ; li1:LogItemL) .
+eq doLog(conf,attrs:Attrs) = conf [owise] .      
+
+op clearToLog : Attrs -> Attrs .
+eq clearToLog(attrs:Attrs toLog(li1:LogItemL))
+      =  attrs:Attrs .
+eq clearToLog(attrs:Attrs) =  attrs:Attrs [owise] .
+
+sorts ABnd ABnds .
+op mtA : -> ABnds [ctor] .
+op toApp : ABnds -> Attr [ctor] . --- reporting to App
+
+
+**** attacker attrs
+sort Cap Caps .
+subsort Cap < Caps .
+op mtC : -> Caps [ctor] .
+op __ : Caps Caps -> Caps [ctor assoc comm id: mtC] .
+
+op kb : DMsgS -> Attr [ctor] .
+op caps : Caps -> Attr [ctor] .
+
+sorts ALogItem ALog .
+subsort ALogItem < ALog .
+op al : DMsg Cap -> ALogItem [ctor] .
+op nilAL : -> ALog .
+op _;_ : ALog ALog -> ALog [ctor assoc id: nilAL] .
+op alog : ALog -> Attr [ctor] .
+
+op addALog : Attrs DMsg Cap -> Attrs .
+eq addALog(attrs alog(alog:ALog),dmsg:DMsg,cap:Cap) =
+ attrs alog(alog:ALog ; al(dmsg:DMsg,cap:Cap)) .
+eq addALog(attrs,dmsg:DMsg,cap:Cap) =
+ attrs alog(al(dmsg:DMsg,cap:Cap)) .
+
+
+op conf : Conf -> Attr [ctor] .
+
+**** constructing a coap msg from an app msg
+**** generate id, token ...
+op genMid : String Nat -> String [ctor] .
+op genTok : String Nat -> String [ctor] .
+
+eq genMid(id,n) = id + "." + string(n,10) .
+eq genTok(id,n) = id + ":" + string(n,10) .
+
+***** the part up to "."
+op getId : String -> String .
+ceq getId(mid) = 
+  (if ix :: Nat then substr(mid,0,ix) else "" fi)
+if ix := find(mid,".",0) .
+
+op getCtr : Attrs -> Nat  .
+op incCtr : Attrs Nat -> Attrs .
+
+eq getCtr(devatts ctr(n)) = n .
+eq incCtr(devatts ctr(n), n1) = devatts ctr(n + n1) .
+
+op canSend : Attrs -> Bool .
+eq canSend(devatts sndCtr(n)) = n == 0 .
+eq canSend(devatts) = true [owise] .
+
+op getSndCtr : Attrs -> Nat .
+eq getSndCtr(devatts sndCtr(n)) = n .
+eq getSndCtr(devatts) = 0 [owise] .
+
+op getMsgQDelay : Attrs -> Nat .
+op getMsgQDelay : CBnds -> Nat .
+eq getMsgQDelay(devatts config(cbnds)) = getMsgQDelay(cbnds) .
+eq getMsgQDelay(cbnds cb("msgQD",n)) = n .
+
+op getw4AckBd : Attrs -> Nat .
+op getw4AckBd : CBnds -> Nat .
+eq getw4AckBd(devatts config(cbnds)) = getw4AckBd(cbnds) .
+eq getw4AckBd(cbnds cb("w4AckBd",n)) = n .
+eq getw4AckBd(cbnds) = 0 [owise] .
+
+op resetSndCtr : Attrs -> Attrs .
+eq resetSndCtr(devatts sndCtr(n)) 
+    = devatts sndCtr(getMsgQDelay(devatts)) .
+eq resetSndCtr(devatts) = devatts [owise] .
+
+op addW4Ack : Attrs DMsgS -> Attrs .
+eq addW4Ack(w4Ack(dmsgs) attrs,dmsgs0) 
+      = w4Ack(dmsgs dmsgs0) attrs .
+eq addW4Ack(attrs,dmsgs0) = w4Ack(dmsgs0) attrs [owise] .
+      
+op addW4Rsp : Attrs MsgS -> Attrs .
+eq addW4Rsp(w4Rsp(msgs) attrs,msgs0) 
+      = w4Rsp(msgs msgs0) attrs .
+eq addW4Rsp(attrs,msgs0) = w4Rsp(msgs0) attrs [owise] .
+
+************** rcv ack/rsp  - remove from w4ack
+op matchAckwRsp  : Attrs String String String -> Attrs .
+op matchAckwRsp  : DMsgS String String String -> DMsgS .
+
+ceq matchAckwRsp(devatts w4Ack(dmsgs),dst,mid,tok) =
+   devatts w4Ack(dmsgs1) ansB(dmsgs =/= dmsgs1)
+if dmsgs1 := matchAckwRsp(dmsgs,dst,mid,tok) .
+eq matchAckwRsp(devatts,dst,mid,tok) = devatts ansB(false) [owise] .
+
+ceq matchAckwRsp(dmsgs msg @ n,dst,mid,tok) = dmsgs
+if getTgt(msg) == dst 
+**** /\ getMid(msg) == mid 
+/\ getTok(msg) == tok .
+eq matchAckwRsp(dmsgs,dst,mid,tok) = dmsgs [owise] .
+
+************** rcv simple rsp -- remove w4ack and w4rsp
+op matchAckorRsp : Attrs String String String -> Attrs .
+ceq matchAckorRsp(devatts,dst,mid,tok) =
+   devatts2 ansB(b1 or b2)
+if devatts1 ansB(b1) := matchAck(devatts,dst,mid)
+/\ devatts2 ansB(b2) := matchRsp(devatts1,dst,tok) .
+
+op matchAck  : Attrs String String -> Attrs .
+op matchAck  : DMsgS String String -> DMsgS .
+
+ceq matchAck(devatts w4Ack(dmsgs),dst,mid) =
+   devatts w4Ack(dmsgs1) ansB(dmsgs =/= dmsgs1)
+if dmsgs1 := matchAck(dmsgs,dst,mid) .
+eq matchAck(devatts,dst,mid) = devatts ansB(false) [owise] .
+
+ceq matchAck(dmsgs msg @ n,dst,mid) = dmsgs
+if getTgt(msg) == dst 
+/\ getMid(msg) == mid .
+eq matchAck(dmsgs,dst,mid) = dmsgs [owise] .
+
+op matchRsp  : Attrs String String -> Attrs .
+op matchRsp  : MsgS String String -> MsgS .
+
+ceq matchRsp(devatts w4Rsp(msgs),dst,tok) =
+    devatts w4Rsp(msgs1) ansB(msgs =/= msgs1)
+if msgs1 := matchRsp(msgs,dst,tok) .
+eq matchRsp(devatts,dst,tok) = devatts ansB(false) [owise] .
+
+ceq matchRsp(msgs msg,dst,tok) = msgs
+if getTgt(msg) == dst
+/\ getTok(msg) == tok .
+eq matchRsp(msgs,dst,tok) = msgs [owise] .
+
+****HERE
+
+op noW4Ack : Attrs -> Bool .
+***(
+eq noW4Ack(devatts w4Ack(dmsgs)) =  
+   (if dmsgs == mtDM then true else false fi) .
+eq noW4Ack(devatts ) = true [owise] .
+)
+***()
+eq noW4Ack(devatts w4Ack(dmsgs)) =  
+  (if size(dmsgs) > getw4AckBd(devatts)
+  then false
+  else true
+  fi ) .
+
+op getMsgSndDelay : CBnds -> Nat .
+op getMsgSndDelay : Attrs -> Nat .
+eq getMsgSndDelay(cb("msgSD",n) cbnds) = n .
+eq getMsgSndDelay(attrs config(cbnds)) =
+      getMsgSndDelay(cbnds) .
+
+op getAckWait4 : CBnds -> Nat .
+op getAckWait4 : Attrs -> Nat .
+eq getAckWait4(cb("ACK_TIMEOUT",n) cbnds) = n .
+**** eq getAckWait4(cb("ackW4",n) cbnds) = n .
+eq getAckWait4(attrs config(cbnds)) = getAckWait4(cbnds) .
+
+
+op getMaxReSnd : CBnds -> Nat .
+op getMaxReSnd : Attrs -> Nat .
+eq getMaxReSnd(cb("MAX_RETRANSMIT",n) cbnds) = n .
+**** eq getMaxReSnd(cb("maxReSnd",n) cbnds) = n .
+eq getMaxReSnd(devatts config(cbnds)) = 0 [owise] .
+
+
+
+****              method
+op requiresResp : String -> Bool .
+eq requiresResp("GET") = true .
+eq requiresResp("POST") = true .
+eq requiresResp(meth) = false [owise] .
+
+
+op deleteResource : Attrs String -> Attrs .
+eq deleteResource(devatts rsrcs(rb(path,val) rbnds),path)
+= devatts rsrcs(rbnds) .
+eq deleteResource(devatts,path) = devatts [owise] .
+
+op getResourceVal : Attrs String -> RMap .
+eq getResourceVal(devatts rsrcs(rb(path,val) rbnds),path)
+    = rb(path,val) .
+eq getResourceVal(devatts,path) = mtR [owise] .
+
+op putResource : Attrs String String -> Attrs .
+eq putResource(devatts rsrcs(rb(path,val1) rbnds),path,val)
+  = devatts rsrcs(rb(path,val) rbnds) .
+eq putResource(devatts,path,val)
+  = devatts rsrcs(rb(path,val)) [owise] .
+
+op addRspRcd : Attrs Msg -> Attrs .
+eq addRspRcd(devatts rspRcd(msgs),msg) = 
+      devatts rspRcd(msgs msg) .
+eq addRspRcd(devatts,msg) = devatts rspRcd(msg) [owise] .
+
+****                   dst  mid     tok
+op findRspRcd : Attrs String String String -> Bool .
+op findRspRcd : MsgS String String String -> Bool .
+eq findRspRcd(devatts rspRcd(msgs), dst,mid,tok) =
+      findRspRcd(msgs, dst,mid,tok) .
+ceq findRspRcd(msgs msg, dst,mid,tok) = true
+  if getSrc(msg) == dst
+  /\ getTok(msg) == tok .  
+eq findRspRcd(msgs, dst,mid,tok) = false [owise] .
+
+op addRspSent : Attrs Msg -> Attrs .
+eq addRspSent(devatts rspSnt(msgs),msg) = 
+      devatts rspSnt(msgs msg) .
+eq addRspSent(devatts,msg) = devatts rspSnt(msg) [owise] .
+      
+**** response sent  dst mid tok
+op matchingRsp : Attrs Msg -> MsgS .
+op matchingRsp : MsgS String String -> MsgS .
+
+eq matchingRsp(devatts rspSnt(msgs),msg) =
+    matchingRsp(msgs,getSrc(msg),getTok(msg)) .
+eq matchingRsp(devatts ,msg) = mtM [owise] .
+
+ceq matchingRsp(msgs msg0,src,tok) = msg0
+if getTgt(msg0) == src and getTok(msg0) == tok .
+eq matchingRsp(msgs,src,tok) = mtM [owise] .
+
+
+op addRspSentD : Attrs Msg -> Attrs .
+ceq addRspSentD(devatts rspSntD(dmsgs),msg) = 
+      devatts rspSntD(dmsgs (msg @ delay)) 
+if delay := getReqLife(devatts)  .
+ceq addRspSentD(devatts,msg) = devatts rspSntD(msg @ delay) 
+if delay := getReqLife(devatts)  [owise] .
+      
+**** response sent  dst mid tok
+op matchingRspD : Attrs Msg -> MsgS .
+op matchingRspD : DMsgS String String -> MsgS .
+
+eq matchingRspD(devatts rspSntD(dmsgs),msg) =
+    matchingRspD(dmsgs,getSrc(msg),getTok(msg)) .
+eq matchingRspD(devatts ,msg) = mtM [owise] .
+
+ceq matchingRspD(dmsgs msg0 @ s n,src,tok) = msg0
+if getTgt(msg0) == src and getTok(msg0) == tok .
+eq matchingRspD(dmsgs,src,tok) = mtM [owise] .
+
+
+op getReqLife : Attrs -> Nat .
+eq getReqLife(devatts config(cbnds cb("ttl", n))) = n .
+eq getReqLife(devatts) = 10 [owise] .
+
+endfm

@@ -1,0 +1,169 @@
+mod COAP-DIALECT-TEST is
+  inc COAP-DIALECT .
+  inc COAP-TEST .
+  inc COAP-DIALECT-ATTACKER .
+
+op sharedDialectAttrs : -> Attrs .
+eq sharedDialectAttrs =  randSize(128) used(mtU) .
+
+vars attrs devatts ddevatts seeds : Attrs .
+vars eid eid0 str : String .
+var eids : Strings .
+var agent : Agent .
+vars aconf aconf0 daconf : AConf .
+var conf dconf conf0 conf1 uconf  : Conf .
+var sys : Sys .
+var cbnds : CBnds .
+vars caps caps1 caps0 : Caps .
+vars dmsgs dmsgs0 dmsgs1 : DMsgS .
+
+op mkIxCtrs : Strings Attrs -> Attrs .
+eq  mkIxCtrs(mtS,attrs) = attrs .
+eq  mkIxCtrs(eid eids,attrs) = 
+      mkIxCtrs(eids,attrs ixCtr(eid,0)) .
+
+op mkSeeds : String Strings String Attrs -> Attrs .
+eq mkSeeds(eid,mtS,str,attrs)  = attrs .
+ceq mkSeeds(eid,eid0 eids,str,attrs)  = 
+     mkSeeds(eid,eids,str,attrs seeds)
+if seeds := seedFr(eid0,str + eid + eid0) 
+            seedTo(eid0,str + eid0 + eid) .
+     
+op DA : Agent Strings String -> Agent .
+ceq DA([eid | devatts],eids,str) =
+    [eid | conf([eid | devatts] net(mtDM,mtDM)) ddevatts]
+if ddevatts := sharedDialectAttrs
+               mkSeeds(eid,eids,str,mtA)
+               mkIxCtrs(eids,mtA) .
+
+**** apply DA to each endpoint in aconf
+**** assume eids is the  set of endpoint ids
+**** copy attacker agent
+op DAs : Conf Strings  String AConf -> Conf .
+ceq DAs([eid | devatts] conf, eid eids,str, aconf0)
+  = DAs(conf,eid eids,str,aconf0 agent)
+ if agent := DA([eid | devatts], eids,str)  .
+**** presumably conf is the attacker if any, and other confelts
+eq DAs(conf,eids,str,aconf0) = aconf0 conf [owise] .
+
+op getIds : Sys  -> Strings .
+eq getIds({conf}) = getIds(conf,mtS) .
+op getIds : Conf Strings -> Strings .
+----- only collect endpoint ids, not attacker
+eq getIds([eid | devatts config(cbnds) ] conf, eids)
+     = getIds(conf, eids eid) .
+eq getIds(conf, eids) = eids [owise].
+
+op D : Sys -> Sys .
+op DX : Sys Strings -> Sys .
+eq D(sys) = DX(sys,getIds(sys)) .
+
+**** use default "xxxx" seed string prefix
+ceq DX({conf net(mtDM,mtDM)},eids) =
+   { dconf
+     net(mtDM,mtDM)
+   }
+if dconf := DAs(conf,eids,"xxxx",mt) .
+
+**** assume at most one agent with caps attribute
+op addCaps : Sys Caps -> Sys .
+eq addCaps({conf [eid | devatts caps(caps0)]},caps1) =
+    {conf [eid | devatts caps(caps0 caps1)]} .
+eq addCaps({conf},caps1) = {conf} [owise] .
+
+**** extract unwrapped endpoints and non net confelts
+op UD : Sys -> Sys .
+op UDX : Conf Conf -> Conf .
+**** eq UD({conf net(dmsgs0,dmsgs1)}) = {UDX(conf,mt)} .
+eq UD({conf}) = {UDX(conf,mt)} .
+eq UDX([eid | conf([eid | devatts] conf1) ddevatts] conf0,
+               uconf) =
+      UDX(conf0, uconf [eid | devatts] ) .
+eq UDX(conf0, uconf) = uconf conf0 [owise] .
+
+op UDC : Conf -> Conf .
+**** eq UDC(conf net(dmsgs0,dmsgs1)) = UDX(conf,mt) .
+eq UDC(conf) = UDX(conf,mt) .
+
+
+************** TESTS               
+op devX0 : -> Agent .
+eq devX0 =  mkDevC(0,0, 
+        mkPutN("putN","dev1","door","lock"),
+        mtR,5,0) .
+op devX1 : -> Agent .
+eq devX1 = 
+   mkDevC(1,1, nilAM, rb("door","unlock"),3,2) .
+op confX : -> Agent .
+eq confX = tCS2C(0,0,mkPutN("putN","dev1","door","lock"), 
+         mtR,5,0,
+     1,1,nilAM,rb("door","unlocked"),2,0,
+     drop) .   
+
+endm
+
+eof
+
+
+red mkIxCtrs("dev0" "dev1",mtA) .
+---  ixCtr("dev0", 0) ixCtr("dev1", 0)
+
+red mkSeeds("dev0", "dev1"  "dev2","xxxx",mtA) .
+***(
+seedTo("dev1", "xxxxdev1dev0") 
+seedTo("dev2", "xxxxdev2dev0") 
+seedFr("dev1", "xxxxdev0dev1") 
+seedFr("dev2", "xxxxdev0dev2")
+)    
+ 
+red DA(devX0, "dev1","xxxx") .
+["dev0" | conf(
+net(mtDM, mtDM)
+["dev0" | w4Ack(mtDM) w4Rsp(mtM) rspSntD(mtDM) rspRcd(mtM) rsrcs(mtR) ctr(0) sendReqs( amsg("putN", "dev1", "NON", "PUT", "door", "", b("lock"))) config(cb( "ACK_RANDOM_FACTOR", 2) cb("ACK_TIMEOUT", 5) cb("MAX_RETRANSMIT", 1) cb("msgQD", 5) cb("msgSD", 2) cb("ttl", 10) cb("w4AckBd", 0)) sndCtr(0)]) used(mtU) randSize( 128) seedTo("dev1", "xxxxdev1dev0") seedFr("dev1", "xxxxdev0dev1") ixCtr("dev1", 0)]
+
+red DAs(devX0 devX1, "dev0" "dev1","xxxx",mt) .
+
+ AConf:
+["dev0" | conf(
+net(mtDM, mtDM)
+["dev0" | w4Ack(mtDM) w4Rsp(mtM) rspSntD(mtDM) rspRcd(mtM) rsrcs(mtR) ctr(0) sendReqs( amsg("putN", "dev1", "NON", "PUT", "door", "", b("lock"))) config(cb( "ACK_RANDOM_FACTOR", 2) cb("ACK_TIMEOUT", 5) cb("MAX_RETRANSMIT", 1) cb("msgQD", 5) cb("msgSD", 2) cb("ttl", 10) cb("w4AckBd", 0)) sndCtr(0)]) 
+    used(mtU) randSize( 128) seedTo("dev1", "xxxxdev1dev0") seedFr("dev1", "xxxxdev0dev1") ixCtr("dev1", 0)]
+["dev1" | conf( net(mtDM, mtDM) 
+["dev1" | w4Ack(mtDM) w4Rsp(mtM) rspSntD(mtDM) rspRcd(mtM) rsrcs(rb("door", "unlock")) ctr(0) sendReqs(nilAM) config(cb("ACK_RANDOM_FACTOR", 2) cb("ACK_TIMEOUT", 5) cb( "MAX_RETRANSMIT", 1) cb("msgQD", 3) cb("msgSD", 2) cb("ttl", 10) cb("w4AckBd", 2)) sndCtr(1)]) 
+    used(mtU) randSize(128) seedTo("dev0", "xxxxdev0dev1") seedFr("dev0", "xxxxdev1dev0") ixCtr("dev0", 0)]
+    
+red getIds({confX}) .
+"dev0" "dev1
+
+red D({confX}) .
+
+
+set print attribute on . 
+
+rew D({tCS2C(0,0,mkPutN("putN","dev1","door","lock"), mtR,5,0,1,1,nilAM,rb("door","unlocked"), 2,0, drop)} ) .
+
+
+set print attribute off . 
+
+search [1] D({tCS2C(0,0,mkPutN("putN","dev1","door","lock"), mtR,5,0,1,1,nilAM,rb("door","unlocked"), 2,0, drop)} ) =>! {c0:Conf ["eve" | a:Attrs caps(mtC)] ["dev1" | conf(c1:Conf) ddattrs:Attrs]} such that checkRsrc(c1:Conf,"dev1","door","unlocked") .
+
+Solution 1 (state 5)
+states: 9  rewrites: 318 in 0ms cpu
+
+alog(
+al(m("dev1", "dev0", dc(f1(g("xxxxdev1dev0", 128, 0), {c(h("NON", "0.PUT", "putN.0"), "putN:1", o("Uri-Path", "door") o("Uri-Query", ""), b( "lock")), 0}), 0)) @ 2, drop))
+
+
+search [1] D({tCS2C(0,0,mkPutN("putN","dev1","door","lock"), mtR,5,0,1,1,nilAM,rb("door","unlocked"), 2,0, drop)} ) =>! {c:Conf ["eve" | a:Attrs caps(mtC)] ["dev0" | conf(c0:Conf) ddattrs0:Attrs] ["dev1" | conf(c1:Conf) ddattrs1:Attrs] } such that not(hasRspTSnt(c1:Conf,"dev1","dev0","putN")) and rspPend(c0:Conf,"dev0","dev1","putN") .
+
+Solution 1 (state 5)
+states: 9  rewrites: 340 in 0ms cpu
+
+alog(al(m("dev1", "dev0", dc(f1(g("xxxxdev1dev0", 128, 0), {c(h("NON", "0.PUT", "putN.0"), "putN:1", o("Uri-Path", "door") o("Uri-Query", ""), b( "lock")), 0}), 0)) @ 2, drop))
+
+
+search  D({tCS2C(0,0,mkPutN("putN","dev1","door","lock"), mtR,5,0,1,1,nilAM,rb("door","unlocked"), 2,0, drop)} ) =>! {c:Conf ["eve" | a:Attrs caps(mtC)] ["dev0" | conf(c0:Conf) ddattrs0:Attrs] ["dev1" | conf(c1:Conf) ddattrs1:Attrs] } such that not(hasRspTSnt(c1:Conf,"dev1","dev0","putN")) and rspPend(c0:Conf,"dev0","dev1","putN") .
+
+Solution 2 (state 7)
+states: 9  rewrites: 514 in 1ms cpu
+

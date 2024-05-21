@@ -1,0 +1,107 @@
+fmod COAP-ATTACKER is
+  inc COAP-CONF .
+
+vars n n0 n1 : Nat . 
+var dmsgs  dmsgs0 dmsgs1 : DMsgS .
+var attrs : Attrs .
+var msg : Msg .
+var dmsg dmsg0 dmsg1 : DMsg .
+var cap : Cap .
+var acaps acaps0 : Caps .
+var epid0 epid1 epid src tgt spat tpat str : String .
+var content : Content .
+var b : Bool .
+ 
+ op delay : Nat -> Cap [ctor] .
+ op drop : -> Cap [ctor] .
+ op edit : CBnds -> Cap [ctor] .
+ *** msg to str1 redirected to str2
+ op redirect : String String -> Cap [ctor] .
+ *** msg from str2 unredirected to str1
+ op unredirect : String String -> Cap [ctor] .
+ op replay : Nat -> Cap [ctor] .
+ 
+ 
+***(
+**** multicap
+act pat is "" (no change) or eid (replace by eid)
+mc  pat is "" (match any) or eid (exact match)
+) 
+
+****      tpat   spat  delay
+op act : String String Nat -> Cap .
+****     tpat  spat  active? actions
+op mc : String String Bool Caps -> Cap .
+ 
+   
+****                  tgt  act   result
+  op doAttack : Attrs DMsg Cap -> Attrs .
+  eq doAttack(kb(dmsgs) attrs, msg @ n0,delay(n1)) = 
+     toSend(msg @ (n0 + n1)) kb(dmsgs (msg @ n0)) attrs .
+  eq doAttack(attrs kb(dmsgs),dmsg,drop) = 
+     toSend(mtDM) kb(dmsgs dmsg) attrs .
+
+  eq doAttack(kb(dmsgs) attrs, msg @ n0,replay(n1)) = 
+     toSend((msg @ n0) (msg @ (n0 + n1))) kb(dmsgs (msg @ n0)) attrs .
+
+
+
+  ceq doAttack(attrs kb(dmsgs),dmsg,redirect(epid0,epid1)) = 
+     toSend(dmsg1) kb(dmsgs dmsg) attrs 
+   if m(epid0,epid,content) @ n := dmsg
+   /\ dmsg1 := m(epid1,epid,content) @ n .
+**** hopefully attack rule won't match
+  eq doAttack(attrs caps(acaps) kb(dmsgs),dmsg,redirect(epid0,epid1)) = 
+      kb(dmsgs) attrs [owise] .
+     
+**** hopefully attack rule won't match
+  eq doAttack(attrs caps(acaps) kb(dmsgs),dmsg,redirect(epid0,epid1)) = 
+      kb(dmsgs) attrs [owise] .
+     
+
+  ceq doAttack(attrs kb(dmsgs),dmsg,unredirect(epid0,epid1)) = 
+     toSend(dmsg1) kb(dmsgs dmsg) attrs 
+   if m(epid,epid1,content) @ n := dmsg
+   /\ dmsg1 := m(epid,epid0,content) @ n .
+
+**** hopefully attack rule won't match
+  eq doAttack(attrs caps(acaps) kb(dmsgs),dmsg,unredirect(epid0,epid1)) = 
+      kb(dmsgs) attrs [owise] .
+
+
+**** multi cap attack
+
+op applyCaps : DMsg Caps DMsgS -> DMsgS .
+eq applyCaps(dmsg,mtC,dmsgs) = dmsgs .
+eq applyCaps(msg @ n,act(tpat,spat,n0) acaps,dmsgs) =
+      applyCaps(msg @ n,acaps, dmsgs 
+      (setTgtSrc(msg,tpat,spat) @ (n + n0)) ) .
+
+
+
+**** need equations for plain and dialected content
+  ceq doAttack(attrs kb(dmsgs),dmsg,mc(tpat,spat,b,acaps))
+  = toSend(dmsgs1) kb(dmsgs dmsg) attrs 
+   if msg @ n := dmsg
+   /\ pmatch(getTgt(msg),tpat)
+   /\ pmatch(getSrc(msg),spat)
+   /\ dmsgs0 := applyCaps(dmsg,acaps,mtDM)
+   /\ dmsgs1 := dmsgs0 (if b then mtDM else dmsg fi)
+    .
+
+  eq doAttack(attrs kb(dmsgs),dmsg,mc(tpat,spat,b,acaps))
+  = attrs kb(dmsgs) [owise] .
+  
+**** hopefully attack rule won't match
+  eq doAttack(attrs caps(acaps) kb(dmsgs),dmsg,mc(tpat,spat,b,acaps0)) = 
+      kb(dmsgs) attrs [owise] .
+     
+     
+--- unsupported cap
+  eq doAttack(attrs kb(dmsgs),dmsg,cap) = 
+     toSend(dmsg) kb(dmsgs dmsg) attrs [owise] .
+
+
+
+
+endfm

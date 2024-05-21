@@ -1,0 +1,147 @@
+mod COAP-REACTIVE-ATTACKS-SCENARIOS-DIALECTED is
+inc COAP-REACTIVE-ATTACKS-SCENARIOS .
+inc COAP-DIALECT-TEST .
+
+***(
+R1 attacks
+
+search [1] {raR1(5,0,10,false)} =>! {c:Conf} such that checkRsrc(c:Conf,"dev1","door","lock") .
+**** looks ok
+red D({raR1(5,0,10,false) log(nilLI)} ) .
+**** looks ok
+set print attribute on .
+rew D({raR1(5,0,10,false)  log(nilLI)}) .
+**** looks ok
+
+red {raR1(5,0,10,false)} .
+red UDC(sys2conf(D({raR1(5,0,10,false)} ))) .
+red UDC(sys2conf(D({raR1(5,0,10,false) log(nilLI)} ))) .
+
+set print attribute off .
+search [1] D({raR1(5,0,10,false) log(nilLI)}) =>! {["dev1" | conf(c:Conf) dattrs:Attrs] c1:Conf} such that checkRsrc(c:Conf,"dev1","door","lock") .
+No solution.
+states: 121  rewrites: 9630 in 16ms cpu
+
+search [1] D({raR1(5,0,10,false) log(nilLI)}) =>! {c:Conf} such that checkRsrc(UDC(c:Conf),"dev1","door","lock") .
+No solution.
+states: 121  rewrites: 9650 in 9ms cpu 
+
+--------------------
+
+search D({raR1(5,0,10,true)}) =>! {["dev1" | conf(c:Conf) dattrs:Attrs] c1:Conf} such that checkRsrc(c:Conf,"dev1","door","lock") and rspTSntBefore(c:Conf,"dev1","dev0","putNDL","putNS") .
+
+No solution.
+states: 257  rewrites: 20629 in 20ms cpu
+
+not dialected
+Solution 4 (state 226)
+states: 235  rewrites: 19291 in 12ms cpu
+
+search D({raR1(5,0,10,true)}) =>! {c:Conf} such that checkRsrc(UDC(c:Conf),"dev1","door","lock") and rspTSntBefore(UDC(c:Conf),"dev1","dev0","putNDL","putNS") .
+
+------------------------
+search D({raR1(5,0,15,true)}) =>! {["dev1" | conf(c:Conf) dattrs:Attrs] c1:Conf} such that checkRsrc(c:Conf,"dev1","door","lock") and rspTSntBefore(c:Conf,"dev1","dev0","putNDL","putNS") .
+
+No solution.
+states: 249  rewrites: 20313 in 12ms cpu
+
+not dialected
+Solution 2 (state 192)
+states: 193  rewrites: 15991 in 13ms cpu
+)
+
+
+***(
+**** R2 attacks
+
+search D(iSysX(3,0,caps-1)) =>+ sys:Sys such that size(epswrb(UD(sys:Sys),rb("sig","on"))) > 1 .
+
+No solution.
+states: 553  rewrites: 84909 in 56ms cpu 
+
+)
+
+*************************  R3 ************************
+***( 
+**** 2 ep processes  dev1 before dev2 and dev3 before dev4
+
+**** prop1  duplicate process
+search D(iSysY(2,caps2-2(0))) =>! {c:Conf} such that Proc2(UDC(c:Conf),"dev3","dev4") .
+
+No solution.
+states: 191  rewrites: 27466 in 24ms cpu
+
+not dialected
+Solution 16 (state 534)
+states: 535  rewrites: 65302 in 55ms cpu
+
+**** prop2 duplicate process concurrently 
+search D(iSysY(2,caps2-2(0))) =>! {c:Conf} such that Proc2(UDC(c:Conf),"dev3","dev4") and Proc2(UDC(c:Conf),"dev1","dev3") and Proc2(UDC(c:Conf),"dev3","dev2") .
+
+No solution.
+states: 191  rewrites: 27916 in 24ms cpu
+  
+not dialected
+Solution 8 (state 530)
+states: 535  rewrites: 66532 in 45ms cpu 
+
+**** prop3 duplicate process after original completes
+search D(iSysY(2,caps2-2(15))) =>! {c:Conf} such that Proc2(UDC(c:Conf),"dev3","dev4")  and Proc2(UDC(c:Conf),"dev2","dev3") .
+
+No solution.
+states: 175  rewrites: 29458 in 16ms cpu
+
+not dialected
+Solution 4 (state 178)
+states: 179  rewrites: 24246 in 18ms cpu
+)
+
+
+***(  3 ep processes  dev1,2,3 and dev4,5,6
+
+**** prop1  duplicate process
+search D(iSysY(3,caps3-3(0))) =>! {c:Conf} such that Proc2(UDC(c:Conf),"dev4","dev5") and Proc2(UDC(c:Conf),"dev5","dev6") .
+
+No solution.
+states: 641  rewrites: 127568 in 69ms cpu
+
+not dialected
+Solution 64 (state 2844)
+states: 2845  rewrites: 434224 in 267ms cpu 
+
+
+**** prop2 duplicate process concurrently 
+search D(iSysY(3,caps3-3(0))) =>! {c:Conf} such that Proc2(UDC(c:Conf),"dev4","dev5") and Proc2(UDC(c:Conf),"dev5","dev6") and Proc2(UDC(c:Conf),"dev1","dev4") and Proc2(UDC(c:Conf),"dev4","dev2") and Proc2(UDC(c:Conf),"dev2","dev5") and Proc2(UDC(c:Conf),"dev5","dev3") and Proc2(UDC(c:Conf),"dev3","dev6") .
+
+No solution.
+states: 641  rewrites: 132806 in 66ms cpu
+
+not dialected
+Solution 8 (state 2823)
+states: 2845  rewrites: 460973 in 251ms cpu 
+
+**** prop3 duplicate process after original completes
+search D(iSysY(3,caps3-3(25))) =>! {c:Conf} such that Proc2(UDC(c:Conf),"dev4","dev5") and Proc2(UDC(c:Conf),"dev5","dev6") and Proc2(UDC(c:Conf),"dev3","dev4") .
+
+No solution.
+states: 619  rewrites: 152222 in 66ms cpu
+
+not dialected
+Solution 8 (state 682)
+states: 683  rewrites: 121274 in 67ms cpu 
+
+)
+
+
+***(
+R4 Redirect GET request/response.
+
+**** search ep0 has getRsp val lock 
+search D(iSySZ(5,0)) =>! {c:Conf} such that hasGetRsp(UDC(c:Conf),"dev0","dev1","getN0","lock") and checkRsrc(UDC(c:Conf),"dev1","door","unlock") .
+
+not dialected
+Solution 4 (state 107)
+states: 109  rewrites: 10596 in 11ms cpu 
+)
+
+endm

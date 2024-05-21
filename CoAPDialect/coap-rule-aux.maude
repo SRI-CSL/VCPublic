@@ -1,0 +1,406 @@
+fmod COAP-RULE-AUX is
+  inc COAP-CONF .
+
+vars epid src dst tok type rtype meth mid mid1 rmid : String .
+vars appid path path1 qparams : String .
+vars ct val val1 rcode code : String .
+var devatts devatts1 devatts2 attrs attrs1 : Attrs .
+var amsg : AMsg .
+var amsgl : AMsgL .
+var dmsg : DMsg .
+var dmsgs dmsgs0 dmsgsAck : DMsgS .
+vars n n1 delay : Nat .
+var cbnds : CBnds .
+var hd : Head .
+vars opts opts0 : Options .
+var body : Body .
+vars msg msg0 : Msg .
+var msgs : MsgS .
+vars b b0 b1 b2 : Bool .
+var rmap : RMap .
+
+*************  send
+
+***(
+Assume 1-1 correspondence between app and coap session
+appid is the apps identifier of a request
+and is embedded in the coap mid.
+)
+
+****                                toSend(dmsg) attrs'
+op sndAMsg : String AMsg  Attrs ->  Attrs .
+
+ceq sndAMsg(epid,amsg,ctr(n) config(cbnds) attrs) =
+            toSend(dmsgs)  ctr(s s n) 
+            resetSndCtr(attrs1 config(cbnds))
+            
+if amsg(appid,dst,type,meth,path,qparams,body) := amsg
+/\ mid := genMid(appid,n)
+/\ hd := h(type,"0." + meth,mid)
+/\ tok := genTok(appid,s n)
+/\ opts := o("Uri-Path",path) o("Uri-Query",qparams)
+/\ opts0 := (if type == "CON" 
+             then o("rcnt",1) 
+             else mtO fi)
+/\ delay := getMsgSndDelay(cbnds)
+/\ msg := m(dst,epid,c(hd,tok,opts,body))
+/\ msg0 := m(dst,epid,c(hd,tok,opts opts0,body))
+/\ dmsgs := msg @ delay
+/\ attrs1 := (if type == "CON" 
+       then addW4Ack(attrs,msg0 @ getAckWait4(cbnds))
+       else (if type == "NON"
+            then addW4Rsp(attrs,msg0)
+            else attrs
+       fi) fi)
+  .
+
+eq sndAMsg(epid,amsgd(n1), attrs sndCtr(n)) =
+             toSend(mtDM) attrs sndCtr(n + n1) .  
+
+*************  receive
+op isMethod : String -> Bool .
+eq isMethod("GET") = true .
+eq isMethod("PUT") = true .
+eq isMethod("POST") = true .
+eq isMethod("DELETE") = true .
+eq isMethod(meth) = false [owise] .
+
+
+op ctype : String -> String .
+ceq ctype(code) =
+ (if (ct == "0")
+  then (if code == "0.00"
+        then "Empty"
+        else (if isMethod(substr(code,2,length(code)))
+              then "Request"
+              else "UnKnown"
+              fi)
+        fi)
+  else (if (find("245",ct,0) :: Nat )
+        then "Response"
+        else "UnKnown"
+        fi) fi)
+if ct := substr(code,0,1) 
+.
+        
+
+op  rcvMsg : String Attrs Msg -> Attrs .
+op  rcvRequest : String Attrs Msg String String -> Attrs .
+op  rcvResponse : String Attrs Msg String String  -> Attrs .
+op  rcvEmpty : String Attrs Msg String String  -> Attrs .
+op  rcvMtAck : String Attrs Msg String -> Attrs .
+op  rcvRST : String Attrs Msg String -> Attrs .
+op  sendReset : String Attrs Msg String -> Attrs .
+
+ceq rcvMsg(epid, devatts,msg) =
+    (if (ct == "Request")
+     then rcvRequest(epid,devatts,msg,type,mid)
+     else (if (ct == "Response")
+           then rcvResponse(epid,devatts,msg,type,mid)
+           else (if (ct == "Empty")
+                 then rcvEmpty(epid,devatts,msg,type,mid)
+                 else (if (type == "CON")
+                       then sendReset(epid,devatts,msg,mid)
+                       else toSend(mtDM) devatts
+                       fi)  fi) fi) fi)
+if h(type,code,mid) := getHead(msg)
+/\ ct := ctype(code)
+.
+
+**** get/delete piggy back response if ack
+**** simple get of value associated with resource
+**** put/post separate response
+**** post create resource and set value
+**** put -- update value associated with resource
+
+ceq rcvRequest(epid,devatts,msg,type,mid) = 
+  (if msgs :: Msg  
+ --- already responded, if separate response only send ack?
+  then (if type == "CON" 
+    then (if getType(msgs) == "ACK"
+          then toSend(msgs @ getMsgSndDelay(devatts)) devatts
+          else sendMT(epid,devatts,src,mid,tok,"ACK")
+          fi)
+    else toSend(mtDM) devatts
+    fi)
+  else 
+  (if meth == "DELETE"
+  then rcvDelete(epid,devatts,src,type,mid,tok,path)
+  else (if meth == "GET"
+   then rcvGet(epid,devatts,src,type,mid,tok,path)
+   else (if meth == "POST"
+     then rcvPost(epid,devatts,src,type,mid,tok,path,body)
+     else (if meth == "PUT"
+      then rcvPut(epid,devatts,src,type,mid,tok,path,body)
+      ---- unk method
+      else sendMT(epid,devatts,src,mid,tok,"RST")
+      fi) fi) fi) fi) fi)
+if m(epid,src,c(h(type,code,mid),tok,opts,body)) := msg
+/\ msgs := matchingRspD(devatts,msg)
+/\ meth := substr(code,2,length(code))
+/\ path := getPath(opts)
+---- /\ qparams := getQuery(opts)  ---- not supported yet
+ .
+
+
+***(
+5.6.1
+Upon success, a 2.05 (Content) or 2.03 (Valid) Response
+Not modeling the Etag/validation case.
+)
+  op rcvGet : String Attrs String String String 
+                 String  String ->  Attrs .
+  ceq rcvGet(epid,devatts,src,type,mid,tok,path) =
+    toSend(msg @ delay) incCtr(devatts1,1)
+  if rtype := (if type == "CON" then "ACK" else "NON" fi)
+  /\ rmid := genMid(epid,getCtr(devatts))
+  /\ delay := getMsgSndDelay(devatts)
+  /\ rmap := getResourceVal(devatts,path)
+  /\ code := (if rmap == mtR then "4.04" else "2.05" fi)
+  /\ hd := h(rtype,code,rmid)
+  /\ body := (if rmap == mtR 
+              then mtBody 
+              else b(getRBndVal(rmap)) fi)
+  /\ msg := m(src,epid,c(hd,tok,mtO,body))
+  /\ devatts1 := addRspSentD(devatts,msg)
+  .
+
+***(
+5.8.2 
+It usually results in a new resource being created or the
+target resource being updated. If a resource has been
+created on the server, the response returned by the server
+SHOULD have a 2.01 (Created) Response Code and SHOULD
+include the URI of the new resource in a sequence of one or
+more Location-Path and/or Location-Query Options (Section
+5.10.7). If the POST succeeds but does not result in a new
+resource being created on the server, the response SHOULD
+have a 2.04 (Changed) Response Code. If the POST succeeds
+and results in the target resource being deleted, the
+response SHOULD have a 2.02 (Deleted) Response Code.
+
+create resource at path/genTok(src,ctr) with value body
+opt ("Location-Path", newpath) xosw 2.01
+)  
+  op rcvPost : String Attrs String String String 
+                 String  String  Body ->  Attrs .
+  ceq rcvPost(epid,devatts,src,type,mid,tok,path,b(val)) =
+    toSend(dmsgsAck (msg @ s delay)) toApp(mtA) 
+     addRspSentD(devatts2,msg)
+  if delay := getMsgSndDelay(devatts)
+  /\ dmsgsAck := 
+    (if type == "CON" 
+     then m(src,epid,c(h("ACK","0.00",mid),"",mtO,mtBody) )
+          @ delay
+     else mtDM
+     fi)
+  /\ n := getCtr(devatts)
+  /\ path1 :=  path + "/" + genTok(src,n)
+  /\ devatts1 := putResource(devatts,path1,val)
+  /\ devatts2 := incCtr(devatts1,2)
+  /\ mid1 := genMid(epid, s n)
+  /\ opts := o("Location-Path", path1) 
+  /\ msg :=
+       m(src,epid,c(h("NON","2.01", mid1),tok,opts,mtBody))
+  .
+  
+***(
+assume separate response use new mid
+if req is CON should response be CON? no
+)  
+
+***(
+5.8.3
+If a resource exists at the request URI, the enclosed
+representation SHOULD be considered a modified version of
+that resource, and a 2.04 (Changed) Response Code SHOULD be
+returned. If no resource exists, then the server MAY create
+a new resource with that URI, resulting in a 2.01 (Created)
+Response Code.  Assuming can be modified or created.
+)
+  op rcvPut : String Attrs String String String 
+                 String  String Body ->  Attrs .
+  ceq rcvPut(epid,devatts,src,type,mid,tok,path,b(val)) =
+    toSend(dmsgsAck (msg @ s delay)) 
+    toLog(rcvP(epid,path,val))
+     addRspSentD(devatts1,msg)
+     **** toApp(mtA) 
+  if delay := getMsgSndDelay(devatts)
+  /\ dmsgsAck := 
+    (if type == "CON" 
+     then m(src,epid,c(h("ACK","0.00",mid),"",mtO,mtBody) )
+          @ delay
+     else mtDM
+     fi)
+  /\ rmap := getResourceVal(devatts,path)
+  /\ rcode := (if rmap == mtR then "2.01" else "2.04" fi)
+  /\ rmid := genMid(epid,getCtr(devatts))
+  /\ devatts1 := incCtr(putResource(devatts,path,val),1)
+  /\ msg := m(src,epid,c(h("NON",rcode,rmid),tok,mtO,mtBody))
+  [print "\ntoLog: path = " path " val = " val]
+  .
+
+***(
+5.8.4
+A 2.02 (Deleted) Response Code SHOULD be used on success or
+in case the resource did not exist before the request.
+clt- no mention of error response for delete.
+)
+  op rcvDelete : String Attrs String String String 
+                 String  String ->  Attrs .
+  ceq rcvDelete(epid,devatts,src,type,mid,tok,path) =
+    toSend(msg @ delay) incCtr(devatts2,1)
+  if rtype := (if type == "CON" then "ACK" else "NON" fi)
+  /\ rmid := genMid(epid,getCtr(devatts))
+  /\ hd := h(rtype,"2.02",rmid)
+  /\ delay := getMsgSndDelay(devatts)
+  /\ msg := m(src,epid,c(hd,tok,mtO,mtBody))
+  /\ devatts1 := deleteResource(devatts,path)
+  /\ devatts2 := addRspSentD(devatts1,msg) 
+  .
+
+***( 
+ op rcvError : String Attrs String String String 
+                 String  String ->  Attrs .
+  ceq rcvError(epid,devatts,src,type,mid,tok) =
+   sendMT(epid,devatts,src,mid,tok,"RST")          
+ ) 
+
+
+*****  both piggyback and solo gets here
+***(
+if is ack/resp  look for matching w4ack
+  if found cancel then match then process (remember rsp)
+  ow ignore -- piggy back is type ACK can't be CON
+if is resp  look for matching w4ack or w4rsp;
+  if found cancel the match and process (remember rsp)
+  ow if CON then ACK or RST ow ignore
+)
+
+op rcvAckResponse : String Attrs Msg String String String 
+          -> Attrs .
+op rcvSimpleResponse : String Attrs Msg String String
+                       String String -> Attrs .
+
+ceq rcvResponse(epid,devatts,msg,type,mid) = 
+  (if type == "ACK"
+  then rcvAckResponse(epid,devatts,msg,dst,mid,tok)
+  else rcvSimpleResponse(epid,devatts,msg,type,dst,mid,tok)
+  fi)
+ if dst := getSrc(msg)
+ /\ tok := getTok(msg)
+.
+
+ceq rcvAckResponse(epid,devatts,msg,dst,mid,tok) =
+   toSend(mtDM) devatts2
+if devatts1 ansB(b) := matchAckwRsp(devatts,dst,mid,tok) 
+/\ devatts2 := 
+    (if b then addRspRcd(devatts1,msg) else devatts1 fi)
+.
+
+ceq rcvSimpleResponse(epid,devatts,msg,type,dst,mid,tok) =
+    (if b  --- the response is expected
+    then processRsp(epid,devatts1,msg,type,mid,dst,tok)
+    else (if type == "CON"
+         then (if findRspRcd(devatts1,dst,mid,tok)
+           then sendMT(epid,devatts1,dst,mid,tok,"ACK")
+           else sendMT(epid,devatts1,dst,mid,tok,"RST")
+           fi)
+          else toSend(mtDM) devatts1
+        fi) fi)
+if devatts1 ansB(b) := matchAckorRsp(devatts,dst,mid,tok) 
+.
+
+***(
+ceq rcvResponse(epid,devatts,msg,type,mid) = 
+  (if hasMatchReq(devatts,dst,mid,tok)
+  then processRsp(epid,devatts,msg,type,mid,dst,tok)
+  else (if type == "CON"
+        then (if findRspRcd(devatts,dst,mid,ok)
+         then sendMT(epid,devatts,dst,mid,tok,"ACK")
+         else sendMT(epid,devatts,dst,mid,tok,"RST")
+          fi)
+        else toSend(mtDM) devatts
+        fi) fi)
+if dst := getSrc(msg)
+/\ tok := getTok(msg)
+.
+)
+****             epid  devatts   type   mid    dst    tok
+op processRsp : String Attrs Msg String String String String
+                -> Attrs .
+                
+ceq processRsp(epid,devatts,msg,type,mid,dst,tok) =
+  (if type == "CON" 
+  then sendMT(epid,devatts1,dst,mid,tok,"ACK")
+  else toSend(mtDM) devatts1
+  fi)
+  if devatts1 := addRspRcd(devatts,msg) 
+  .
+
+
+**** mt msg should have tok "", mtO and mtBody
+**** treat as error owise
+  eq rcvEmpty(epid,devatts,msg,type,mid) = 
+    (if (type == "ACK")
+     then rcvMtAck(epid,devatts,msg,mid)
+     else (if (type == "RST")
+           then rcvRST(epid,devatts,msg,mid)
+           else (if (type == "CON")
+                 then sendReset(epid,devatts,msg,mid)
+                 else toSend(mtDM) devatts
+                 fi)  fi) fi) .
+               
+---- empty msg of type ACK
+---- update w4Ack ; inform app
+  ceq rcvMtAck(epid,devatts,msg,mid) =
+     toSend(mtDM) devatts2 w4Ack(dmsgs) **** toApp(mtA)
+  if devatts1 w4Ack((msg0 @ n) dmsgs) := devatts
+  /\ getMid(getHead(msg0)) == mid
+  /\ getTgt(msg0) == getSrc(msg)
+  /\ devatts2 := addW4Rsp(devatts1,msg0)
+  .
+
+
+
+---- not waiting 4
+  eq rcvMtAck(epid,devatts,msg,mid) = toSend(mtDM) devatts
+        [owise] .
+
+
+---- empty msg of type RST
+---- update w4Ack ; inform app
+  ceq  rcvRST(epid,devatts,msg,mid) =
+     toSend(mtDM) toApp(mtA) attrs w4Ack(dmsgs)
+  if attrs w4Ack((msg0 @ n) dmsgs) := devatts
+  /\ h("CON",code,mid) := getHead(msg0) .
+
+---- not waiting 4
+ eq rcvRST(epid,devatts,msg,mid) = 
+      toSend(mtDM) devatts [owise] .
+
+---- ctype = Empty or unK, type =CON
+  ceq sendReset(epid,devatts,msg,mid) =
+      toSend(msg0 @ delay) devatts 
+  if hd := h("RST","0.00",mid)
+  /\ tok := ""
+  /\ opts := mtO
+  /\ delay := getMsgSndDelay(devatts)
+  /\ dst := getSrc(msg)
+  /\ msg0 := m(dst,epid,c(hd,tok,opts,mtBody))
+  .
+
+****        epid devatts  dst   mid      tok  type   
+op sendMT : String Attrs String String String String 
+            -> Attrs .
+eq sendMT(epid,devatts,dst,mid,tok,type) =          
+     (toSend(m(dst,epid,c(h(type,"0.00",mid),tok,mtO,mtBody))
+      @ getMsgSndDelay(devatts)) devatts) .
+                      
+
+
+endfm  
+eof
+
+if toSend(dmsgs) devatts1 := 
+   rcvMsg(epid, devatts, m(epid,src,hd,tok,opts,body))

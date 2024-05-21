@@ -1,0 +1,304 @@
+fmod COAP-DIALECT-LINGOS is
+  inc COAP-CONF .
+
+vars rand dst tgt src epid grand id tpat spat
+     : String .
+vars n n0 rsize ix : Nat .
+vars attrs dattrs dattrs1 : Attrs .
+var dcontent : DContent .
+var content : Content .
+vars msg msgd : Msg .
+vars dmsgs dmsgs0 dmsgs1 : DMsgS .
+var dcbits : DCBits .
+var umap : UMap .
+var nats nats1  : NatSet .
+
+sort NatSet .
+subsort Nat < NatSet .
+op mtN : -> NatSet [ctor] .
+op __ : NatSet NatSet -> NatSet [ctor assoc comm id: mtN] .
+
+op mem : Nat NatSet -> Bool .
+eq mem(ix, nats ix) = true .
+eq mem(ix,nats) = false [owise] .
+
+op used : UMap -> Attr [ctor] .
+op toRcv : DMsgS -> Attr [ctor] .
+op seedTo : String String -> Attr [ctor] .
+op seedFr : String String -> Attr [ctor] .
+op ixCtr : String Nat -> Attr [ctor] .
+op randSize : Nat -> Attr [ctor] .
+
+op getSeedTo : Attrs String -> String .
+eq getSeedTo(attrs seedTo(dst,rand),dst) = rand .
+eq getSeedTo(attrs,dst) = "" [owise] .
+
+op getSeedFr : Attrs String -> String .
+eq getSeedFr(attrs seedFr(dst,rand),dst) = rand .
+eq getSeedFr(attrs,dst) = "" [owise] .
+
+op getIxCtr : Attrs String -> Nat .
+eq getIxCtr(attrs ixCtr(dst,ix),dst) = ix .
+eq getIxCtr(attrs,dst) = 0 [owise] .
+
+op incIxCtr : Attrs String Nat -> Attrs .
+eq incIxCtr(dattrs ixCtr(dst,n),dst, n0) 
+     =  dattrs ixCtr(dst,n + n0) .
+eq incIxCtr(dattrs,dst, n0) = dattrs [owise] .
+ 
+op getRandSize : Attrs -> Nat .
+eq getRandSize(attrs randSize(rsize)) = rsize .
+eq getRandSize(attrs) = 0 [owise] .
+
+**** used map for lingo index
+sorts UBnd UMap .
+subsort UBnd < UMap .
+op mtU : -> UMap .
+op __ : UMap UMap -> UMap [ctor assoc comm id: mtU] .
+****    epid   used
+op ub : String NatSet -> UBnd [ctor] .
+
+op isUsed : UMap String Nat -> Bool .
+eq isUsed(umap ub(id,nats ix),id,ix) = true . 
+eq isUsed(umap,id,ix) = false [owise] .
+
+op isUsed : Attrs String Nat -> Bool .
+eq isUsed(attrs used(umap),id,ix) = isUsed(umap,id,ix) .
+eq isUsed(attrs,id,ix) = false [owise] .
+
+op addUsed : Attrs String Nat -> Attrs .
+op addUsed : UMap String Nat -> UMap .
+
+eq addUsed(attrs used(umap),id,ix) = 
+           attrs used(addUsed(umap,id,ix)) .
+eq addUsed(attrs,id,ix) = 
+     attrs used(ub(id,ix)) [owise] .
+
+ceq addUsed(umap ub(id,nats),id,ix) = umap ub(id,nats1)
+  if nats1 := 
+   (if mem(ix,nats) then nats else nats ix fi) .
+eq addUsed(umap,id,ix) = umap ub(id,ix) [owise] .
+
+
+**** dialected msgs general
+sort DContent  .
+
+op m : String String DContent -> Msg .
+eq getSrc(m(dst,src,dcontent)) = src .
+eq getTgt(m(dst,src,dcontent)) = dst .
+op getDContent : Msg -> DContent .
+eq getDContent(m(dst,src,dcontent)) = dcontent .
+
+eq setTgtSrc(m(dst,src,dcontent),tpat,spat) =
+    m((if tpat == "" then dst else tpat fi),
+      (if spat == "" then src else spat fi), dcontent) .
+      
+*********** coap dialect
+sort  DCBits .
+op dc : DCBits Nat -> DContent [ctor] .
+
+sort ContentNat .
+op `{_`,_`} : Content Nat -> ContentNat [ctor] .
+
+op g : String Nat Nat -> String .  
+--- g(seed,k,ix) the ix-th random string starting from seed
+
+op f1 : String ContentNat -> DCBits .
+op f2 : String DContent  ~> ContentNat .
+
+eq f2(g(rand,rsize,ix),dc(f1(g(rand,rsize,ix),{content,ix}),ix))
+      = {content,ix} .
+
+
+***(
+applyDialect > dc(f1(g(rand,rsize,ix),{c,ix}), ix) 
+  
+decodeDialect > f2(g(rand,rsize,ix),dc(dcbits,ix))
+      
+grand == g(rand,rsize,ix)      
+f2(grand,dc(f1(grand,{c,ix}),ix)) = {c,ix}   
+)              
+************ Dialect wrapper
+
+op applyDialect : Attrs  DMsg -> Attrs .
+op decodeDialect : Attrs Msg -> Attrs .
+              
+
+ceq applyDialect(dattrs,msg @ n) =
+     incIxCtr(dattrs,dst,1) toSend(msgd @ n)
+if m(dst,src,content) := msg
+/\ rand := getSeedTo(dattrs,dst)
+/\ rsize := getRandSize(dattrs)
+/\ ix := getIxCtr(dattrs,dst)
+/\ grand := g(rand,rsize,ix)
+/\ dcbits := f1(grand,{content,ix})
+/\ msgd := m(dst,src,dc(dcbits,ix))
+.
+
+ceq decodeDialect(dattrs,msg) = 
+       dattrs1 toRcv(msgd @ 0)
+if m(dst,src,dc(dcbits,ix)) := msg
+/\ not(isUsed(dattrs,src,ix))
+/\ rsize := getRandSize(dattrs)
+/\ rand := getSeedFr(dattrs,src)
+/\ grand := g(rand,rsize,ix)
+**** match will fail if ix or dcbits have been edited
+/\ {content,ix} := f2(grand,dc(dcbits,ix))
+/\ dattrs1 := addUsed(dattrs,src,ix)
+/\ msgd := m(dst,src,content)
+.
+
+eq decodeDialect(dattrs,msg) = dattrs toRcv(mtDM) [owise] .
+
+
+endfm
+
+fmod COAP-DIALECT-ATTACKER is
+  inc COAP-DIALECT-LINGOS .
+  inc COAP-ATTACKER .
+
+vars dmsg dmsg0 dmsg1 : DMsg .
+var dmsgs dmsgs0 dmsgs1 : DMsgS .
+vars n n0 ix : Nat .
+var attrs : Attrs .
+var epid epid1 epid0 tgt src tpat spat : String .
+var dcbits : DCBits .
+var dcontent : DContent .
+var acaps acaps0 : Caps  .
+
+**** dialect attack
+
+op editIx : Nat -> Cap [ctor] .
+ceq doAttack(attrs kb(dmsgs),dmsg,editIx(n0)) = 
+     toSend(dmsg1) kb(dmsgs dmsg) attrs 
+   if m(epid,epid1,dc(dcbits,ix)) @ n := dmsg
+   /\ dmsg1 := m(epid,epid1,dc(dcbits,ix + n0)) @ n .
+
+
+  ceq doAttack(attrs kb(dmsgs),dmsg,redirect(epid0,epid1)) = 
+     toSend(dmsg1) kb(dmsgs dmsg) attrs 
+   if m(epid0,epid,dcontent) @ n := dmsg
+   /\ dmsg1 := m(epid1,epid,dcontent) @ n .
+
+  ceq doAttack(attrs kb(dmsgs),dmsg,unredirect(epid0,epid1)) = 
+     toSend(dmsg1) kb(dmsgs dmsg) attrs 
+   if m(epid,epid1,dcontent) @ n := dmsg
+   /\ dmsg1 := m(epid,epid0,dcontent) @ n .
+
+***(  ceq doAttack(attrs kb(dmsgs),dmsg,mc(tpat,spat,b,acaps)) = 
+     toSend(dmsgs1) kb(dmsgs dmsg) attrs 
+   if m(epid0,epid1,dcontent) @ n := dmsg
+   /\ pmatch(epid0,tpat)
+   /\ pmatch(epid1,spat)
+   /\ dmsgs1 := applyCaps(dmsg,acaps,mtDM) .
+)
+***(
+  ceq applyCaps(dmsg,reroute(tgt,src,n0) acaps,dmsgs) =
+        applyCaps(dmsg,acaps, dmsgs  dmsg0) 
+  if m(epid0,epid1,dcontent) @ n := dmsg
+  /\ dmsg0 := m(tgt,src,dcontent) @ (n + n0) .
+)
+endfm
+  
+
+fmod COAP-DIALECT-TIME is
+  inc COAP-TIME .
+  inc COAP-DIALECT-LINGOS .
+
+***(
+net(dmsgds0,dmsgds1)
+[epid | conf([epid | devattrs] net(dmsgs0,dmsgs1)) dattrs ]
+....
+
+mte is 0 if
+  mte(dmsgds1,infty) = 0
+  or 
+  dmsgds0 non-empty
+  or 
+  dmsgs0,dmsgs1 has
+     dmsg to send (dst =/= epid)
+     or msg @ 0 dst == epid
+  or devattrs can send
+  
+So if time can pass the inner net is empty and
+  passtime for outer net is as usual
+  passtime for devattrs is as usual
+  pastime for dattrs is identity so far
+)
+
+vars atts atts1 devattrs : Attrs .
+var epid : String .
+vars dmsgs0 dmsgs1 : DMsgS .
+var ni : NatInf .
+var nz : NzNat .
+
+eq mte(atts conf([epid | devattrs] net(dmsgs0,dmsgs1)),ni) =
+    (if dmsgs0 dmsgs1 =/= mtDM
+     then 0
+     else mte(atts, mte(devattrs,ni))
+     fi) .
+     
+***(
+eq passTime(atts conf([epid | devattrs] net(dmsgs0,dmsgs1)),nz,atts1)
+= passTime(atts,nz, atts1 
+      passTime(conf([epid | devattrs] net(dmsgs0,dmsgs1)),nz,mtA)) .   
+)
+
+eq passTime(conf([epid | devattrs] net(dmsgs0,dmsgs1)),nz)
+   = 
+  conf([epid | passTime(devattrs,nz,mtA)]  net(dmsgs0,dmsgs1)) .
+   
+
+
+endfm
+
+
+mod COAP-DIALECT is
+  inc COAP-RULES .
+  inc COAP-DIALECT-TIME .
+  
+var epid : String .
+vars dmsgs0 dmsgs1 dmsgs2 dmsgs ddmsgs0 ddmsgs1 : DMsgS .
+var ddmsg  : DMsg .
+vars msg msgd : Msg .
+vars dattrs dattrs1 devatts devatts1 devatts2 : Attrs .
+vars conf conf1 : Conf .
+var n : Nat .
+
+crl[ddevsend]:
+[epid | conf([epid  | devatts ] net(dmsgs0,dmsgs1)) dattrs ]
+net(ddmsgs0,ddmsgs1)
+=>
+[epid | conf([epid  | devatts ] net(mtDM,dmsgs) ) dattrs1 ] 
+net(ddmsgs0 ddmsg,ddmsgs1)
+if dmsgs (msg @ n) := dmsgs0 dmsgs1
+/\ getSrc(msg) = epid
+/\ toSend(ddmsg) dattrs1 := 
+      applyDialect(dattrs,msg @ n)
+[print "\n[ddevsend] "  "\nddmsg " ddmsg] 
+       .
+
+crl[ddevrcv]:
+{[epid | conf([epid | devatts ] net(dmsgs0,dmsgs1))
+         dattrs ] 
+  net(ddmsgs0,ddmsgs1 msgd @ 0) conf}
+=>
+{[epid | conf([epid | devatts2 ]
+              net(dmsgs0 dmsgs2,dmsgs1)) 
+        dattrs1 ]
+  net(ddmsgs0,ddmsgs1)  conf1}
+if getTgt(msgd) == epid
+/\ toRcv(dmsgs) dattrs1 := decodeDialect(dattrs,msgd)
+
+/\ toSend(dmsgs2) devatts1 := 
+    (if dmsgs :: DMsg
+     then rcvMsg(epid, devatts, DMsg2Msg(dmsgs))
+     else toSend(mtDM) devatts
+     fi)
+/\ conf1 := doLog(conf,devatts1)
+/\ devatts2 := clearToLog(devatts1) 
+
+[print "\n[ddevrcv] "  "\nmsgd " msgd "\ndmsgs " dmsgs] 
+ .
+
+endm

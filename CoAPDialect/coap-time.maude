@@ -1,0 +1,134 @@
+
+fmod COAP-TIME is
+  inc COAP-CONF .
+********* time elapse
+
+vars ni ni0 ni1 : NatInf .
+vars n n0 n1 : Nat .
+var nz : NzNat .
+var sys : Sys .
+vars conf conf1 : Conf .
+var attr : Attr .
+vars attrs attrs1 : Attrs .
+vars dmsgs dmsgs0 dmsgs1 : DMsgS .
+var amsgl : AMsgL .
+var amsg : AMsg .
+var msg : Msg .
+var id : String .
+
+
+sort NatInf .
+subsort Nat < NatInf .
+op infty : -> NatInf .
+op min : NatInf NatInf -> NatInf [ditto] .
+eq min(infty,n) = n .
+eq min(infty,infty) = infty .
+
+op mte : Sys -> NatInf .
+op mte : Conf NatInf -> NatInf .
+op mte : Attrs NatInf -> NatInf .
+op mte : DMsgS NatInf -> NatInf .
+eq mte(sys) = infty [owise] .
+eq mte(conf,ni) = ni [owise] .
+eq mte(attrs, ni) = ni [owise] .
+eq mte(dmsgs, ni) = ni [owise] .
+
+eq mte({conf}) = mte(conf,infty) .
+ceq mte([id | attrs] conf,ni) =
+    (if ni1 == 0 
+     then 0 
+     else mte(conf,ni1)
+     fi)
+ if ni1 := mte(attrs,ni)  
+.
+       
+eq mte(lg:Log conf,ni) = mte(conf,ni) .
+
+ceq mte(net(dmsgs0,dmsgs1) conf, ni) =
+    (if ni1 == 0 
+     then 0 
+     else mte(conf,ni1)
+     fi)
+  if ni1 := mte(dmsgs1 dmsgs0,ni) .
+
+eq mte(conf,ni) = ni [owise] .
+
+***(
+eq mte(log(lil:LogItemL), ni) = ni .
+eq mte(net(dmsgs0,dmsgs1), ni) = mte(dmsgs1,mte(dmsgs0,ni)) .
+)
+
+**** attrs       
+       
+***(
+eq mte(sendReqs(amsgl) w4Ack(dmsgs) attrs,ni)
+   = (if amsgl =/= nilAM
+      then (if dmsgs == mtDM
+            then mte(attrs,min(ni,getSndCtr(attrs)))
+            else mte(attrs,mte(dmsgs,ni))
+            fi)
+      else mte(attrs,mte(dmsgs,ni))
+      fi) .
+)       
+
+ceq mte(sendReqs(amsg ; amsgl) w4Ack(dmsgs) attrs,ni)
+   = (if  (noW4Ack(w4Ack(dmsgs) attrs) 
+          and canSend(attrs))
+      then 0  ---- size dmsgs < bd and n==0
+      else mte(attrs,mte(dmsgs,ni1))
+      fi) 
+  if n := getSndCtr(attrs) 
+  /\ ni1 := (if n == 0
+            then infty
+            else min(ni,n) 
+            fi) .
+            
+**** no app msgs       
+eq mte(sendReqs(nilAM) w4Ack(dmsgs) attrs,ni)
+   = mte(attrs,mte(dmsgs,ni)) .
+
+***(
+eq mte(w4Ack(dmsgs) attrs,ni) = mte(attrs,mte(dmsgs,ni)) .
+eq mte(sndCtr(n) attrs,ni) = 
+     mte(attrs,(if n == 0 then ni else min(n,ni) fi)) .
+)
+
+***** dmsgs
+
+eq mte((msg @ n) dmsgs,ni) = mte(dmsgs,min(n,ni)) .
+eq mte(mtDM,ni) = ni .
+
+
+op monus : Nat Nat -> Nat .
+eq monus(n0,n1) = if (n1 > n0) then 0 else sd(n0,n1) fi .
+
+op passTime : Sys NzNat -> Sys .
+op passTime : Conf NzNat Conf -> Conf .
+op passTime : Attrs NzNat Attrs -> Attrs .
+op passTime : Attr NzNat -> Attr .
+op passTime : DMsgS NzNat DMsgS -> DMsgS .
+
+eq passTime({conf},nz) = {passTime(conf,nz,mt)} .
+eq passTime([id | attrs] conf,nz,conf1) = 
+   passTime(conf,nz,conf1 [id | passTime(attrs,nz,mtA)]) .
+eq passTime(net(dmsgs0,dmsgs1) conf,nz,conf1)   =
+   passTime(conf,nz,conf1 net(passTime(dmsgs0,nz,mtDM), 
+                              passTime(dmsgs1,nz,mtDM))) .
+eq passTime(conf,nz,conf1)   = conf1 conf [owise] .
+
+eq passTime(dmsgs msg @ n,nz,dmsgs1) =
+   passTime(dmsgs,nz,dmsgs1 msg @ monus(n,nz)) .
+eq passTime(mtDM,nz,dmsgs1) = dmsgs1 .
+
+eq passTime(attr attrs,nz,attrs1) = 
+   passTime(attrs,nz,attrs1 passTime(attr,nz)) .
+eq passTime(mtA,nz,attrs1) = attrs1 .
+
+eq passTime(w4Ack(dmsgs),nz) =
+     w4Ack(passTime(dmsgs,nz,mtDM)) .
+eq passTime(sndCtr(n),nz) = sndCtr(monus(n,nz)) .
+eq passTime(rspSntD(dmsgs),nz) 
+      = rspSntD(passTime(dmsgs,nz,mtDM)) .
+eq passTime(attr,nz) = attr [owise] .
+
+endfm

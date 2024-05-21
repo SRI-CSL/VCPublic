@@ -1,0 +1,435 @@
+mod COAP-TEST is
+ inc COAP-RULES .
+
+***(
+4.8
++-------------------+---------------+
+| name              | default value |
++-------------------+---------------+
+| ACK_TIMEOUT       | 2 seconds     |
+| ACK_RANDOM_FACTOR | 1.5           |
+| MAX_RETRANSMIT    | 4             |
+| NSTART            | 1             |
+| DEFAULT_LEISURE   | 5 seconds     | 
+| PROBING_RATE      | 1 byte/second |
++-------------------+---------------+  
+| EXCHANGE_LIFETIME |        247 s  | 
+| NON_LIFETIME      |        145 s  | 
+
+)
+
+op mkCoapConf : Nat Nat -> CBnds .
+eq mkCoapConf(mqd:Nat,w4ab:Nat) =
+  cb("ACK_TIMEOUT", 5)
+  cb("ACK_RANDOM_FACTOR", 2)
+  cb("MAX_RETRANSMIT", 1)
+  cb("msgSD",2)
+  cb("msgQD",mqd:Nat)
+  cb("w4AckBd",w4ab:Nat)
+  cb("ttl", 10) .
+
+    
+op coap-config : -> CBnds .
+ops coap-config0 coap-config1 coap-config2 : -> CBnds .
+
+*** requires w4ack to be empty, wait 5 for next msg
+eq coap-config0 = mkCoapConf(5,1)
+***(
+  cb("ACK_TIMEOUT", 5)
+  cb("ACK_RANDOM_FACTOR", 2)
+  cb("MAX_RETRANSMIT", 1)
+  cb("msgSD",2)
+  cb("msgQD",5)
+  cb("ttl", 10)
+  )
+.  
+
+***** allows 2 messages outstanding w same delay
+eq coap-config1 = mkCoapConf(0,1)
+ ***(
+  cb("ACK_TIMEOUT", 5)
+  cb("ACK_RANDOM_FACTOR", 2)
+  cb("MAX_RETRANSMIT", 1)
+  cb("msgSD",2)
+  cb("msgQD",0)
+  cb("w4AckBd",1)
+  cb("ttl", 10)
+  )
+.  
+
+***** allows 2 messages outstanding w delay offset 1
+eq coap-config2 = mkCoapConf(1,1)
+***(
+  cb("ACK_TIMEOUT", 5)
+  cb("ACK_RANDOM_FACTOR", 2)
+  cb("MAX_RETRANSMIT", 1)
+  cb("msgSD",2)
+  cb("msgQD",1)
+  cb("w4AckBd",1)
+  cb("ttl", 10)
+  )
+.  
+
+eq coap-config = coap-config1 .  ---- The original cfig
+
+op mkInitDevAttrs : Nat Nat -> Attrs .
+eq mkInitDevAttrs(mqd:Nat,w4ab:Nat) =
+  w4Ack(mtDM)    
+  w4Rsp(mtM) 
+  rspSntD(mtDM)
+  rspRcd(mtM)
+  ctr(0) 
+  config(mkCoapConf(mqd:Nat,w4ab:Nat)) .
+
+op initDevAttrs : -> Attrs .
+eq initDevAttrs =
+  mkInitDevAttrs(5,1)
+***(
+  w4Ack(mtDM)    
+  w4Rsp(mtM) 
+  rspSntD(mtDM)
+  rspRcd(mtM)
+  ctr(0) 
+  config(mkCoapConf(5,1))
+)
+.  
+
+
+vars id tgt path path1 val val1 src : String .
+vars  aid aid0 aid1 tok code code0 code1 : String .
+vars epid type type1 mid rcvr rcvr1 sndr : String .
+vars n j n0 j0 n1 j1 n2 j2 d d0 d1 : Nat .
+vars amsgl amsgl0 amsgl1 amsgl2 : AMsgL .
+vars rbnds rbnds0 rbnds1 rbnds2 rmap : RMap .
+var caps : Caps .
+vars conf conf1 : Conf .
+vars devatts devatts1 : Attrs .
+vars msgs msgs0 : MsgS .
+var msg : Msg .
+var hd : Head .
+var body : Body .
+vars dmsgs dmsgs0 : DMsgS .
+var content content0 content1 : Content .
+
+****         Id     Tgt   Resource
+op mkGetC : String String String -> AMsg .
+op mkGetN : String String String -> AMsg .
+
+****         Id    Tgt    Resource  Val
+op mkPutC : String String String  String -> AMsg .
+op mkPutN : String String String  String -> AMsg .
+
+eq mkGetC(id,tgt,path) =
+     amsg(id,tgt,"CON","GET",path,"",mtBody) .
+eq mkGetN(id,tgt,path) =
+     amsg(id,tgt,"NON","GET",path,"",mtBody) .
+
+eq mkPutC(id,tgt,path,val) =
+     amsg(id,tgt,"CON","PUT",path,"",b(val)) .
+eq mkPutN(id,tgt,path,val) =
+     amsg(id,tgt,"NON","PUT",path,"",b(val)) .
+
+
+op mkDelN : String String String -> AMsg .
+eq mkDelN(id,tgt,path) =
+     amsg(id,tgt,"NON","DELETE",path,"",mtBody) .
+
+**** default configuration
+op mkDev : Nat Nat AMsgL RMap -> Agent .
+ceq mkDev(n,j,amsgl,rbnds) =
+  [ epid | sendReqs(amsgl) rsrcs(rbnds)
+           sndCtr(j) initDevAttrs ]
+if epid := "dev"  + string(n,10) .
+
+**** with configuration parameters
+op mkDevC : Nat Nat AMsgL RMap Nat Nat -> Agent .
+ceq mkDevC(n,j,amsgl,rbnds,mqd:Nat,w4ab:Nat) =
+  [ epid | sendReqs(amsgl) rsrcs(rbnds)
+           sndCtr(j) mkInitDevAttrs(mqd:Nat,w4ab:Nat) ]
+if epid := "dev"  + string(n,10) .
+
+**** attacker
+op mkAtt : Caps -> Agent .
+eq mkAtt(caps) = ["eve" | kb(mtDM) caps(caps)] .
+
+**** 2 endpoint configuration, default devconfig
+**** caps = mtC for no attack
+**** dev0 sends first
+op tCS2 : Nat Nat AMsgL RMap Nat Nat AMsgL RMap Caps -> Conf .
+eq tCS2(n0,j0,amsgl0,rbnds0,
+        n1,j1,amsgl1,rbnds1,
+        caps) = 
+   net(mtDM,mtDM)
+   mkDev(n0,j0,amsgl0,rbnds0)  
+   mkDev(n1,j1,amsgl1,rbnds1)  
+   (if caps == mtC
+    then mt
+    else mkAtt(caps) 
+    fi)  .
+
+****  2 endpoint configuration, with devconfig parameters
+***(
+w4ab = n requires w4Ack to have <= n dmsgs
+mqd = m requires delay of m before sending next request
+config0 ~ 0,5
+config1 ~ 1,0
+config2 ~ 1,1
+)
+op tCS2C : Nat Nat AMsgL RMap Nat Nat
+           Nat Nat AMsgL RMap Nat Nat
+          Caps -> Conf .
+eq tCS2C(n0,j0,amsgl0,rbnds0,mqd0:Nat,w4ab0:Nat,
+         n1,j1,amsgl1,rbnds1,mqd1:Nat,w4ab1:Nat,
+        caps) = 
+   net(mtDM,mtDM)
+   mkDevC(n0,j0,amsgl0,rbnds0,mqd0:Nat,w4ab0:Nat)  
+   mkDevC(n1,j1,amsgl1,rbnds1,mqd1:Nat,w4ab1:Nat)  
+   (if caps == mtC
+    then mt
+    else mkAtt(caps) 
+    fi)  .
+    
+    
+****** parameterised C->S  
+op tCS : AMsgL RMap Caps -> Conf .
+eq tCS(amsgl0,rbnds1,caps) =    
+    tCS2C(0,0,amsgl0,mtR,5,0,
+         1,1,nilAM,rbnds1,5,0,
+         caps) .
+
+***** three endpoint configuration with default devConfig
+op tCS3 : Nat Nat AMsgL RMap 
+          Nat Nat AMsgL RMap 
+          Nat Nat AMsgL RMap Caps -> Conf .
+eq tCS3(n0,j0,amsgl0,rbnds0,
+        n1,j1,amsgl1,rbnds1,
+        n2,j2,amsgl2,rbnds2,
+        caps) = 
+   net(mtDM,mtDM)
+   mkDev(n0,j0,amsgl0,rbnds0)
+   mkDev(n1,j1,amsgl1,rbnds1)
+   mkDev(n2,j2,amsgl2,rbnds2)
+   mkAtt(caps) .
+
+***** three endpoint configuration  with devConfig params
+op tCS3C : Nat Nat AMsgL RMap Nat Nat
+          Nat Nat AMsgL RMap Nat Nat
+          Nat Nat AMsgL RMap Nat Nat
+          Caps -> Conf .
+eq tCS3C(n0,j0,amsgl0,rbnds0,mqd0:Nat,w4ab0:Nat,
+        n1,j1,amsgl1,rbnds1,mqd1:Nat,w4ab1:Nat,
+        n2,j2,amsgl2,rbnds2,mqd2:Nat,w4ab2:Nat,
+        caps) = 
+   net(mtDM,mtDM)
+   mkDevC(n0,j0,amsgl0,rbnds0,mqd0:Nat,w4ab0:Nat)
+   mkDevC(n1,j1,amsgl1,rbnds1,mqd1:Nat,w4ab1:Nat)
+   mkDevC(n2,j2,amsgl2,rbnds2,mqd2:Nat,w4ab2:Nat)
+   mkAtt(caps) .
+
+op tCSS : AMsgL RMap RMap Caps -> Conf .
+eq tCSS(amsgl0,rbnds1,rbnds2,caps) =    
+    tCS3C(0,0,amsgl0,mtR,5,0,
+          1,1,nilAM,rbnds1,5,0,
+          2,1,nilAM,rbnds2,5,0,
+         caps) .
+
+ops iSys0 iSys1 iSys2 iSys3a iSys3r : -> Sys .
+ 
+eq iSys0 = {tCS(mkPutC("putNDU","dev1" ,"door","unlock") ; mkPutN("putNSG","dev1" ,"sig","go") ; mkPutC("putNDL","dev1" ,"door","lock"), rb("door","lock"),mtC)} .
+
+eq iSys1 = {tCS(mkPutC("putNDU","dev1" ,"door","unlock") ; mkPutN("putNSG","dev1" ,"sig","go") ; mkPutC("putNDL","dev1" ,"door","lock"), rb("door","lock"),drop)} .
+
+eq iSys2 = {tCS(mkPutC("putNDU","dev1" ,"door","unlock") ; mkPutN("putNSG","dev1" ,"sig","go") ; mkPutC("putNDL","dev1" ,"door","lock"), rb("door","lock"),replay(10)) log(nilLI)} .
+
+eq iSys3a = {tCSS( mkGetN("getN","dev1" ,"door"), rb("door","unlock"),rb("door","lock"), mc("dev1","dev0",true,act("dev2","dev0",0)) mc("dev0","dev2",true,act("dev0","dev1",0))) log(nilLI)} .
+
+eq iSys3r = {tCSS( mkGetN("getN","dev1" ,"door"), rb("door","unlock"),rb("door","lock"), mc("dev1","dev0",false,act("dev2","dev0",0)) mc("dev0","dev2",false,act("dev0","dev1",0))) log(nilLI)} .
+
+
+***** defining goals for attacker
+***(
+response codes
+get response c0de  2.05 (Content) or 2.03 (Valid) or 4.04 (bad path)
+post/put 2.01 (Created) / 2.01 (Created) 2.04 (Changed)
+delete 2.02 (Deleted)
+)
+
+op dmsgs2msgs : DMsgS -> MsgS .
+op dmsgs2msgsX : DMsgS MsgS -> MsgS .
+eq dmsgs2msgs(dmsgs) = dmsgs2msgsX(dmsgs,mtM) .
+eq dmsgs2msgsX(dmsgs msg @ d,msgs) =
+        dmsgs2msgsX(dmsgs,msgs msg) .
+eq dmsgs2msgsX(mtDM,msgs) = msgs .
+
+**** does msg match the parameters
+op hasMatch1 : Msg String String String String String 
+               -> Bool .
+ceq hasMatch1(msg,rcvr,type,code,path,val) =
+  (rcvr == "" or rcvr == rcvr1)
+  and
+  (code == "" or code == code1)
+  and
+  (type == "" or type == type1)
+   and 
+  (path == "" or path == path1)
+  and
+  (val == "" or (body == b(val) ))
+if type1 := getType(msg)
+/\ code1 := getCode(msg)
+/\ path1 := getPath(msg)
+/\  body := getBody(msg) 
+/\  rcvr1 := getTgt(msg) .
+
+op hasMatch : MsgS String String String String String
+              -> Bool .
+eq hasMatch(mtM,rcvr,type,code,path,val) = false .
+eq hasMatch(msg msgs,rcvr,type,code,path,val) = 
+   (if hasMatch1(msg,rcvr,type,code,path,val)
+   then true
+   else hasMatch(msgs,rcvr,type,code,path,val)
+   fi) .
+
+op hasMatch : DMsgS String String String String String 
+              -> Bool .
+eq hasMatch(dmsgs,rcvr,type,code,path,val) =
+      hasMatch(dmsgs2msgs(dmsgs), 
+               rcvr,type,code,path,val) .
+
+***** device epidt received no response with given code
+****             epid     code
+op noRsp : Conf String String -> Bool .
+ceq noRsp(conf,epid,code) = false
+if [epid | devatts rspRcd(msgs msg)] conf1 := conf
+/\ h(type,code,mid) := getHead(msg) .
+
+eq noRsp(conf,epid,code) = true [owise] .
+
+op noW4s : Conf String  -> Bool .
+ceq noW4s(conf,src) = dmsgs == mtDM and msgs == mtM
+if [src | devatts w4Ack(dmsgs) w4Rsp(msgs)] conf1 := conf .
+ 
+
+***** device epid has resource at path having value val
+****                   epid    path   val
+op checkRsrc : Conf String String String -> Bool .
+ceq checkRsrc(conf,epid,path,val) = true
+if [epid | devatts rsrcs(rmap rb(path,val))] conf1 := conf .
+eq checkRsrc(conf,epid,path,val) = false [owise] .
+    
+**** client rcvr has get response from sndr with value val 
+**** val == "*" matches any val1
+***************  by     from        aid      val        
+op hasGetRsp : Conf String String String String -> Bool .
+ceq hasGetRsp(conf, rcvr,sndr,aid,val) = true
+if [rcvr | devatts rspRcd(msgs)] conf1 := conf
+/\  m(rcvr, sndr, c(hd,tok,mtO,b(val1))) msgs0 := msgs
+/\  (val == val1) or (val == "")
+/\ code := getCode(hd) 
+/\  (code == "2.05") or (code == "2.03")
+/\ (if aid =/= "" then find(tok,aid,0) :: Nat else true fi)
+ .
+
+eq hasGetRsp(conf, rcvr,sndr,aid,val) = false [owise] .    
+
+op hasRspSnt : Conf String String String -> Bool .
+ceq hasRspSnt(conf,sndr, rcvr,code) = true
+if  [sndr | devatts] conf1 := conf
+/\  rspSntD((msg @ d) dmsgs) devatts1 := devatts
+/\  m(rcvr,sndr,content) := msg
+/\  code == getCode(content) .
+
+eq hasRspSnt(conf, sndr,rcvr,code) = false [owise] .   
+
+
+op hasRspRcd : Conf String String String -> Bool .
+ceq hasRspRcd(conf,rcvr,sndr,code) = true
+if  [rcvr | devatts] conf1 := conf
+/\  rspRcd(msg msgs) devatts1 := devatts
+/\  m(rcvr,sndr,content) := msg
+/\  code == getCode(content) .
+
+eq hasRspRcd(conf,rcvr, sndr,code) = false [owise] .    
+
+op rspPending : Conf String String 
+                String String String String -> Bool .
+ceq rspPending(conf,sndr,rcvr,type,code,path,val) =
+       hasMatch(msgs,rcvr,type,code,path,val) or
+       hasMatch(dmsgs,rcvr,type,code,path,val)
+if  [sndr | devatts] conf1 := conf
+/\  w4Rsp(msgs) w4Ack(dmsgs) devatts1 := devatts .
+
+eq rspPending(conf,sndr,rcvr,type,code,path,val) = false [owise] .
+
+
+op rspSntBefore : Conf String String String String -> Bool .
+**** sndr is the client rcvr the server
+ceq rspSntBefore(conf,rcvr,sndr,code0,code1) = true
+if [rcvr | devatts rspSntD(dmsgs)] conf1 := conf
+/\ (m(sndr,rcvr,content0) @ d0) 
+     (m(sndr,rcvr,content1) @ d1) dmsgs0 := dmsgs
+/\ code0 == getCode(content0)     
+/\ code1 == getCode(content1)     
+/\ d0 < d1 .   --- msg with code0 has less ttl
+
+eq rspSntBefore(conf,sndr,rcvr,code0,code1) = false [owise] .
+
+******************* using Tokens ********************
+********* client
+op hasRspTRcd : Conf String String String -> Bool .
+ceq hasRspTRcd(conf,rcvr,sndr,aid) = true
+if  [rcvr | devatts] conf1 := conf
+/\  rspRcd(msg msgs) devatts1 := devatts
+/\  m(rcvr,sndr,content) := msg
+/\  tokMatch(getTok(content),aid) .
+eq hasRspTRcd(conf,rcvr, sndr,aid) = false [owise] .  
+
+
+op rspPend : Conf String String String -> Bool .
+*******          cl   svr                
+ceq rspPend(conf,sndr,rcvr,aid) =
+       hasTokMatch(msgs,rcvr,aid) or
+       hasTokMatch(dmsgs,rcvr,aid)
+if  [sndr | devatts] conf1 := conf
+/\  w4Rsp(msgs) w4Ack(dmsgs) devatts1 := devatts .
+eq rspPend(conf,sndr,rcvr,aid) = false [owise] .
+
+op hasTokMatch : MsgS String String -> Bool .
+ceq hasTokMatch(msg msgs,rcvr,aid) = true
+   if (rcvr == getTgt(msg) and 
+       tokMatch(getTok(msg),aid) ) .
+eq hasTokMatch(msgs,rcvr,aid) = false [owise] .
+
+op hasTokMatch : DMsgS String String -> Bool .
+eq hasTokMatch(dmsgs,rcvr,aid) =
+      hasTokMatch(dmsgs2msgs(dmsgs),rcvr,aid) .
+
+op tokMatch : String String -> Bool .
+eq tokMatch(tok,aid) =
+  substr(tok,0,length(aid)) == aid .
+
+
+********* server
+op hasRspTSnt : Conf String String String -> Bool .
+ceq hasRspTSnt(conf,sndr, rcvr,aid) = true
+if  [sndr | devatts] conf1 := conf
+/\  rspSntD((msg @ d) dmsgs) devatts1 := devatts
+/\  m(rcvr,sndr,content) := msg
+/\  tokMatch(getTok(content),aid) .
+eq hasRspTSnt(conf, sndr,rcvr,aid) = false [owise] .  
+
+op rspTSntBefore : Conf String String String String -> Bool .
+**** sndr is the client rcvr the server
+ceq rspTSntBefore(conf,rcvr,sndr,aid0,aid1) = true
+if [rcvr | devatts rspSntD(dmsgs)] conf1 := conf
+/\ (m(sndr,rcvr,content0) @ d0) 
+     (m(sndr,rcvr,content1) @ d1) dmsgs0 := dmsgs
+/\ tokMatch(getTok(content0),aid0)
+/\ tokMatch(getTok(content1),aid1)
+/\ d0 < d1 . 
+   --- msg with tok matchig aid0 has less ttl
+
+eq rspTSntBefore(conf,rcvr,sndr,aid0,aid1) = false [owise] .
+
+endm 
+
+eof

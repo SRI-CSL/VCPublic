@@ -1,0 +1,194 @@
+fmod COAP-MSG is
+  inc CONVERSION .
+
+vars path qparams type code mid : String .
+var opts : Options .
+var n : Nat .
+var dmsgs : DMsgS .
+var dmsg : DMsg .
+var msg : Msg .
+vars dst src tpat spat : String .
+
+sorts Msg DMsg .   
+op _@_ : Msg Nat -> DMsg [ctor] .  --- delayed msg
+
+op DMsg2Msg : DMsg -> Msg .
+eq DMsg2Msg(msg @ n) = msg .
+op DMsg2Delay : DMsg -> Nat .
+eq DMsg2Delay(msg @ n) = n .
+
+
+sort Content .  --- msg content
+sorts Head Option Options Body  .  --- msg parts
+
+****        token  
+op c : Head String Options Body -> Content [ctor] .
+----    dst   src      
+op m : String String Content -> Msg [ctor] .
+op mtBody : -> Body [ctor] .
+op b : String -> Body [ctor] .
+
+op getTgt : Msg -> String .
+eq getTgt(m(dst:String,src:String,c:Content)) = dst:String .
+
+op getSrc : Msg -> String .
+eq getSrc(m(dst:String,src:String,c:Content)) = src:String .
+
+op setTgtSrc : Msg String String -> Msg .
+eq setTgtSrc(m(dst,src,c:Content),tpat,spat) =
+    m((if tpat == "" then dst else tpat fi),
+      (if spat == "" then src else spat fi), c:Content) .
+ 
+op getHead : Msg -> Head .
+op getHead : Content -> Head .
+eq getHead(m(dst:String,src:String,c:Content)) 
+           = getHead(c:Content) .
+eq getHead(c(hd:Head,tok:String,opts:Options,body:Body)) 
+           = hd:Head .
+            
+op getTok : Msg -> String .
+op getTok : Content -> String .
+eq getTok(m(dst:String,src:String,c:Content)) 
+          = getTok(c:Content) .
+eq getTok(c(hd:Head,tok:String,opts:Options,body:Body))
+          = tok:String .
+
+op getOpts : Msg -> Options .
+op getOpts : Content -> Options .
+eq getOpts(m(dst:String,src:String,c:Content)) 
+           = getOpts(c:Content) .
+eq getOpts(c(hd:Head,tok:String,opts:Options,body:Body))
+           = opts:Options .
+
+op getBody : Msg -> Body .
+op getBody : Content -> Body .
+eq getBody(m(dst:String,src:String,c:Content)) 
+           = getBody(c:Content) .
+eq getBody(c(hd:Head,tok:String,opts:Options,body:Body))
+           = body:Body .
+
+sort MsgS .
+subsort Msg < MsgS .
+
+op mtM : -> MsgS [ctor] .
+op __ : MsgS MsgS -> MsgS [ctor assoc comm id: mtM] .
+
+
+sort DMsgS .
+subsort DMsg < DMsgS .
+
+op mtDM : -> DMsgS .
+op __ : DMsgS DMsgS -> DMsgS [ctor assoc comm id: mtDM] .
+
+op size : DMsgS -> Nat .
+op sizeX : DMsgS Nat -> Nat .
+eq size(dmsgs) = sizeX(dmsgs,0) .
+eq sizeX(dmsgs dmsg, n) = sizeX(dmsgs,s n) .
+eq sizeX(mtDM, n) = n .
+  
+
+sorts AMsg AMsgL .
+subsort AMsg < AMsgL .
+op nilAM : -> AMsgL [ctor] .
+op _;_ : AMsgL AMsgL -> AMsgL [ctor assoc id: nilAM] .
+****     appid    dst    type   meth   path  qparams body
+op amsg : String String String String String String Body
+          -> AMsg [ctor] .
+
+**** delay before next msg          
+op amsgd : Nat -> AMsg [ctor] .
+
+****   Type   Code   MsgId
+op h : String String String -> Head  [ctor] .
+
+op getMid : Msg -> String .
+op getMid : Content -> String .
+op getMid : Head -> String .
+
+eq getMid(m(dst:String,src:String,c:Content)) 
+          = getMid(c:Content) .
+eq getMid(c(h:Head,tok:String,opts:Options,body:Body)) 
+          = getMid(h:Head) .
+eq getMid(h(type,code,mid)) = mid .
+
+op getType : Msg -> String .
+op getType : Content -> String .
+op getType : Head -> String .
+
+eq getType(m(dst:String,src:String,c:Content)) 
+          = getType(c:Content) .
+eq getType(c(h:Head,tok:String,opts:Options,body:Body)) 
+          = getType(h:Head) .
+eq getType(h(type,code,mid)) = type .
+
+op getCode : Msg -> String .
+op getCode : Content -> String .
+op getCode : Head -> String .
+
+eq getCode(m(dst:String,src:String,c:Content)) 
+          = getCode(c:Content) .
+eq getCode(c(h:Head,tok:String,opts:Options,body:Body)) 
+          = getCode(h:Head) .
+eq getCode(h(type,code,mid)) = code .
+
+op getOptions : Msg -> Options .
+op getOptions : Content -> Options .
+eq getOptions(m(dst:String,src:String,c:Content)) 
+    = getOptions(c:Content) .
+eq getOptions(c(h:Head,tok:String,opts:Options,body:Body))
+   = opts:Options .
+
+**** use set of options, 
+***(
+Options supported
+ Request
+   Uri-Path
+   Uri-Query
+Response
+  Location-Path
+  Location-Query
+)
+subsort Option  < Options .
+op o : String String -> Option [ctor] .
+op o : String Nat  -> Option [ctor] .
+op mtO : -> Options [ctor] .  --- The empthy option list
+op __ : Options Options -> Options 
+        [ctor assoc comm id: mtO] .
+
+op getPath : Msg -> String .
+eq getPath(msg) = getPath(getOptions(msg)) .
+
+op getPath : Options -> String .
+eq getPath(opts o("Uri-Path",path)) = path .
+eq getPath(opts) = "" [owise] .
+
+op getQuery : Msg -> String .
+eq getQuery(msg) = getQuery(getOptions(msg)) .
+
+op getQuery : Options -> String .
+eq getQuery(opts o("Uri-Query",qparams)) = qparams .
+eq getQuery(opts) = "" [owise] .
+
+op getLPath : Msg -> String .
+eq getLPath(msg) = getLPath(getOptions(msg)) .
+
+op getLPath : Options -> String .
+eq getLPath(opts o("Location-Path",path)) = path .
+eq getLPath(opts) = "" [owise] .
+
+op getLQuery : Options -> String .
+eq getLQuery(opts o("Location-Query",qparams)) = qparams .
+eq getLQuery(opts) = "" [owise] .
+
+
+
+**** For msg validation
+sorts OptionSpec OptionSpecs .  ---- rfc 7252 Table 4
+op os : String String String String String -> OptionSpec 
+        [ctor] .
+ops getOsName  getOsSort getOsDefault : 
+    OptionSpec -> String .
+op isCritical : OptionSpecs String -> Bool .
+op isRepeatable : OptionSpecs String -> Bool .
+ 
+endfm

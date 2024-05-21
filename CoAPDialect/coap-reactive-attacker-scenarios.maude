@@ -1,0 +1,493 @@
+mod COAP-REACTIVE-ATTACKS-SCENARIOS is
+  inc COAP-TEST .
+
+
+***(
+R1 attacks using variants of Figs 3,4,5,6
+
+    dev0        eve        dev1
+    ----        ---        unlock
+     o -PUTNDL-> -----------> 
+                o act("","",5/10)   
+     o <-------  <-2.01--    o
+      ....
+     o -PUTNDU-> ----------> o 
+     o <-------  <-2.01--    o
+                --- PUTNDL-> o
+*** optional
+     o -PUTNSO->  ------>    o  
+     o <-------  <-2.01--    o
+
+)
+***(
+mqd 5 w4b 0
+d 5,10,15
+)
+op raR1 : Nat Nat Nat Bool -> Conf .
+eq raR1(mqd:Nat,w4b:Nat,d:Nat,nso:Bool) = 
+ tCS2C(0,0,mkPutN("putNDL","dev1","door","lock") ;
+           mkPutN("putNDU","dev1","door","unlock") ;
+         (if nso:Bool 
+          then mkPutN("putNS","dev1","signal","on")
+          else nilAM fi) ,
+          mtR,mqd:Nat,w4b:Nat,
+      1,1,nilAM,rb("door","unlock")rb("sig","off"),2,0,
+      mc("dev1","dev0",false, act("","",d:Nat))) .
+
+
+***(
+**** property1: at the end door is locked
+rew {raR1(5,0,10,false) log(nilLI)} .
+search {raR1(5,0,10,false)} =>! {c:Conf} such that checkRsrc(c:Conf,"dev1","door","lock") .
+Solution 2 (state 100)
+states: 101  rewrites: 7740 in 8ms cpu
+
+**** property2: property1 and door is locked before sig is on
+search {raR1(5,0,10,true) log(nilLI)} =>! {c:Conf} such that checkRsrc(c:Conf,"dev1","door","lock") and subLIL(c:Conf, rcvP("dev1","door","unlock") ;  rcvP("dev1","door","lock") ;  rcvP("dev1","signal","")) .
+
+Solution 2 (state 225)
+states: 231  rewrites: 19524 in 9ms cpu (9ms real) (2094400 rewrites/second)
+c:Conf --> log(rcvP("dev1", "door", "lock") ; rcvP("dev1", "door", "unlock") ; rcvP("dev1", "door", "lock") ; rcvP("dev1", "signal", "on"))
+
+****** property 2 less delay
+search {raR1(5,0,5,true)} =>! {c:Conf} such that checkRsrc(c:Conf,"dev1","door","lock") and rspTSntBefore(c:Conf,"dev1","dev0","putNDL","putNS") .
+No solution.
+
+
+search {raR1(5,0,5,true)  log(nilLI)} =>! {c:Conf} such that checkRsrc(c:Conf,"dev1","door","lock") and subLIL(c:Conf, rcvP("dev1","door","unlock") ;  rcvP("dev1","door","lock") ;  rcvP("dev1","signal","")) .
+No solution.
+
+
+search {raR1(5,0,10,true)  log(nilLI)} =>! {c:Conf} such that checkRsrc(c:Conf,"dev1","door","lock") and subLIL(c:Conf, rcvP("dev1","door","unlock") ;  rcvP("dev1","door","lock") ;  rcvP("dev1","signal","")) .
+
+Solution 2 (state 225)
+states: 231  rewrites: 19524 in 8ms cpu (8ms real) (2333731 rewrites/second)
+c:Conf --> log(rcvP("dev1", "door", "lock") ; rcvP("dev1", "door", "unlock") ; rcvP("dev1", "door", "lock") ; rcvP("dev1", "signal", "on"))
+    
+    
+search {raR1(5,0,15,true) log(nilLI)} =>! {c:Conf} such that checkRsrc(c:Conf,"dev1","door","lock") and subLIL(c:Conf, rcvP("dev1","door","unlock") ; rcvP("dev1","door","lock") ; rcvP("dev1","signal","")) .
+No solution.  d >= 11 or d <= 9
+
+
+)
+
+
+******************** R2  process out of order ***************
+
+***(
+    dev0        eve        dev1  ... devk
+    ----        ---        off
+     o -PUTNon  ----------> o           
+               o(cc dev2)> ----->  
+     o <-------  <-2.01--   o
+     ...                       
+     o -PUTNoff  ----------> o   
+     o <-------  <-2.01--    o
+      ....
+      ....
+     o -PUTNon-> ---------->         o 
+     o <-------  <-2.01---------     o
+     o -PUTNoff-> -----------------> o 
+     o <-------  <-2.01---------     o
+
+)
+vars n n0 n1 d mqd w4ab : Nat .
+var amsgl : AMsgL .
+var amsg : AMsg .
+vars rbnds rbnds1 : RMap .
+vars strs strs1 : Strings .
+vars epid epid0 epid1 path val val0 val1 : String .
+var conf : Conf .
+vars devatts devatts1 : Attrs .
+var b : Bool .
+var caps : Caps .
+
+**** 1 client n servers (1 controller, n actuators)
+op CnS : Nat AMsgL RMap Nat Nat -> Conf .
+eq CnS(n,amsgl,rbnds,mqd,w4ab) =
+   net(mtDM,mtDM)
+   mkDevC(0,0,amsgl,mtR,mqd,w4ab) --- the client
+   mknS(n,rbnds,mt) .             --- the servers
+   
+op mknS : Nat RMap Conf -> Conf .
+eq mknS(0,rbnds,c:Conf) = c:Conf .
+eq mknS(s n,rbnds,c:Conf) =
+     mknS(n,rbnds,c:Conf 
+     mkDevC(s n,1,nilAM,rbnds,2,0)) . 
+
+**** a start ; stop  to a sequence of endpoints dev1...devn
+****         nS  delay     
+op mkSigAMs : Nat Nat AMsgL -> AMsgL .
+eq mkSigAMs(0,d,amsgl) = amsgl .
+eq mkSigAMs(s n,d,amsgl) = 
+    mkSigAMs(n,d,mkSigAM(s n,d) ; amsgl) . 
+
+op mkSigAM : Nat Nat -> AMsgL .
+eq mkSigAM(n,d) =
+   mkPutN("putN","dev" + string(n,10),"sig","on") ;
+   (if d > 0 then amsgd(d) else nilAM fi) ;
+   mkPutN("putN","dev" + string(n,10),"sig","off") .
+
+op iSysX : Nat Nat Caps -> Sys .
+eq iSysX(n,d,caps) = {CnS(n,mkSigAMs(n,d,nilAM),rb("sig","off"),5,0) 
+  mkAtt(caps) log(nilLI)} . 
+
+****           tgt   pat
+op rbndsMatch : RMap RMap -> Bool .
+ceq rbndsMatch(rbnds1 rb(path,val1),rbnds rb(path,val)) 
+    = (if b
+      then rbndsMatch(rbnds1,rbnds) 
+      else false
+      fi)
+ if b := (if val == "" then true else val1 == val fi) .
+eq rbndsMatch(rbnds1,mtR) = true . 
+eq rbndsMatch(rbnds1,rbnds) = false [owise] . 
+
+
+**** property
+**** endpoints with resource path value v
+op epswrb : Sys  RMap -> Strings .
+eq epswrb({conf},rbnds) = epswrbX(conf,rbnds,mtS) .
+op epswrbX : Conf RMap Strings ->  Strings .
+ceq epswrbX(conf [epid | devatts ],rbnds,strs) 
+    = epswrbX(conf,rbnds,strs1) 
+  if devatts1 rsrcs(rbnds1) := devatts 
+  /\ b := rbndsMatch(rbnds1,rbnds)
+  **** 
+  /\ strs1 := strs (if b then epid else mtS fi) .
+  
+eq epswrbX(conf,rbnds,strs) = strs [owise] .
+
+**** send copy of msg to dev1 to devj  2 <= j <= s n
+ops caps-1 caps-2 caps-3 : -> Caps .
+eq caps-1 = mc("dev1","dev0",false,act("dev2","",0)) .
+eq caps-2 = mc("dev1","dev0",false,act("dev2","",0) act("dev3","",0)) .
+eq caps-3 = mc("dev1","dev0",false,act("dev2","",0) act("dev3","",0) act("dev4","",0)) .
+
+***(
+**** testing rbmatch count
+red epswrb(iSysX(3,1,caps-1),rb("sig","off")) .
+
+***** constraint1  only 1 ep_i is active
+**** search for counter example > k active endpoints
+search [1] iSysX(n,d,caps-k) =>+ sys:Sys such that size(epswrb(sys:Sys,rb("sig","on"))) > k .
+
+n,k = 3,{1,2} 4,{1,2,3}
+d = 0,5
+)
+
+***(
+search  iSysX(3,0,caps-1) =>+ sys:Sys such that size(epswrb(sys:Sys,rb("sig","on"))) > 1 .
+Solution 66 (state 120)
+states: 433  rewrites: 62322 in 54ms cpu
+
+alog(al(m("dev1", "dev0", c(h( "NON", "0.PUT", "putN.0"), "putN:1", o("Uri-Path", "sig") o("Uri-Query", ""), b( "on"))) @ 2, mc("dev1", "dev0", false, act("dev2", "", 0))))
+)
+
+***(
+search  iSysX(3,0,caps-2) =>+ sys:Sys such that size(epswrb(sys:Sys,rb("sig","on"))) > 2 .
+Solution 182 (state 337)
+states: 721  rewrites: 109882 in 100ms cpu
+
+alog(al(m("dev1", "dev0", c(h( "NON", "0.PUT", "putN.0"), "putN:1", o("Uri-Path", "sig") o("Uri-Query", ""), b( "on"))) @ 2, mc("dev1", "dev0", false, act("dev2", "", 0) act("dev3", "", 0))) )
+
+)
+
+**** op findRcvLI : LogItemL Nat String String String ->  [LogItemIx] .
+**** op findRcvIx : Conf String String String -> NatInf .
+op rcvOnBeforercvOff : Conf String String -> Bool .
+
+ceq rcvOnBeforercvOff(c:Conf,epid0,epid1) = n0 < n1
+  if log(lil:LogItemL) c1:Conf := c:Conf
+  /\ {rcvP(epid0,"sig","on"), n0} :=
+             findRcvLI(lil:LogItemL,0,epid0,"sig","on") 
+  /\ {rcvP(epid1,"sig","off"), n1} :=
+             findRcvLI(lil:LogItemL,0,epid1,"sig","off") .
+
+eq rcvOnBeforercvOff(c:Conf,epid0,epid1) = false [owise] .
+           
+***(
+**** constraint2  ep_j finish before ep_j+1 acts
+**** violation
+search  iSysX(3,0,caps-2) =>+ {c:Conf} such that 
+   rcvOnBeforercvOff(c:Conf,"dev2","dev1") .
+
+Solution 684 (state 3598)
+states: 3599  rewrites: 607177 in 385ms cpu
+c:Conf --> log(rcvP("dev3", "sig", "on") ; rcvP("dev2", "sig", "on") ; rcvP("dev1", "sig", "on") ; rcvP("dev1", "sig", "off") ; rcvP("dev2", "sig", "on") ; rcvP("dev2", "sig", "off") ; rcvP("dev3", "sig", "on") ; rcvP("dev3", "sig", "off")) ...
+    
+    
+search  iSysX(3,0,caps-2) =>+ {c:Conf} such that 
+   rcvOnBeforercvOff(c:Conf,"dev2","dev1") 
+   and
+   rcvOnBeforercvOff(c:Conf,"dev3","dev2")  .
+
+Solution 372 (state 3598)
+states: 3599  rewrites: 780931 in 333ms cpu
+c:Conf --> log(rcvP("dev3", "sig", "on") ; rcvP("dev2", "sig", "on") ; rcvP("dev1", "sig", "on") ; rcvP("dev1", "sig", "off") ; rcvP("dev2", "sig", "on") ; rcvP("dev2", "sig", "off") ; rcvP("dev3", "sig", "on") ; rcvP("dev3", "sig", "off"))   
+
+
+
+**** constraint2  ep_j finish before ep_j+1 acts
+**** violation
+search iSysX(3,0,caps-2) =>+ {c:Conf} such that subLIL(c:Conf, rcvP("dev2","sig","on") ; rcvP("dev1","sig","off")) .
+
+Solution 684 (state 3598)
+states: 3599  rewrites: 598175 in 371ms cpu 
+c:Conf --> log(rcvP("dev3", "sig", "on") ; rcvP("dev2", "sig", "on") ; rcvP( "dev1", "sig", "on") ; rcvP("dev1", "sig", "off") ; rcvP("dev2", "sig", "on") ; rcvP("dev2", "sig", "off") ; rcvP("dev3", "sig", "on") ; rcvP( "dev3", "sig", "off"))
+
+search iSysX(3,0,caps-2) =>+ {c:Conf} such that subLIL(c:Conf, rcvP("dev1","sig","on") ; rcvP("dev2","sig","on") ; rcvP("dev1","sig","off")) .
+
+Solution 342 (state 3597)
+states: 3598  rewrites: 636959 in 307ms cpu 
+c:Conf --> log(rcvP("dev3", "sig", "on") ; rcvP("dev1", "sig", "on") ; rcvP( "dev2", "sig", "on") ; rcvP("dev1", "sig", "off") ; rcvP("dev2", "sig", "on") ; rcvP("dev2", "sig", "off") ; rcvP("dev3", "sig", "on") ; rcvP( "dev3", "sig", "off"))
+    
+-------------------------
+search iSysX(3,0,caps-2) =>+ {c:Conf} such that subLIL(c:Conf, rcvP("dev2","sig","on") ; rcvP("dev1","sig","off")) and subLIL(c:Conf, rcvP("dev3","sig","on") ; rcvP("dev2","sig","off")) .
+
+Solution 372 (state 3598)
+states: 3599  rewrites: 762795 in 323ms cpu
+c:Conf --> log(rcvP("dev3", "sig", "on") ; rcvP("dev2", "sig", "on") ; rcvP( "dev1", "sig", "on") ; rcvP("dev1", "sig", "off") ; rcvP("dev2", "sig", "on") ; rcvP("dev2", "sig", "off") ; rcvP("dev3", "sig", "on") ; rcvP( "dev3", "sig", "off"))
+
+
+search iSysX(3,0,caps-2) =>+ {c:Conf} such that subLIL(c:Conf, rcvP("dev1","sig","on") ; rcvP("dev2","sig","on") ; rcvP("dev1","sig","off")) and subLIL(c:Conf,rcvP("dev2","sig","on") ; rcvP("dev3","sig","on") ; rcvP("dev2","sig","off")) .
+
+Solution 62 (state 3593)
+states: 3594  rewrites: 823040 in 247ms cpu 
+c:Conf --> log(rcvP("dev1", "sig", "on") ; rcvP("dev2", "sig", "on") ; rcvP( "dev3", "sig", "on") ; rcvP("dev1", "sig", "off") ; rcvP("dev2", "sig", "on") ; rcvP("dev2", "sig", "off") ; rcvP("dev3", "sig", "on") ; rcvP( "dev3", "sig", "off"))
+)   
+
+
+
+*************************  R3  ***************************
+
+***(
+-----------------------------------------------------------
+Duplication of a process. 
+-----------------------------------------------------------
+
+    dev0        eve        dev1 dev2 dev3 dev1x dev2x dev3x
+    ----        ---        ---
+     o -PUTNdo  ----------> o           
+               o(cc dev1x)> ------------->  
+     o <-------  <-2.01--   o
+     o -PUTNdo-> -------------->  o 
+               o(cc dev2x)> -------------------->  
+     o <-------  <-2.01---------  o
+     o -PUTNdo -> -------------------> o 
+               o(cc dev3x)> -------------------------->  
+     o <-------  <-2.01---------       o
+
+Two endpoint processes dev1 dev2,  copies dev3 dev4
+prop1  duplicate process
+      rcvP(dev3,"sig","") before rcvP(dev4,"sig","") 
+prop2 duplicate process concurrently 
+    prop1 and dev3 before dev2 
+prop3 duplicate process after original completes
+    prop1 and dev3 after dev2
+
+Three endpoint version  dev1 dev2 dev3  dup dev4 dev5 dev6
+prop1  duplicate process
+      rcvP(dev4,"sig","") before
+      rcvP(dev5,"sig","") before rcvP(dev6,"sig","")
+prop2 duplicate process concurrently 
+    prop1 and dev4 before dev2 dev5 before dev3
+prop3 duplicate process after original completes
+    prop1 and dev4 after dev3
+
+if use on/off pairs talk about devj and devxk active at
+the same time.
+)
+
+op mkGoAMs : Nat AMsgL -> AMsgL .
+ceq mkGoAMs(s n,amsgl) =  mkGoAMs(n,amsg ; amsgl) 
+  if amsg :=
+      mkPutN("putN","dev" + string(s n,10),"sig","go") .
+eq mkGoAMs(0,amsgl) =  amsgl .
+
+ops caps2-2 caps3-3 : Nat -> Caps .
+eq caps2-2(d) =
+  mc("dev1","dev0",false,act("dev3","dev0",d))
+  mc("dev2","dev0",false,act("dev4","dev0",d)) .
+
+eq caps3-3(d) =
+  mc("dev1","dev0",false,act("dev4","dev0",d))
+  mc("dev2","dev0",false,act("dev5","dev0",d)) 
+  mc("dev3","dev0",false,act("dev6","dev0",d)) .
+  
+op iSysY : Nat Caps -> Sys .
+eq iSysY(n,caps) = 
+{CnS(2 * n,mkGoAMs(n,nilAM),rb("sig","off"),5,0) 
+  mkAtt(caps) log(nilLI)} . 
+
+***** rcv event at epid0 before rcv event at epid1
+op Proc2 : Conf String String -> Bool .
+ceq Proc2(c:Conf,epid0,epid1) = true
+  if log(lil:LogItemL) c1:Conf := c:Conf
+   /\ {rcvP(epid0,"sig",val0), n0} :=
+             findRcvLI(lil:LogItemL,0,epid0,"sig","") 
+   /\ {rcvP(epid1,"sig",val1), n1} :=
+             findRcvLI(lil:LogItemL,0,epid1,"sig","")
+  /\ n0 < n1 
+  .
+
+eq Proc2(c:Conf,epid0,epid1) = false [owise] .
+
+***(  2 ep processes  dev1 before dev2 and dev3 before dev4
+
+**** prop1  duplicate process
+****  rcvP(dev3,"sig","") before rcvP(dev4,"sig","") 
+search iSysY(2,caps2-2(0)) =>! {c:Conf} such that Proc2(c:Conf,"dev3","dev4") .
+
+Solution 16 (state 534)
+states: 535  rewrites: 65302 in 55ms cpu
+log(rcvP("dev3", "sig", "go") ; rcvP("dev1", "sig", "go") ; rcvP("dev4", "sig", "go") ; rcvP("dev2", "sig", "go"))
+    
+alog(al(m("dev1", "dev0", c(h("NON", "0.PUT", "putN.0"), "putN:1", o("Uri-Path", "sig") o("Uri-Query", ""), b("go"))) @ 2, mc("dev1", "dev0", false, act("dev3", "dev0", 0))) ; al(m("dev2", "dev0", c(h("NON", "0.PUT", "putN.2"), "putN:3", o( "Uri-Path", "sig") o("Uri-Query", ""), b("go"))) @ 0, mc("dev2", "dev0", false, act( "dev4", "dev0", 0))))
+
+------------------------------------
+**** prop1  duplicate process
+****  rcvP(dev3,"sig","") before rcvP(dev4,"sig","") 
+search iSysY(2,caps2-2(0)) =>! {c:Conf} such that subLIL(c:Conf, rcvP("dev3","sig","") ; rcvP("dev4","sig","")) .
+
+Solution 16 (state 534)
+states: 535  rewrites: 65277 in 31ms cpu 
+c:Conf --> log(rcvP("dev3", "sig", "go") ; rcvP("dev1", "sig", "go") ; rcvP( "dev4", "sig", "go") ; rcvP("dev2", "sig", "go"))
+------------------------------------
+------------------------------------
+    
+*** prop2 duplicate process concurrently 
+****    prop1 and dev3 before dev2 
+search iSysY(2,caps2-2(0)) =>! {c:Conf} such that Proc2(c:Conf,"dev3","dev4") and Proc2(c:Conf,"dev1","dev3") and Proc2(c:Conf,"dev3","dev2") .
+  
+Solution 8 (state 530)
+states: 535  rewrites: 66532 in 45ms cpu 
+c:Conf --> log(rcvP("dev1", "sig", "go") ; rcvP("dev3", "sig", "go") ; rcvP("dev4", "sig", "go") ; rcvP("dev2", "sig", "go")) ...
+
+alog(al(m("dev1", "dev0", c(h("NON", "0.PUT", "putN.0"), "putN:1", o("Uri-Path", "sig") o("Uri-Query", ""), b("go"))) @ 2, mc("dev1", "dev0", false, act("dev3", "dev0", 0))) ; al(m("dev2", "dev0", c(h("NON", "0.PUT", "putN.2"), "putN:3", o( "Uri-Path", "sig") o("Uri-Query", ""), b("go"))) @ 0, mc("dev2", "dev0", false, act( "dev4", "dev0", 0))))
+
+
+------------------------------------
+*** prop2 duplicate process concurrently **** prop1 and dev3 before dev2
+
+search iSysY(2,caps2-2(0)) =>! {c:Conf} such that subLIL(c:Conf, rcvP("dev3","sig","") ; rcvP("dev4","sig","")) and subLIL(c:Conf, rcvP("dev3","sig","") ; rcvP("dev2","sig","")) .
+
+Solution 16 (state 534)
+states: 535  rewrites: 66308 in 32ms cpu
+c:Conf --> log(rcvP("dev3", "sig", "go") ; rcvP("dev1", "sig", "go") ; rcvP( "dev4", "sig", "go") ; rcvP("dev2", "sig", "go"))
+------------------------------------
+------------------------------------
+  
+*** prop3 duplicate process after original completes
+****   prop1 and dev3 after dev2
+search iSysY(2,caps2-2(15)) =>! {c:Conf} such that Proc2(c:Conf,"dev3","dev4")  and Proc2(c:Conf,"dev2","dev3") .
+
+Solution 4 (state 178)
+states: 179  rewrites: 24246 in 18ms cpu
+c:Conf --> log(rcvP("dev1", "sig", "go") ; rcvP("dev2", "sig", "go") ; rcvP("dev3", "sig", "go") ; rcvP("dev4", "sig", "go"))
+    
+)
+
+***(  3 ep processes  dev1,2,3 and dev4,5,6
+**** prop1  duplicate process
+search iSysY(3,caps3-3(0)) =>! {c:Conf} such that
+Proc2(c:Conf,"dev4","dev5") and Proc2(c:Conf,"dev5","dev6") .
+
+Solution 64 (state 2844)
+states: 2845  rewrites: 434224 in 267ms cpu 
+c:Conf --> log(rcvP("dev4", "sig", "go") ; rcvP("dev1", "sig", "go") ; rcvP("dev5", "sig", "go") ; rcvP("dev2", "sig", "go") ; rcvP("dev6", "sig", "go") ; rcvP("dev3", "sig", "go"))
+
+------------------------------------
+*** prop3 duplicate process after original completes
+****   prop1 and dev3 after dev2
+search iSysY(2,caps2-2(15)) =>! {c:Conf} such that subLIL(c:Conf, rcvP("dev3","sig","") ; rcvP("dev4","sig","")) and subLIL(c:Conf, rcvP("dev2","sig","") ; rcvP("dev3","sig","")) .
+
+Solution 4 (state 178)
+states: 179  rewrites: 24132 in 8ms cpu 
+c:Conf --> log(rcvP("dev1", "sig", "go") ; rcvP("dev2", "sig", "go") ; rcvP( "dev3", "sig", "go") ; rcvP("dev4", "sig", "go"))
+    
+------------------------------------
+------------------------------------
+
+**** prop2 duplicate process concurrently 
+search iSysY(3,caps3-3(0)) =>! {c:Conf} such that Proc2(c:Conf,"dev4","dev5") and Proc2(c:Conf,"dev5","dev6") and Proc2(c:Conf,"dev1","dev4") and Proc2(c:Conf,"dev4","dev2") and Proc2(c:Conf,"dev2","dev5") and Proc2(c:Conf,"dev5","dev3") and Proc2(c:Conf,"dev3","dev6") .
+
+Solution 8 (state 2823)
+states: 2845  rewrites: 460973 in 251ms cpu 
+c:Conf --> log(rcvP("dev1", "sig", "go") ; rcvP("dev4", "sig", "go") ; rcvP("dev2", "sig", "go") ; rcvP("dev5", "sig", "go") ; rcvP("dev3", "sig", "go") ; rcvP("dev6", "sig", "go"))
+
+alog(al(m("dev1", "dev0", c(h("NON", "0.PUT", "putN.0"), "putN:1", o("Uri-Path", "sig") o("Uri-Query", ""), b("go"))) @ 2, mc("dev1", "dev0", false, act("dev4", "dev0", 0))) ; al(m("dev2", "dev0", c(h("NON", "0.PUT", "putN.2"), "putN:3", o("Uri-Path", "sig") o("Uri-Query", ""), b("go"))) @ 0, mc("dev2", "dev0", false, act("dev5", "dev0", 0))) ; al(m("dev3", "dev0", c(h("NON", "0.PUT", "putN.4"), "putN:5", o("Uri-Path", "sig") o("Uri-Query", ""), b("go"))) @ 0, mc("dev3", "dev0", false, act("dev6", "dev0", 0))))
+------------------------------------
+**** prop2 duplicate process concurrently 
+search iSysY(3,caps3-3(0)) =>! {c:Conf} such that subLIL(c:Conf, rcvP("dev4","sig","") ; rcvP("dev5","sig","") ; rcvP("dev6","sig","")) and subLIL(c:Conf, rcvP("dev1","sig","") ; rcvP("dev4","sig","") ; rcvP("dev2","sig","")) and subLIL(c:Conf, rcvP("dev2","sig","") ; rcvP("dev5","sig","") ; rcvP("dev3","sig","") ; rcvP("dev6","sig","")) .
+
+
+Solution 8 (state 2823)
+states: 2845  rewrites: 438583 in 168ms cpu 
+c:Conf --> log(rcvP("dev1", "sig", "go") ; rcvP("dev4", "sig", "go") ; rcvP( "dev2", "sig", "go") ; rcvP("dev5", "sig", "go") ; rcvP("dev3", "sig", "go") ; rcvP("dev6", "sig", "go"))
+
+------------------------------------
+------------------------------------
+**** prop3 duplicate process after original completes
+search iSysY(3,caps3-3(25)) =>! {c:Conf} such that Proc2(c:Conf,"dev4","dev5") and Proc2(c:Conf,"dev5","dev6") and Proc2(c:Conf,"dev3","dev4") .
+
+Solution 8 (state 682)
+states: 683  rewrites: 121274 in 67ms cpu 
+c:Conf --> log(rcvP("dev1", "sig", "go") ; rcvP("dev2", "sig", "go") ; rcvP("dev3", "sig", "go") ; rcvP("dev4", "sig", "go") ; rcvP("dev5", "sig", "go") ; rcvP("dev6", "sig", "go"))
+
+alog(al(m("dev1", "dev0", c(h("NON", "0.PUT", "putN.0"), "putN:1", o("Uri-Path", "sig") o("Uri-Query", ""), b("go"))) @ 2, mc("dev1", "dev0", false, act("dev4", "dev0", 25))) ; al(m("dev2", "dev0", c(h("NON", "0.PUT", "putN.2"), "putN:3", o("Uri-Path", "sig") o("Uri-Query", ""), b("go"))) @ 0, mc("dev2", "dev0", false, act("dev5", "dev0", 25))) ; al(m("dev3", "dev0", c(h("NON", "0.PUT", "putN.4"), "putN:5", o("Uri-Path", "sig") o("Uri-Query", ""), b("go"))) @ 0, mc("dev3", "dev0", false, act("dev6", "dev0", 25))))    
+
+------------------------------------
+**** prop3 duplicate process after original completes
+search iSysY(3,caps3-3(25)) =>! {c:Conf} such that subLIL(c:Conf, rcvP("dev4","sig","") ; rcvP("dev5","sig","") ; rcvP("dev6","sig","")) and subLIL(c:Conf, rcvP("dev3","sig","") ; rcvP("dev4","sig","")) . 
+
+Solution 8 (state 682)
+states: 683  rewrites: 118949 in 52ms cpu 
+c:Conf --> log(rcvP("dev1", "sig", "go") ; rcvP("dev2", "sig", "go") ; rcvP( "dev3", "sig", "go") ; rcvP("dev4", "sig", "go") ; rcvP("dev5", "sig", "go") ; rcvP("dev6", "sig", "go"))
+
+------------------------------------
+------------------------------------
+search iSysY(3,caps3-3(15)) =>! {c:Conf} such that subLIL(c:Conf, rcvP("dev4","sig","") ; rcvP("dev5","sig","") ; rcvP("dev6","sig","")) and subLIL(c:Conf, rcvP("dev3","sig","") ; rcvP("dev4","sig","")) . 
+
+ditto
+)
+
+
+*********************** R4 ******************************
+***(
+Redirect GET request/response.
+
+    dev0      eve       dev1     dev2
+    ----      ---      unlock    lock
+  o -GETN(1)---------->  o   
+  |            o copy(cc dev2)  ->  o
+  o   <---unlock---      o 
+  o                 <---lock---    o 
+  o     <------   (cc from dev1)
+The three responses can happen in any order?
+)
+op iSySZ : Nat  Nat -> Sys .
+eq iSySZ(mqd:Nat,w4b:Nat) =
+     {tCS3C(0,0,mkGetN("getN0","dev1","door"),
+               mtR,mqd:Nat,w4b:Nat,
+          1,1,nilAM,rb("door","unlock"),5,0,
+          2,2,nilAM,rb("door","lock"),5,0,
+          mc("dev1","dev0",false,act("dev2","",0))
+          mc("dev0","dev2",false,act("","dev1",0)) )
+          log(nilLI) }
+         . 
+
+***(
+**** search ep0 has getRsp val lock 
+search iSySZ(5,0) =>! {c:Conf} such that hasGetRsp(c:Conf,"dev0","dev1","getN0","lock") and checkRsrc(c:Conf,"dev1","door","unlock") .
+
+Solution 4 (state 107)
+states: 109  rewrites: 10596 in 11ms cpu 
+
+alog(al(m("dev1", "dev0", c(h( "NON", "0.GET", "getN0.0"), "getN0:1", o("Uri-Path", "door") o("Uri-Query", ""), mtBody)) @ 2, mc("dev1", "dev0", false, act("dev2", "", 0))) ; al(m("dev0", "dev2", c(h("NON", "2.05", "dev2.0"), "getN0:1", mtO, b("lock"))) @ 2, mc("dev0", "dev2", false, act("", "dev1", 0))))
+
+)
+
+endm
+eof
+
