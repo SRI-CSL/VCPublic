@@ -1,58 +1,80 @@
 NB: This README is a work in progress
 --------------------------------------------
-Files
+These files implement the CoAP messaging specification
+(RFC7252), active and reactive attack models, and a
+generic dialect transformation that mitigates reactive
+attacks.  (See the paper arXiv....)
 
+Files
+-----------
 The CoAP messaging specification
+-----------
   coap-msg.maude  --- message data types
-  coap-conf.maude --- configuration data types and functions
+  coap-conf.maude --- configuration data types, functions
   coap-time.maude  --- time model and defn of mte
   coap-rule-aux.maude --- functions for sending/receiving
-                          messages, used in the send/rcv rules
+                     --- messages, used in send/rcv rules
   coap-rules.maude  --- rules to send/receive messages
                         and pass time
 
+-----------
 Specification of attacker capabilities and semantics
+-----------
   coap-attacker.maude  -- active and reactive capabilities
-     --- specific attacks: drop, delay, or redirect a message 
-     --- generic multi-action capability
+    --- specific attacks: drop, delay, redirect message 
+    --- generic multi-action capability
  
+-----------
+Specification of CoAP dialect functions and transform
+-----------
+ coap-dialect.maude  --- rules for dialect wrapper
+                     --- withh one family of lingos 
+ 
+-----------
 Test scenario definitions
+-----------
   coap-test.maude  
-    2  or 3 coap endpoint scenarios without and with attacker
-    application message constructors, 
-    definitions of properties to use in searches for attacks.
+    --- 2 or 3 coap endpoint scenarios 
+    --- application message constructors, 
+    --- definitions of properties characterizing attacks
 
-     
-coap-dialect.maude  --- rules for dialect wrapper
-                    --- withh one family of lingos 
 coap-dialect-test.maude 
-   --- scenario using the dialect
-   coap-test scenarios for dialected coap endpoints
+   --- defines functions D,UD mapping CoAP scenarios to 
+       dialected form and vice-versa
+   --- These functions can be used to lift CoAP scenarios
+       and analyses (rew, search) to dialected systems.
 
+You can use the the functions in the test files to define
+and execution your own tests.   
 
-The files coap-test.maude and coap-dialect-test.maude
-contain definitions of initial system configuration
-constructors, a collection of applcation messages to
-select from, and some properties of target search
-states. You 
-can use these to define and execution your
-own tests
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-load.maude  --- loads CoAP framework and scenario generators
-dload.maude  --- adds dialect modules and scenario generators
-
-coap-test-runs.txt  
+-----------
+Test runs and case studies
+-----------
+coap-test-runs.txt
 coap-dialect-test-runs.txt
   --- files containing sample output of test commands
-  --- these are tests to see if the execution proceeds
-      as expected  
+  --- these are tests to see if the execution or
+  --- search proceeds as expected  
   --- each entry begins with a rew or search command
-  (possibly preceeded by a set attributes command) 
-  followed by the maude output.
+     (possibly preceeded by a command to set print 
+     attribute on/off) followed by the maude output.
   --- tests are separated by a row of *s  
 
+coap-attacks-scenarios.maude
+coap-attacks-dialected-scenarios.maude
+coap-reactive-attacker-scenarios.maude
+   
+coap-reactive-attacker-scenarios-dialected.maude
+
+---------------------------------------
+Files for loading 
+---------------------
+load.maude  --- loads CoAP framework and scenario generators
+dload.maude --- adds dialect modules and transforms
+rsload.maude --- loads 
+drsload.maude
+
+*******************************************************
 To repeat the tests in coap-test-runs.txt, in a
 terminal window type the folloing
 
@@ -68,71 +90,53 @@ Then copy paste a test command into the Maude prompt.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-The file dialect-scenario-runs.txt contains the
-commands and output summary for the experiment set
-discussed in the tech report section 6,(which describes
-the messages, attacks, and goals).
 
-The a few of the commands are rewrites just to see
-a sample execution.
 
-The remaining tests are reachability analyses with
-attacker. They consist of three searches using plain
-CoAP: (1) search for one way the attacker can achieve
-its goal; (2) search for all the ways the attacker can
-reach its goal; (3) search for all the ways the
-attacker uses its capabilities but the underlying coap
-goal is achieved. (2) and (3) are repeated for the
-dialected system.
 
-In each case, the command and a summary of output are recorded. Examples are separated by a row of %s.
-You can try repeating these by 
 
-maude dload
 
-and copy pasting command into the Maude prompt.
-You can also make you own test by changing the
-application message lists and server initial resources.
+
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
+Some implementation notes 
+See technical report for more details.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Some implementation notes -- see technical report for
-more details
---------------------------------------------------------   
+
 ******** attributes holding device state
 --------------------------------------------------------   
-attributes to track status of msgs sent/rcvd
-in order to implement the rules for reliability (confirmable
-messages) and deduplication.
-
+--------------
+Attributes to track status of msgs sent/rcvd
+in order to implement the rules for reliability 
+(confirmable messages) and deduplication.
+-----------------
 w4Ack(dmsgs) --- waiting for response to CON request
 w4Rsp(msgs)  --- waiting for response to NON request
              or CON request where ACK has been received
 rspRcd(msgs) --- log reponses received to avoid reprocessing
-rspSnt(msgs) --- log responses sent in case lost
-
-Note the untimed messages could have a timer to implement
-LIFETIME of mids and ack to model resource limitation on
-number of available ids.
-
+rspSntD(dmsgs) --- log responses sent in case lost
+       --- time component used to determine if
+       --- msg token are still valid
 
 op rsrcs : RMap -> Attr [ctor] . --- server resource state
+
 op ctr : Nat -> Attr [ctor] .  --- for generating fresh stuff
-op sendReqs : AMsgL -> Attr [ctor] .  --- modeling app input
+
+op sendReqs : AMsgL -> Attr [ctor] . --- models app input
+
 op config : CBnds -> Attr [ctor] .  
-    --- global parameters such as max resends, delay between
-    --- resends ....
+    --- global parameters such as max resends, 
+    --- delay between resends etc. 
 
 op toSend : DMsg -> Attr [ctor] . 
     --- used to store messages to send
-
-op toApp : ABnds -> Attr [ctor] . --- reporting to App
 
 op kb : DMsgS -> Attr [ctor] . --- attacker knowledge
 op caps : Caps -> Attr [ctor] . --- attaker capabilities
 
 op conf : Conf -> Attr [ctor] .  --- for dialect stated
+op toLog : LogItemL -> Attr [ctor] .  
+  --- holds information to be placed in the global log
    
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ----------------------------------------------------

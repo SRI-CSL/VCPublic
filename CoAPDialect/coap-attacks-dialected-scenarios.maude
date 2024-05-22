@@ -1,0 +1,153 @@
+mod COAP-ATTACKS-DIALECTED-SCENARIOS is
+  inc COAP-DIALECT-TEST .
+  inc COAP-ATTACKS-SCENARIOS .
+endm
+eof
+
+**** fig1 attack
+Solution 2 (state 5)
+states: 7  rewrites: 359 in 1ms cpu
+
+
+search D({caFig1.2(5,0)}) =>! {c:Conf ["eve" | a:Attrs caps(mtC)] ["dev0" | conf(c0:Conf) ddattrs0:Attrs] ["dev1" | conf(c1:Conf) ddattrs1:Attrs] } such that not(hasRspTSnt(c1:Conf,"dev1","dev0","putN")) and rspPend(c0:Conf,"dev0","dev1","putN") .
+
+Solution 2 (state 7)
+states: 9  rewrites: 515 in 0ms cpu
+
+alog(al(m("dev1", "dev0", dc(f1(g("xxxxdev1dev0", 128, 0), {c(h("NON", "0.PUT", "putN.0"), "putN:1", o("Uri-Path", "door") o("Uri-Query", ""), b( "lock")), 0}), 0)) @ 0, drop))
+    
+**** fig2 attack
+Solution 2 (state 11)
+states: 13  rewrites: 754 in 1ms cpu
+
+search D({caFig1.2(5,0)}) =>! {c:Conf ["eve" | a:Attrs caps(mtC)] ["dev0" | conf(c0:Conf) ddattrs0:Attrs] ["dev1" | conf(c1:Conf) ddattrs1:Attrs] } such that hasRspTSnt(c1:Conf,"dev1","dev0","putN") and checkRsrc(c1:Conf,"dev1","door","lock") and rspPend(c0:Conf,"dev0","dev1","putN") .
+
+Solution 2 (state 7)
+states: 9  rewrites: 515 in 0ms cpu
+
+alog(al(m("dev1", "dev0", dc(f1(g("xxxxdev1dev0", 128, 0), {c(h("NON", "0.PUT", "putN.0"), "putN:1", o("Uri-Path", "door") o("Uri-Query", ""), b( "lock")), 0}), 0)) @ 0, drop))
+
+************************************
+**** fig3 attack
+***(Solution 4 (state 323)
+states: 330  rewrites: 23838 in 13ms cpu)
+
+search D({caFig3(15,5,0)}) =>! {c:Conf ["eve" | a:Attrs caps(mtC)] ["dev0" | conf(c0:Conf) ddattrs0:Attrs] ["dev1" | conf(c1:Conf) ddattrs1:Attrs] } such that checkRsrc(c1:Conf,"dev1","door","unlock") and rspTSntBefore(c1:Conf,"dev1","dev0","putNS","putND") and rspPend(c0:Conf,"dev0","dev1","putND") .
+
+Solution 4 (state 489)
+states: 499  rewrites: 34099 in 17ms cpu
+
+alog(
+al(m("dev1", "dev0", dc(f1(g("xxxxdev1dev0", 128, 0), {c(h("NON", "0.PUT", "putND.0"), "putND:1", o( "Uri-Path", "door") o("Uri-Query", ""), b("unlock")), 0}), 0)) @ 0, delay(15)) ; 
+al(m("dev0", "dev1", dc(f1(g("xxxxdev0dev1", 128, 1), {c(h("NON", "2.04", "dev1.1"), "putND:1", mtO, mtBody), 1}), 1)) @ 0, drop))
+    
+**** fig3 noAttack: unlock before signal,
+**** door remains unlocked
+***(Solution 4 (state 310)
+states: 326  rewrites: 22686 in 11ms cpu)    
+
+search D({caFig3(15,5,0)}) =>! {c:Conf ["eve" | a:Attrs caps(mtC)] ["dev0" | conf(c0:Conf) ddattrs0:Attrs] ["dev1" | conf(c1:Conf) ddattrs1:Attrs] } such that checkRsrc(c1:Conf,"dev1","door","unlock") and rspTSntBefore(c1:Conf,"dev1","dev0","putND","putNS") and hasRspTRcd(c0:Conf,"dev0","dev1","putND") .
+
+Solution 4 (state 479)
+states: 496  rewrites: 33056 in 22ms cpu
+
+alog(
+al(m("dev1", "dev0", dc(f1(g("xxxxdev1dev0", 128, 1), {c(h("NON", "0.PUT", "putNS.2"), "putNS:3", o( "Uri-Path", "signal") o("Uri-Query", ""), b("on")), 1}), 1)) @ 0, delay(15)) ; 
+al( m("dev0", "dev1", dc(f1(g("xxxxdev0dev1", 128, 1), {c(h("NON", "2.01", "dev1.1"), "putNS:3", mtO, mtBody), 1}), 1)) @ 0, drop))
+
+************************************
+**** fig 4 attack 
+***(Solution 8 (state 2599)
+states: 2600  rewrites: 207172 in 111ms cpu)
+
+search D({caFig4x(10,5,0)}) =>! {c:Conf ["eve" | a:Attrs caps(mtC)] ["dev0" | conf(c0:Conf) ddattrs0:Attrs] ["dev1" | conf(c1:Conf) ddattrs1:Attrs]} such that checkRsrc(c1:Conf,"dev1","door","unlock") and hasRspTSnt(c1:Conf,"dev1","dev0","putC") and hasRspTSnt(c1:Conf,"dev1","dev0","putN") and rspTSntBefore(c1:Conf,"dev1","dev0","putC","putN") and rspTSntBefore(c1:Conf,"dev1","dev0","putN","putC") and hasRspTRcd(c0:Conf,"dev0","dev1","putN") and hasRspTRcd(c0:Conf,"dev0","dev1","putC") .
+
+Solution 16 (state 10166)
+states: 10167  rewrites: 727485 in 309ms cpu
+
+alog(
+al(m("dev0", "dev1", dc(f1(g("xxxxdev0dev1", 128, 1), {c(h("ACK", "0.00", "putC.0"), "", mtO, mtBody), 1}), 1)) @ 0, drop) ; 
+al(m("dev1", "dev0", dc(f1(g("xxxxdev1dev0", 128, 1), {c(h( "CON", "0.PUT", "putC.0"), "putC:1", o("Uri-Path", "door") o("Uri-Query", ""), b( "unlock")), 1}), 1)) @ 0, delay(10)))
+    
+**** fig 4 failed attack
+***(Solution 45 (state 2563)
+states: 2586  rewrites: 202137 in 111ms cpu)
+
+search D({caFig4x(10,5,0)}) =>! {c:Conf ["eve" | a:Attrs caps(mtC)] ["dev0" | conf(c0:Conf) ddattrs0:Attrs] ["dev1" | conf(c1:Conf) ddattrs1:Attrs] } such that checkRsrc(c1:Conf,"dev1","door","lock") and hasRspTSnt(c1:Conf,"dev1","dev0","putC") and hasRspTSnt(c1:Conf,"dev1","dev0","putN") and rspTSntBefore(c1:Conf,"dev1","dev0","putC","putN") and  hasRspTRcd(c0:Conf,"dev0","dev1","putN") and hasRspTRcd(c0:Conf,"dev0","dev1","putC") .
+
+Solution 86 (state 10003)
+states: 10076  rewrites: 710977 in 303ms cpu
+
+alog(
+al(m("dev0", "dev1", dc(f1(g("xxxxdev0dev1", 128, 1), {c(h( "ACK", "0.00", "putC.0"), "", mtO, mtBody), 1}), 1)) @ 0, delay(10)) ; 
+al(m( "dev0", "dev1", dc(f1(g("xxxxdev0dev1", 128, 2), {c(h("ACK", "0.00", "putC.0"), "putC:1", mtO, mtBody), 2}), 2)) @ 0, drop))
+
+************************************
+**** fig 5 attack
+****  attack0 server
+***(No solution.
+states: 331  rewrites: 23722 in 13ms cpu)
+
+search D({caFig5x(10,5,0)}) =>! {c:Conf ["eve" | a:Attrs caps(mtC)]["dev0" | conf(c0:Conf) ddattrs0:Attrs] ["dev1" | conf(c1:Conf) ddattrs1:Attrs]} such that hasRspTSnt(c1:Conf,"dev1","dev0","putNU") and not(hasRspTSnt(c1:Conf,"dev1","dev0","putNL")) and checkRsrc(c1:Conf,"dev1","door","unlock") and hasRspTRcd(c0:Conf,"dev0","dev1","putNL") .
+
+No solution.
+states: 506  rewrites: 34425 in 15ms cpu
+
+**** attack1 server
+***(Solution 4 (state 323)
+states: 330  rewrites: 23891 in 16ms cpu)
+
+search D({caFig5x(10,5,0)}) =>! {c:Conf ["eve" | a:Attrs caps(mtC)]["dev0" | conf(c0:Conf) ddattrs0:Attrs] ["dev1" | conf(c1:Conf) ddattrs1:Attrs]} such that hasRspTSnt(c1:Conf,"dev1","dev0","putNU") and hasRspTSnt(c1:Conf,"dev1","dev0","putNL") and rspTSntBefore(c1:Conf,"dev1","dev0","putNL","putNU") and checkRsrc(c1:Conf,"dev1","door","unlock") and hasRspTRcd(c0:Conf,"dev0","dev1","putNL") .
+
+Solution 4 (state 489)
+states: 499  rewrites: 34162 in 18ms cpu
+
+alog(
+al(m("dev1", "dev0", dc(f1(g("xxxxdev1dev0", 128, 0), {c(h("NON", "0.PUT", "putNU.0"), "putNU:1", o( "Uri-Path", "door") o("Uri-Query", ""), b("unlock")), 0}), 0)) @ 0, delay(10)) ; 
+al(m("dev0", "dev1", dc(f1(g("xxxxdev0dev1", 128, 1), {c(h("NON", "2.04", "dev1.1"), "putNU:1", mtO, mtBody), 1}), 1)) @ 0, drop))
+    
+*************************************************
+**** fig 6 
+**** attack0,1 server  attack0 client
+***(No solution.
+states: 2940  rewrites: 224764 in 94ms cpu)
+
+search D({caFig6x(10,5,0)}) =>! {c:Conf ["eve" | a:Attrs caps(mtC)] ["dev0" | conf(c0:Conf) ddattrs0:Attrs] ["dev1" | conf(c1:Conf) ddattrs1:Attrs] } such that hasRspTSnt(c1:Conf,"dev1","dev0","getN0") and hasRspTSnt(c1:Conf,"dev1","dev0","putNU") and rspTSntBefore(c1:Conf,"dev1","dev0","getN0","putNU") and checkRsrc(c1:Conf,"dev1","door","unlock") and not(hasRspTSnt(c1:Conf,"dev1","dev0","getN1") ) and hasGetRsp(c0:Conf,"dev0","dev1","getN1","lock") .
+
+No solution.
+states: 5565  rewrites: 392170 in 176ms cpu
+
+**** attack0,1 server  attack1 client
+***(Solution 18 (state 2568)
+states: 2742  rewrites: 215995 in 75ms cpu)
+
+search D({caFig6x(10,5,0)}) =>! {c:Conf ["eve" | a:Attrs caps(mtC)] ["dev0" | conf(c0:Conf) ddattrs0:Attrs] ["dev1" | conf(c1:Conf) ddattrs1:Attrs] } such that hasRspTSnt(c1:Conf,"dev1","dev0","getN0") and hasRspTSnt(c1:Conf,"dev1","dev0","putNU") and rspTSntBefore(c1:Conf,"dev1","dev0","getN0","putNU") and checkRsrc(c1:Conf,"dev1","door","unlock") and not(hasRspTSnt(c1:Conf,"dev1","dev0","getN1") ) and hasGetRsp(c0:Conf,"dev0","dev1","getN0","lock") and rspPend(c0:Conf,"dev0","dev1","getN1") and rspPend(c0:Conf,"dev0","dev1","putNU") .
+
+Solution 18 (state 4318)
+states: 4675  rewrites: 321157 in 145ms cpu
+
+alog(
+al(m("dev1", "dev0", dc( f1(g("xxxxdev1dev0", 128, 1), {c(h("NON", "0.PUT", "putNU.2"), "putNU:3", o( "Uri-Path", "door") o("Uri-Query", ""), b("unlock")), 1}), 1)) @ 0, delay(10)) ; 
+al(m("dev1", "dev0", dc(f1(g("xxxxdev1dev0", 128, 2), {c(h("NON", "0.GET", "getN1.4"), "getN1:5", o("Uri-Path", "door") o("Uri-Query", ""), mtBody), 2}), 2)) @ 0, drop) ; 
+al(m("dev0", "dev1", dc(f1(g("xxxxdev0dev1", 128, 1), {c(h("NON", "2.04", "dev1.1"), "putNU:3", mtO, mtBody), 1}), 1)) @ 0, drop))
+
+*************************************************
+**** fig 7 failed attack
+***(No solution.
+states: 316  rewrites: 23014 in 17ms cpu)
+
+search D({caFig7x(10,5,0)}) =>! {c:Conf ["eve" | a:Attrs caps(mtC)]["dev0" | conf(c0:Conf) ddattrs0:Attrs] ["dev1" | conf(c1:Conf) ddattrs1:Attrs]} such that hasRspTSnt(c1:Conf,"dev1","dev0","getN0") and not(hasRspTSnt(c1:Conf,"dev1","dev0","getN1")) and hasGetRsp(c0:Conf,"dev0","dev1","getN1","lock") .
+
+No solution.
+states: 476  rewrites: 33032 in 16ms cpu
+
+*************************************************
+**** fig 7mod  attack --- mitigated by dialecting
+***(Solution 4 (state 32)
+states: 33  rewrites: 2696 in 3ms cpu)
+
+search D({caFig7mod(5,0)}) =>! {c:Conf ["eve" | a:Attrs caps(mtC)]["dev0" | conf(c0:Conf) ddattrs0:Attrs] ["dev1" | conf(c1:Conf) ddattrs1:Attrs]} such that not(hasRspTSnt(c1:Conf,"dev1","dev0","getN0")) and hasRspTSnt(c1:Conf,"dev2","dev0","getN0") and checkRsrc(c1:Conf,"dev1","door","unlock") and hasGetRsp(c0:Conf,"dev0","dev1","getN0","lock") .
+
+No solution.
+states: 21  rewrites: 1760 in 2ms cpu
+

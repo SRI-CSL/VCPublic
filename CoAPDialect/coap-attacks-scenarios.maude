@@ -1,0 +1,726 @@
+***(
+NOTE: [
+The spec update motivated by client-attacks paper
+Original: Tokens currently "in use" SHOULD (not SHALL) be unique.     
+Update: One easy way to accomplish this is to implement the Token (or part of the Token) as a sequence number, starting at zero for each new or rekeyed secure connection. This approach SHOULD be followed.
+]
+)
+mod COAP-ATTACKS-SCENARIOS is
+  inc COAP-TEST .
+
+***(
+(1) The Selective Blocking Attack
+Figure 1
+1.1 Client -PUT-> Server  : NON request dropped by attacker
+  dev0        eve      dev1
+  ----        ---      lock
+   | -PUTN->   X  
+
+Figure 2
+1.2 Server -resp-> Client : NON response dropped by attacker
+
+  dev0        eve      dev1
+  ----        ---      lock
+   | -PUTN->  --- ----> o
+               X <-RSP- |
+)
+
+op caFig1.2 : Nat Nat -> Conf .
+eq caFig1.2(mqd:Nat,w4b:Nat) =  
+     tCS2C(0,0,mkPutN("putN","dev1","door","lock"), 
+               mtR,mqd:Nat,w4b:Nat,
+           1,1,nilAM,rb("door","unlocked"),2,0,
+           drop) .
+
+***( 
+--- attack fig1  PUT not rcvd PUT response pending
+search [1] {caFig1.2(5,0)} =>! {c:Conf ["eve" | a:Attrs caps(mtC)]} such that not(hasRspTSnt(c:Conf,"dev1","dev0","putN")) and rspPend(c:Conf,"dev0","dev1","putN") .
+
+Solution 1 (state 3)
+states: 7  rewrites: 227 in 0ms cpu
+
+alog(al(m("dev1", "dev0", c(h("NON", "0.PUT", "putN.0"), "putN:1", o("Uri-Path", "door") o("Uri-Query", ""), b("lock"))) @ 2, drop))
+
+--- door remains unlocked
+search [1] {caFig1.2(5,0)} =>! {c:Conf ["eve" | a:Attrs caps(mtC)]} such that  checkRsrc(c:Conf,"dev1","door","unlocked") .
+
+same solution
+
+search  {caFig1.2(5,0)} =>! {c:Conf ["eve" | a:Attrs caps(mtC)]} such that not(hasRspTSnt(c:Conf,"dev1","dev0","putN")) and rspPend(c:Conf,"dev0","dev1","putN") .
+
+Solution 2 (state 5)
+states: 7  rewrites: 359 in 1ms cpu
+
+alog(al(m("dev1", "dev0", c(h("NON", "0.PUT", "putN.0"), "putN:1", o("Uri-Path", "door") o("Uri-Query", ""), b("lock"))) @ 0, drop))
+
+)
+***(
+--- attack Fig 2  --- door locked, response sent,not rcd
+search [1] {caFig1.2(5,0)} =>! {c:Conf  ["eve" | a:Attrs caps(mtC)]} such that hasRspTSnt(c:Conf,"dev1","dev0","putN") and checkRsrc(c:Conf,"dev1","door","lock") and rspPend(c:Conf,"dev0","dev1","putN") .
+
+
+Solution 1 (state 9)
+states: 13  rewrites: 612 in 0ms
+
+alog(al(m("dev0", "dev1", c(h("NON", "2.04", "dev1.0"), "putN:1", mtO, mtBody)) @ 3,  drop))
+
+
+search {caFig1.2(5,0)} =>! {c:Conf  ["eve" | a:Attrs caps(mtC)]} such that hasRspTSnt(c:Conf,"dev1","dev0","putN") and checkRsrc(c:Conf,"dev1","door","lock") and rspPend(c:Conf,"dev0","dev1","putN") .
+
+Solution 2 (state 11)
+states: 13  rewrites: 754 in 1ms cpu
+
+alog(al(m("dev0", "dev1", c(h("NON", "2.04", "dev1.0"), "putN:1", mtO, mtBody)) @ 0, drop) )
+)
+
+***( --- noattack Fig2 response sent/rcd 
+
+search [1] {caFig1.2(5,0)} =>! {c:Conf ["eve" | a:Attrs caps(mtC)]} such that hasRspTSnt(c:Conf,"dev1","dev0","putN") and hasRspTRcd(c:Conf,"dev0","dev1","putN") .
+
+noSolution  - something has to be dropped
+
+search  {caFig1.2(5,0)} =>! {c:Conf ["eve" | a:Attrs caps(cap:Caps)]} such that hasRspTSnt(c:Conf,"dev1","dev0","putN") and hasRspTRcd(c:Conf,"dev0","dev1","putN") .
+
+Solution 1 (state 13)
+states: 14  rewrites: 805 in 0ms cpu
+
+no ALog
+
+)          
+----------------------
+----------------------
+
+***(
+(2) The Request Delay Attack 2.1 Figure 3
+Client -PUTN(unlock)-> Server :  --- captured 
+... put signal on
+     --- releases PUTN and blocks response
+client assumes msg not delivered and may think door is locked
+    dev0        eve        dev1
+    ----        ---        lock
+     o -PUTNDU-> @    
+     o -PUTNSO->  ------>    o  
+     o <-------  <-2.01--    o
+                 o -PUTNDU-> o
+                 X <-2.04-   o
+)
+op caFig3 : Nat Nat Nat -> Conf .
+eq caFig3(d:Nat,mqd:Nat,w4b:Nat) = 
+ tCS2C(0,0,mkPutN("putND","dev1","door","unlock") ;
+           mkPutN("putNS","dev1","signal","on"),
+          mtR,mqd:Nat,w4b:Nat,
+      1,1,nilAM,rb("door","lock"),2,0,
+      drop delay(d:Nat)) .
+
+***(
+---- attack : unlock rcd after signal request, 
+             ends with door unlock 
+             client does not rcv door unlock rsp
+
+search [1] {caFig3(15,5,0)} =>! {c:Conf ["eve" | a:Attrs caps(mtC)]} such that checkRsrc(c:Conf,"dev1","door","unlock") and rspTSntBefore(c:Conf,"dev1","dev0","putNS","putND") and rspPend(c:Conf,"dev0","dev1","putND") .
+
+Solution 1 (state 297)
+states: 322  rewrites: 22333 in 7ms cpu
+
+alog(
+al(m("dev1", "dev0", c(h("NON", "0.PUT", "putND.0"), "putND:1", o("Uri-Path", "door") o( "Uri-Query", ""), b("unlock"))) @ 2, delay(15)) ; 
+al(m("dev0", "dev1", c(h("NON", "2.04", "dev1.1"), "putND:1", mtO, mtBody)) @ 3, drop))
+
+-------------
+search  {caFig3(15,5,0)} =>! {c:Conf ["eve" | a:Attrs caps(mtC)]} such that checkRsrc(c:Conf,"dev1","door","unlock") and rspTSntBefore(c:Conf,"dev1","dev0","putNS","putND") and rspPend(c:Conf,"dev0","dev1","putND") .
+
+Solution 4 (state 323)
+states: 330  rewrites: 23838 in 13ms cpu
+
+alog(
+al(m("dev1", "dev0", c(h("NON", "0.PUT", "putND.0"), "putND:1", o("Uri-Path", "door") o( "Uri-Query", ""), b("unlock"))) @ 0, delay(15)) ;
+al(m("dev0", "dev1", c(h("NON", "2.04", "dev1.1"), "putND:1", mtO, mtBody)) @ 0, drop))
+
+)
+
+    
+***(
+--- noAttack: unlock before signal, door remains unlocked
+search [1] {caFig3(15,5,0)} =>! {c:Conf  ["eve" | a:Attrs caps(mtC)]} such that  checkRsrc(c:Conf,"dev1","door","unlock") and rspTSntBefore(c:Conf,"dev1","dev0","putND","putNS") .
+
+Solution 1 (state 245)
+states: 280  rewrites: 18387 in 11ms cpu
+
+alog(
+al(m("dev1", "dev0", c(h("NON", "0.PUT", "putNS.2"), "putNS:3", o("Uri-Path", "signal") o("Uri-Query", ""), b("on"))) @ 2, delay(15)) ; 
+al(m("dev0", "dev1", c(h("NON", "2.01", "dev1.1"), "putNS:3", mtO, mtBody)) @ 3, drop))
+
+search  {caFig3(15,5,0)} =>! {c:Conf  ["eve" | a:Attrs caps(mtC)]} such that  checkRsrc(c:Conf,"dev1","door","unlock") and rspTSntBefore(c:Conf,"dev1","dev0","putND","putNS") .
+
+Solution 9 (state 315)
+states: 328  rewrites: 22662 in 16ms cpu
+
+alog(
+al(m("dev0", "dev1", c(h("NON", "2.04", "dev1.0"), "putND:1", mtO, mtBody)) @ 3, drop) ; 
+al(m("dev1", "dev0", c(h("NON", "0.PUT", "putNS.2"), "putNS:3", o("Uri-Path", "signal") o( "Uri-Query", ""), b("on"))) @ 0, delay(15)))
+    
+    
+search  {caFig3(15,5,0)} =>! {c:Conf  ["eve" | a:Attrs caps(mtC)]} such that  checkRsrc(c:Conf,"dev1","door","unlock") and rspTSntBefore(c:Conf,"dev1","dev0","putND","putNS") and
+hasRspTRcd(c:Conf,"dev0","dev1","putND")  .
+
+Solution 4 (state 310)
+states: 326  rewrites: 22686 in 11ms cpu
+
+alog(
+al(m("dev1", "dev0", c(h("NON", "0.PUT", "putNS.2"), "putNS:3", o("Uri-Path", "signal") o("Uri-Query", ""), b("on"))) @ 0, delay(15)) ; 
+al(m("dev0", "dev1", c(h("NON", "2.01", "dev1.1"), "putNS:3", mtO, mtBody)) @ 0, drop))
+
+    
+)
+----------------------
+
+***(
+2.2 Figure 4  delay with reorder
+Client -PUTC(unlock)-> Server 
+   captured by attacker  
+Client -PUT(unlock)-> Server :  client retries 
+Server -resp-> Client :
+    ....
+    ....   client server interactions  
+    ....
+Client -PUT(lock)-> Server
+Server -resp-> Client :
+  attackr releases captured PUT(unlock)
+    attacker blocks response
+
+    dev0        eve        dev1
+    ----        ---        lock
+     o -PUTCU->  @             --- capture
+     o -PUTCU->  -------->  o  --- rtry
+     o <----     <---2.04-- o
+              .. ... ..
+     o -PUTNL->    ------>  o  
+     o <-------  <--2.04--  o
+                 o -PUTCU-> o  --- release
+                 X <-2.04-  o  --- drop delayed response
+
+    
+client believes lock but state is unlock
+mitigated by replay protection if release is within 
+the msg alive window  but attack works ow
+
+attack server
+hasRspTSnt putCU ; hasRspTSnt putNL ; hasRspTSnt putCU 
+checkRsrc(c:Conf,"dev1","door","unlock")
+
+attack client
+hasRspTRcd putCU ; hasRspTRcd putNL
+
+good server
+rspTSnt putCU ; rspTSnt putNL 
+checkRsrc(c:Conf,"dev1","door","lock")
+
+good client
+rspTRcv putCU ; rspTRcv putNL
+
+)
+
+op caFig4 : -> Conf .
+eq caFig4 = 
+   tCS2C(0,0,mkPutC("putC","dev1","door","unlock") ;
+            mkPutN("putN","dev1","door", "lock"),
+            mtR,2,1,
+       1,1,nilAM,rb("door","lock"),2,0,
+       drop delay(10)) .
+
+op caFig4x : Nat Nat Nat -> Conf .
+eq caFig4x(n:Nat,mqd:Nat,w4b:Nat) = 
+   tCS2C(0,0,mkPutC("putC","dev1","door","unlock") ;
+            mkPutN("putN","dev1","door", "lock"),
+            mtR,mqd:Nat,w4b:Nat,
+       1,1,nilAM,rb("door","lock"),2,0,
+       drop delay(n:Nat)) .
+
+
+***(
+attack server
+hasRspTSnt putCU ; hasRspTSnt putNL ; hasRspTSnt putCU 
+checkRsrc(c:Conf,"dev1","door","unlock")
+
+attack client
+hasRspTRcd putCU ; hasRspTRcd putNL
+
+search [1] {caFig4x(10,5,0)} =>! {c:Conf ["eve" | a:Attrs caps(mtC)]} such that checkRsrc(c:Conf,"dev1","door","unlock") and hasRspTSnt(c:Conf,"dev1","dev0","putC") and hasRspTSnt(c:Conf,"dev1","dev0","putN") and rspTSntBefore(c:Conf,"dev1","dev0","putC","putN") and rspTSntBefore(c:Conf,"dev1","dev0","putN","putC") and hasRspTRcd(c:Conf,"dev0","dev1","putN") and hasRspTRcd(c:Conf,"dev0","dev1","putC") .
+
+Solution 1 (state 2588)
+states: 2596  rewrites: 206160 in 100ms cpu
+
+alog(
+al(m("dev0", "dev1", c(h("ACK", "0.00", "putC.0"), "", mtO, mtBody)) @ 2, drop) ; 
+al(m("dev1", "dev0", c(h("CON", "0.PUT", "putC.0"), "putC:1", o("Uri-Path", "door") o("Uri-Query", ""), b( "unlock"))) @ 2, delay(10)))
+)
+
+***(
+search {caFig4x(10,5,0)} =>! {c:Conf ["eve" | a:Attrs caps(mtC)]} such that checkRsrc(c:Conf,"dev1","door","unlock") and hasRspTSnt(c:Conf,"dev1","dev0","putC") and hasRspTSnt(c:Conf,"dev1","dev0","putN") and rspTSntBefore(c:Conf,"dev1","dev0","putC","putN") and rspTSntBefore(c:Conf,"dev1","dev0","putN","putC") and hasRspTRcd(c:Conf,"dev0","dev1","putN") and hasRspTRcd(c:Conf,"dev0","dev1","putC") .
+
+Solution 8 (state 2599)
+states: 2600  rewrites: 207172 in 111ms cpu
+
+alog(
+al(m("dev0", "dev1", c(h("ACK", "0.00", "putC.0"), "", mtO, mtBody)) @ 0, drop) ; 
+al(m("dev1", "dev0", c(h("CON", "0.PUT", "putC.0"), "putC:1", o("Uri-Path", "door") o("Uri-Query", ""), b( "unlock"))) @ 0, delay(10)))
+    
+) 
+
+***(
+good server
+rspTSnt putCU ; rspTSnt putNL   putCU before putNL
+checkRsrc(c:Conf,"dev1","door","lock")
+
+good client
+rspTRcv putCU ; rspTRcv putNL
+
+search [1] {caFig4x(10,5,0)} =>! {c:Conf ["eve" | a:Attrs caps(mtC)]} such that checkRsrc(c:Conf,"dev1","door","lock") and hasRspTSnt(c:Conf,"dev1","dev0","putC") and hasRspTSnt(c:Conf,"dev1","dev0","putN") and rspTSntBefore(c:Conf,"dev1","dev0","putC","putN") and  hasRspTRcd(c:Conf,"dev0","dev1","putN") and hasRspTRcd(c:Conf,"dev0","dev1","putC") .
+
+Solution 1 (state 1979)
+states: 2153  rewrites: 160633 in 86ms cpu
+
+alog(
+al(m("dev0", "dev1", c(h("ACK", "0.00", "putC.0"), "", mtO, mtBody)) @ 2, delay(10)) ; 
+al(m("dev1", "dev0", c(h( "CON", "0.PUT", "putC.0"), "putC:1", o("Uri-Path", "door") o("Uri-Query", ""), b( "unlock"))) @ 2, drop)) 
+)
+
+***(
+search {caFig4x(10,5,0)} =>! {c:Conf ["eve" | a:Attrs caps(mtC)]} such that checkRsrc(c:Conf,"dev1","door","lock") and hasRspTSnt(c:Conf,"dev1","dev0","putC") and hasRspTSnt(c:Conf,"dev1","dev0","putN") and rspTSntBefore(c:Conf,"dev1","dev0","putC","putN") and  hasRspTRcd(c:Conf,"dev0","dev1","putN") and hasRspTRcd(c:Conf,"dev0","dev1","putC") .
+
+Solution 45 (state 2563)
+states: 2586  rewrites: 202137 in 111ms cpu
+)
+ ---------------------- ----------------------
+***(
+(3) The Response Delay and Mismatch Attack 
+Figure 5: Delaying and mismatching response to PUT
+Client -PUTN(unlock)-> Server 
+       <resp- Server    response captured by attacker
+Client -lock->          blocked/dropped by attacker
+   <unlock resp- Attacker  releases unlock response
+
+    dev0      eve        dev1
+    ----      ---        lock
+     o -PUTNU-->   -----> o
+     |         @  <-2.04- o                  
+            ......
+     o -PUTNL->   X       |
+     o <-2.04-    o       |
+
+The effect is that C thinks that door is locked
+but it is unlocked -- can be done by delaying
+unlock and dropping unlock response but not
+by delaying unlock response and dropping lock
+       
+This works in the paper because the client reused the 
+unlock token in the lock request 
+CONJECTURE no solution Maude client will not reuse token 
+)
+
+***(
+attack0 server
+  hasRspTSnt(c:Conf,"dev1","dev0","putNU")  
+  not(hasRspTSnt(c:Conf,"dev1","dev0","putNL") ) 
+  checkRsrc(c:Conf,"dev1","door","unlock") 
+attack0 client
+hasRspTRcd(c:Conf,"dev0","dev1","putNL")
+
+attack1 server
+  hasRspTSnt(c:Conf,"dev1","dev0","putNU")  and
+  hasRspTSnt(c:Conf,"dev1","dev0","putNL") and
+  rspTSntBefore(c:Conf,"dev1","dev0","putNL","putNU") and   
+  checkRsrc(c:Conf,"dev1","door","unlock") 
+
+attack1 client
+hasRspTRcd(c:Conf,"dev0","dev1","putNL")
+)
+
+***(
+good server
+  hasRspTSnt(c:Conf,"dev1","dev0","putNU")  and
+  hasRspTSnt(c:Conf,"dev1","dev0","putNL") and
+  rspTSntBefore(c:Conf,"dev1","dev0","putNU","putNL") and   
+  checkRsrc(c:Conf,"dev1","door","lock") 
+
+good client
+hasRspTRcd(c:Conf,"dev0","dev1","putNU")
+hasRspTRcd(c:Conf,"dev0","dev1","putNL")
+)
+
+op caFig5 : -> Conf .
+eq caFig5 = 
+   tCS2C(0,0,mkPutN("putNU","dev1","door","unlock") ;
+             mkPutN("putNL","dev1","door", "lock"),
+             mtR,5,0,
+         1,1,nilAM,rb("door","lock"),2,0,
+         drop delay(15)) .
+
+op caFig5x : Nat Nat Nat -> Conf .
+eq caFig5x(d:Nat,mqd:Nat,w4b:Nat) = 
+   tCS2C(0,0,mkPutN("putNU","dev1","door","unlock") ;
+             mkPutN("putNL","dev1","door", "lock"),
+             mtR,mqd:Nat,w4b:Nat,
+         1,1,nilAM,rb("door","lock"),2,0,
+         drop delay(d:Nat)) .
+
+***(
+attack0 server
+  hasRspTSnt(c:Conf,"dev1","dev0","putNU") and
+  not(hasRspTSnt(c:Conf,"dev1","dev0","putNL")) and
+  checkRsrc(c:Conf,"dev1","door","unlock") and
+attack0 client
+hasRspTRcd(c:Conf,"dev0","dev1","putNL")
+
+search {caFig5x(10,5,0)} =>! {c:Conf ["eve" | a:Attrs caps(mtC)]} such that hasRspTSnt(c:Conf,"dev1","dev0","putNU") and not(hasRspTSnt(c:Conf,"dev1","dev0","putNL")) and checkRsrc(c:Conf,"dev1","door","unlock") and hasRspTRcd(c:Conf,"dev0","dev1","putNL") .
+
+No solution.
+states: 331  rewrites: 23722 in 13ms cpu
+)
+
+***(
+attack1 server
+  hasRspTSnt(c:Conf,"dev1","dev0","putNU")  and
+  hasRspTSnt(c:Conf,"dev1","dev0","putNL") and
+  rspTSntBefore(c:Conf,"dev1","dev0","putNL","putNU") and   
+  checkRsrc(c:Conf,"dev1","door","unlock") 
+attack1 client
+hasRspTRcd(c:Conf,"dev0","dev1","putNL")
+
+search {caFig5x(10,5,0)} =>! {c:Conf ["eve" | a:Attrs caps(mtC)]} such that hasRspTSnt(c:Conf,"dev1","dev0","putNU") and hasRspTSnt(c:Conf,"dev1","dev0","putNL") and rspTSntBefore(c:Conf,"dev1","dev0","putNL","putNU") and checkRsrc(c:Conf,"dev1","door","unlock") and hasRspTRcd(c:Conf,"dev0","dev1","putNL") .
+
+Solution 4 (state 323)
+states: 330  rewrites: 23891 in 16ms cpu
+
+alog(
+al(m("dev1", "dev0", c(h("NON", "0.PUT", "putNU.0"), "putNU:1", o("Uri-Path", "door") o( "Uri-Query", ""), b("unlock"))) @ 0, delay(10)) ; 
+al(m("dev0", "dev1", c(h("NON", "2.04", "dev1.1"), "putNU:1", mtO, mtBody)) @ 0, drop))
+)
+
+***(
+good server
+  hasRspTSnt(c:Conf,"dev1","dev0","putNU")  and
+  hasRspTSnt(c:Conf,"dev1","dev0","putNL") and
+  rspTSntBefore(c:Conf,"dev1","dev0","putNU","putNL") and   
+  checkRsrc(c:Conf,"dev1","door","lock") 
+good client
+hasRspTRcd(c:Conf,"dev0","dev1","putNU")
+hasRspTRcd(c:Conf,"dev0","dev1","putNL")
+
+search {caFig5x(10,5,0)} =>! {c:Conf ["eve" | a:Attrs caps(caps:Caps)]} such that hasRspTSnt(c:Conf,"dev1","dev0","putNU") and hasRspTSnt(c:Conf,"dev1","dev0","putNL") and rspTSntBefore(c:Conf,"dev1","dev0","putNU","putNL") and checkRsrc(c:Conf,"dev1","door","lock") and hasRspTRcd(c:Conf,"dev0","dev1","putNU") and hasRspTRcd(c:Conf,"dev0","dev1","putNL") .
+
+no Solution 331 states caps(mtC)
+
+Solution 5 (state 328)
+states: 331  rewrites: 24997 in 16ms cpu
+)
+
+***(
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+Figure 6: Delaying and mismatching response to GET
+client believes door locked but is not
+Client -GETN> Server
+       attacker captures response (Locked)
+Client -PUTN lock(unlock)> Server
+       attacker blocks response
+Client -GETN ->  (new GET with same token)
+       attacker blocks it and returns captured response (unlocked)
+
+    dev0      eve        dev1
+    ----      ---        lock
+     o -GETN->   ------>  o    getN0
+     |         @  <-lock- o                  
+     o -PUTNU-->  ----->  |    putNU
+     |         X  <-2.04- o                  
+     o -GETN-> X          |    getN1
+     o <-lock- o          |    
+
+
+vulnerable client will accept the delayed response
+as response to getN1, and thus
+client thinks door is locked  but it is unlocked
+
+Put is non confirmable so client has no info about it
+other than it didn't happen before the getN1
+
+Maude client will accept the delay response, but 
+as response to getN0 
+)
+
+***(       
+attack0,1 server   
+   
+rspTSnt(c:Conf,"dev1","dev0","getN0") 
+rspTSnt(c:Conf,"dev1","dev0","putNU") 
+rspTSntBefore(c:Conf,"dev1","dev0","getN0","putNU") and 
+checkRsrc(c:Conf,sv,"door","unlock")
+not(rspTSnt(c:Conf,"dev1","dev0","getN1") )  
+
+attack0 client
+hasGetRsp(c:Conf,"dev0","dev1","getN1","lock")
+
+attack1 client
+hasGetRsp(c:Conf,"dev0","dev1","getN0","lock")
+rspPend(c:Conf,"dev0","dev1","getN1")
+rspPend(c:Conf,"dev0","dev1","putNU")
+
+getN0, putNU, getN1
+
+good server 
+rspTSnt(c:Conf,"dev1","dev0","getN0") 
+rspTSnt(c:Conf,"dev1","dev0","putNU") 
+rspTSnt(c:Conf,"dev1","dev0","getN1") 
+rspTSntBefore(c:Conf,"dev1","dev0","getN0","putNU") and 
+rspTSntBefore(c:Conf,"dev1","dev0","putNU","getN1") and 
+checkRsrc(c:Conf,sv,"door","unlock")
+
+good client
+hasGetRsp(c:Conf,"dev0","dev1","getN0","lock")
+hasRspTRcd(c:Conf,"dev0","dev1","putNU")
+hasGetRsp(c:Conf,"dev0","dev1","getN1","unlock")
+
+)
+
+op caFig6 : -> Conf .
+eq caFig6 = 
+   tCS2C(0,0,mkGetN("getN0","dev1","door") ;
+             mkPutN("putNU","dev1","door","unlock") ;
+             mkGetN("getN1","dev1","door") ,
+             mtR,5,0,
+         1,1,nilAM,rb("door","lock"),2,0,
+         drop drop delay(10)) .
+
+
+op caFig6x : Nat Nat Nat -> Conf .
+eq caFig6x(d:Nat,mqd:Nat,w4b:Nat) = 
+   tCS2C(0,0,mkGetN("getN0","dev1","door") ;
+             mkPutN("putNU","dev1","door","unlock") ;
+             mkGetN("getN1","dev1","door") ,
+             mtR,mqd:Nat,w4b:Nat,
+         1,1,nilAM,rb("door","lock"),2,0,
+         drop drop delay(d:Nat)) .
+
+***(
+attack0,1 server  attack0 client
+
+search {caFig6x(10,5,0)} =>! {c:Conf ["eve" | a:Attrs caps(mtC)]} such that hasRspTSnt(c:Conf,"dev1","dev0","getN0") and hasRspTSnt(c:Conf,"dev1","dev0","putNU") and rspTSntBefore(c:Conf,"dev1","dev0","getN0","putNU") and checkRsrc(c:Conf,"dev1","door","unlock") and not(hasRspTSnt(c:Conf,"dev1","dev0","getN1") ) and hasGetRsp(c:Conf,"dev0","dev1","getN1","lock") .
+
+No solution.
+states: 2940  rewrites: 224764 in 94ms cpu
+)
+
+***(
+attack0,1 server  attack1 client
+
+search {caFig6x(10,5,0)} =>! {c:Conf ["eve" | a:Attrs caps(mtC)]} such that  hasRspTSnt(c:Conf,"dev1","dev0","getN0") and hasRspTSnt(c:Conf,"dev1","dev0","putNU") and rspTSntBefore(c:Conf,"dev1","dev0","getN0","putNU") and checkRsrc(c:Conf,"dev1","door","unlock") and not(hasRspTSnt(c:Conf,"dev1","dev0","getN1") ) and hasGetRsp(c:Conf,"dev0","dev1","getN0","lock") and rspPend(c:Conf,"dev0","dev1","getN1") and rspPend(c:Conf,"dev0","dev1","putNU") .
+
+Solution 18 (state 2568)
+states: 2742  rewrites: 215995 in 75ms cpu
+
+alog(
+al(m("dev1", "dev0", c(h("NON", "0.PUT", "putNU.2"), "putNU:3", o("Uri-Path", "door") o("Uri-Query", ""), b("unlock"))) @ 0, delay(10)) ; 
+al(m("dev1", "dev0", c(h("NON", "0.GET", "getN1.4"), "getN1:5", o("Uri-Path", "door") o("Uri-Query", ""), mtBody)) @ 0, drop) ; 
+al(m("dev0", "dev1", c(h("NON", "2.04", "dev1.1"), "putNU:3", mtO, mtBody)) @ 0, drop))
+    
+)
+
+***(
+good server good client
+
+search {caFig6x(10,5,0)} =>! {c:Conf ["eve" | a:Attrs caps(mtC)]} such that hasRspTSnt(c:Conf,"dev1","dev0","getN0") and hasRspTSnt(c:Conf,"dev1","dev0","putNU") and hasRspTSnt(c:Conf,"dev1","dev0","getN1") and rspTSntBefore(c:Conf,"dev1","dev0","getN0","putNU") and rspTSntBefore(c:Conf,"dev1","dev0","putNU","getN1") and checkRsrc(c:Conf,"dev1","door","unlock") and hasGetRsp(c:Conf,"dev0","dev1","getN0","lock") and hasRspTRcd(c:Conf,"dev0","dev1","putNU") and hasGetRsp(c:Conf,"dev0","dev1","getN1","unlock") .
+
+No solution.
+states: 2940  rewrites: 235476 in 93ms cpu
+
+search {caFig6x(10,5,0)} =>! {c:Conf ["eve" | a:Attrs caps(caps:Caps)]} such that hasRspTSnt(c:Conf,"dev1","dev0","getN0") and hasRspTSnt(c:Conf,"dev1","dev0","putNU") and hasRspTSnt(c:Conf,"dev1","dev0","getN1") and rspTSntBefore(c:Conf,"dev1","dev0","getN0","putNU") and rspTSntBefore(c:Conf,"dev1","dev0","putNU","getN1") and checkRsrc(c:Conf,"dev1","door","unlock") and hasGetRsp(c:Conf,"dev0","dev1","getN0","lock") and hasRspTRcd(c:Conf,"dev0","dev1","putNU") and hasGetRsp(c:Conf,"dev0","dev1","getN1","unlock") .
+
+Solution 3 (state 2920)
+states: 2937  rewrites: 256029 in 95ms cpu
+
+no ALog
+)
+
+----------------------------- ----------------------
+***(
+Figure 7: Delaying and mismatching response from other
+resource . Client sends temperature requests to two
+resources (oven,room), attacker switches responses
+
+Client -GETN(temperature,path1)-> server (oven resource)
+   attacker captures response
+Client -GETN(temperature,path2)-> server (room resource)
+ attacker blocks room request and returns oven response
+
+    dev0      eve        dev1
+    ---       ---     d1/lock d2/unlock
+     o  ----GETN(d1)--->   o  getN0
+     |             @ <-d1- o                  
+     o -GETN(p2)-> X       |  getN1
+     o <-d1-       o       |
+
+client uses same token for both GETs which is allowed
+The Maude model would use distinct tokens and the attack will fail
+)
+
+***(
+attack server
+hasRspTSnt(c:Conf,"dev1","dev0","getN0") and 
+not(hasRspTSnt(c:Conf,"dev1","dev0","getN1")) and 
+
+attack client
+hasGetRsp(c:Conf,"dev0","dev1","getN1","lock") .
+
+)
+
+
+op caFig7 : -> Conf .
+eq caFig7 = 
+   tCS2C(0,0,mkGetN("getN0","dev1","door1") ;
+             mkGetN("getN1","dev1","door2") ,
+             mtR,2,1,
+         1,1,nilAM,
+         rb("door1","lock") rb("door2","unlock"),2,0,
+         drop delay(10)) .
+
+op caFig7x : Nat Nat Nat -> Conf .
+eq caFig7x(d:Nat,mqd:Nat,w4b:Nat) = 
+   tCS2C(0,0,mkGetN("getN0","dev1","door1") ;
+             mkGetN("getN1","dev1","door2") ,
+             mtR,mqd:Nat,w4b:Nat,
+         1,1,nilAM,
+         rb("door1","lock") rb("door2","unlock"),2,0,
+         drop delay(d:Nat)) .
+***(
+failed attack
+attack server
+
+search {caFig7x(10,5,0)} =>! {c:Conf ["eve" | a:Attrs caps(mtC)]} such that hasRspTSnt(c:Conf,"dev1","dev0","getN0") and not(hasRspTSnt(c:Conf,"dev1","dev0","getN1")) and hasGetRsp(c:Conf,"dev0","dev1","getN1","lock") .
+
+No solution.
+states: 316  rewrites: 23014 in 17ms cpu
+)
+
+***(
+good prop
+
+search {caFig7x(10,5,0)} =>! {c:Conf ["eve" | a:Attrs caps(caps:Caps)]} such that hasRspTSnt(c:Conf,"dev1","dev0","getN0") and hasRspTSnt(c:Conf,"dev1","dev0","getN1") and hasGetRsp(c:Conf,"dev0","dev1","getN1","unlock") and hasGetRsp(c:Conf,"dev0","dev1","getN0","lock") .
+
+caps = mtC No solution.
+states: 316  rewrites: 23474 in 8ms cpu
+
+Solution 8 (state 314)
+states: 316  rewrites: 24290 in 19ms cpu
+
+no ALog
+)
+
+
+***(
+Modified scenario:
+Client -> GET(temp) -> Server1 -- ask for room temp
+  attacker reroutes this to Server2
+Server2 ->oven temp->  Client
+  attacker reroutes this to appear to come from Server1
+  as expected by Client  
+Note: using updated token policy does not help
+Adapted to door state for doors controlled by different servers
+
+    dev0      eve       dev1     dev2
+    ----      ---      unlock    lock
+  o -GETN(1)--> o        |        |
+  |             o  ---GETN(2)-->  o
+  |             o  <---lock---    o 
+  o <-1:lock-  o         |        |
+
+
+
+)
+op caFig7mod : Nat  Nat -> Conf .
+eq caFig7mod(mqd:Nat,w4b:Nat) =
+     tCS3C(0,0,mkGetN("getN0","dev1","door"),
+               mtR,mqd:Nat,w4b:Nat,
+          1,1,nilAM,rb("door","unlock"),5,0,
+          2,2,nilAM,rb("door","lock"),5,0,
+          redirect("dev1","dev2")       --- change tgt
+          unredirect("dev1","dev2")) .  --- change src
+
+
+***(
+attack
+
+search [1] {caFig7mod(5,0)} =>! {c:Conf ["eve" | a:Attrs caps(mtC)]} such that not(hasRspTSnt(c:Conf,"dev1","dev0","getN0")) and hasRspTSnt(c:Conf,"dev2","dev0","getN0") and checkRsrc(c:Conf,"dev1","door","unlock") and hasGetRsp(c:Conf,"dev0","dev1","getN0","lock") .
+
+Solution 1 (state 26)
+states: 33  rewrites: 2447 in 0ms cpu
+
+alog(
+al(m("dev1", "dev0", c( h("NON", "0.GET", "getN0.0"), "getN0:1", o("Uri-Path", "door") o("Uri-Query", ""), mtBody)) @ 0, redirect("dev1", "dev2")) ;
+al(m("dev0", "dev2", c(h("NON", "2.05", "dev2.0"), "getN0:1", mtO, b("lock"))) @ 0, unredirect("dev1", "dev2")))
+
+search {caFig7mod(5,0)} =>! {c:Conf ["eve" | a:Attrs caps(mtC)]} such that not(hasRspTSnt(c:Conf,"dev1","dev0","getN0")) and hasRspTSnt(c:Conf,"dev2","dev0","getN0") and checkRsrc(c:Conf,"dev1","door","unlock") and hasGetRsp(c:Conf,"dev0","dev1","getN0","lock") .
+
+Solution 4 (state 32)
+states: 33  rewrites: 2696 in 3ms cpu
+
+alog(
+al(m("dev1", "dev0", c( h("NON", "0.GET", "getN0.0"), "getN0:1", o("Uri-Path", "door") o("Uri-Query", ""), mtBody)) @ 2, redirect("dev1", "dev2")) ; 
+al(m("dev0", "dev2", c(h("NON", "2.05", "dev2.0"), "getN0:1", mtO, b("lock"))) @ 2, unredirect("dev1", "dev2")))
+        
+)  
+
+***(
+good
+
+search [1] {caFig7mod(5,0)} =>! {c:Conf ["eve" | a:Attrs caps(mtC)]} such that hasRspTSnt(c:Conf,"dev1","dev0","getN0") and not(hasRspTSnt(c:Conf,"dev2","dev0","getN0")) and checkRsrc(c:Conf,"dev1","door","unlock") and hasGetRsp(c:Conf,"dev0","dev1","getN0","unlock") .
+
+No solution.
+states: 33  rewrites: 2652 in 2ms cpu
+
+search {caFig7mod(5,0)} =>! {c:Conf ["eve" | a:Attrs caps(caps:Caps)]} such that hasRspTSnt(c:Conf,"dev1","dev0","getN0") and not(hasRspTSnt(c:Conf,"dev2","dev0","getN0")) and checkRsrc(c:Conf,"dev1","door","unlock") and hasGetRsp(c:Conf,"dev0","dev1","getN0","unlock") .
+
+Solution 1 (state 29)
+states: 33  rewrites: 2579 in 1ms cpu
+
+no ALog
+)
+
+
+
+***(
+
+  C             E       S1       S2
+ ---           ---     unlock   lock
+  o -GETN(s1)-> o        |        
+  |             o   -GETN(s2)->   o
+  o            -----GETN(s2)----> o
+  |             o  <-S2:lock-     o 
+  o <-S1:lock-  o        |        |
+  o <---S2:lock-------------      o 
+
+)
+
+op caFig7mod2 : -> Conf .
+eq caFig7mod2 =
+     tCS3(0,0,mkGetN("getN0","dev1","door") ; 
+              mkGetN("getN1","dev2","door"),mtR,
+          1,1,nilAM,rb("door","unlock"),
+          2,2,nilAM,rb("door","lock"),
+          redirect("dev1","dev2")       --- change tgt
+          unredirect("dev1","dev2")) .  --- change src
+
+
+***( attack prop:  
+ 
+ search [1] {caFig7mod2} =>! {c:Conf ["eve" | a:Attrs caps(mtC)]} such that hasGetRsp(c:Conf,"dev0","dev1","getN0","lock") and hasGetRsp(c:Conf,"dev0","dev2","getN1","lock") and checkRsrc(c:Conf,"dev1","door","unlock") .
+
+Solution 1 (state 222)
+states: 246  rewrites: 20025 in 8ms cpu
+
+alog(
+al(m("dev1", "dev0", c( h("NON", "0.GET", "getN0.0"), "getN0:1", o("Uri-Path", "door") o("Uri-Query", ""), mtBody)) @ 0, redirect("dev1", "dev2")) ; 
+
+al(m("dev0", "dev2", c(h("NON", "2.05", "dev2.0"), "getN0:1", mtO, b("lock"))) @ 2, unredirect("dev1", "dev2")))
+    
+)
+endm
+eof
