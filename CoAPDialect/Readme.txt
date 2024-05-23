@@ -1,10 +1,17 @@
-NB: This README is a work in progress
---------------------------------------------
 These files implement the CoAP messaging specification
 (RFC7252), active and reactive attack models, and a
 generic dialect transformation that mitigates reactive
-attacks.  (See the paper arXiv....)
+attacks.  (The specification and case studies are 
+document in the technical report arXiv....)
 
+This Readme has two parts.  The first part lists the
+files and provides instructions for repeating/varying
+the tests and and case studies.  The second part has
+some implementation notes on representation of
+endpoint state and rules for receiving messages
+(distilled from RFC7252).
+
+**********************************************************
 Files
 -----------
 The CoAP messaging specification
@@ -62,41 +69,79 @@ coap-dialect-test-runs.txt
 
 coap-attacks-scenarios.maude
 coap-attacks-dialected-scenarios.maude
+  --- active attacker vulnerability case studies
+  --- of CoAP system and dialected version
+
 coap-reactive-attacker-scenarios.maude
-   
 coap-reactive-attacker-scenarios-dialected.maude
+  --- reactive attacker case studies
+  --- of CoAP system and dialected version
 
 ---------------------------------------
 Files for loading 
 ---------------------
 load.maude  --- loads CoAP framework and scenario generators
 dload.maude --- adds dialect modules and transforms
-rsload.maude --- loads 
-drsload.maude
+
+rsload.maude --- loads CoAP and reactive attack case study
+drsload.maude --- loads dialected version of above
 
 *******************************************************
 To repeat the tests in coap-test-runs.txt, in a
-terminal window type the folloing
+terminal window type the following
 
 maude load
+
+Then copy/paste test commands into the Maude prompt.
 
 To repeat the tests in coap-dialect-test-runs.txt, in a
 terminal window type the following
 
 maude dload
 
-Then copy paste a test command into the Maude prompt.
+Then copy/paste test commands into the Maude prompt.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+To repeat the active attacker scenarios
+in a terminal window type the following
 
+maude load
 
+at the maude prompt type 
 
+load coap-attacks-scenarios.maude
 
+Then you can copy/paste search commands to see the
+detailed results.  You can also vary parameters
+and see what happens.
 
+Similarly, you can repeat/vary the dialected version
+by 
 
+maude dload
 
+followed by 
 
+load coap-attacks-dialected-scenarios.maude
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+To repeat/vary the reactive attacker scenarios,
+in a terminal window type 
+
+maude rsload
+
+this automatically loads coap-attacks-scenarios.maude
+
+As usual you can copy/paste search commands to see the
+detailed results.  You can also vary parameters
+and see what happens.
+
+To explore the dialected version in a terminal window type
+
+maude drsload
+
+Then proceed as above.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 Some implementation notes 
