@@ -2,7 +2,8 @@ These files implement the CoAP messaging specification
 (RFC7252), active and reactive attack models, and a
 generic dialect transformation that mitigates reactive
 attacks.  (The specification and case studies are 
-document in the technical report arXiv....)
+explained in the technical report available at
+https://arxiv.org/abs/2405.13295.)
 
 This Readme has two parts.  The first part lists the
 files and provides instructions for repeating/varying
