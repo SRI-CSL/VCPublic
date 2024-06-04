@@ -34,9 +34,15 @@ vars litl plitl : LogItemL .
      /   MtConf    
      |      .          
      |  ConfElt    
-      \  .    .   
-    Agent     Net 
-        
+      \  .    .     .
+    Agent     Net  Log
+
+A configuration represent (a part of) an execution state.
+It is a multiset of configuration elements.
+Agent elements represent the state of an endpoint/device
+or an attacker.  Net elements represent network state --
+messages in transit. A log element records events (rewrites
+of interest)
   )
   
   sort Strings .
@@ -76,7 +82,9 @@ vars litl plitl : LogItemL .
   eq sys2conf({conf}) = conf .
   
   
-  
+**** an agent has an identifier string
+**** and a set of attributes  
+
 sorts Attr Attrs .
 subsort Attr < Attrs .
 op mtA : -> Attrs [ctor] .
@@ -106,20 +114,29 @@ op __ : CBnds CBnds -> CBnds [ctor assoc comm id: mtC] .
 op cb : String String -> CBnd [ctor] .
 op cb : String Int -> CBnd [ctor] .
 
-
+***** attributes for client role
+**** confirmable messages awaiting ACK
 op w4Ack  : DMsgS -> Attr [ctor] .
+**** requests awaiting response
 op w4Rsp : MsgS -> Attr [ctor] .
+**** responses received
+op rspRcd : MsgS -> Attr [ctor] .
+***** application messages to send
+op sendReqs : AMsgL -> Attr [ctor] .
+**** delay before sending a message
+op sndCtr : Nat -> Attr [ctor] .
+
+****  attributes for server role
+**** responses sent
 op rspSnt : MsgS -> Attr [ctor] .
 op rspSntD : DMsgS -> Attr [ctor] .
-op rspRcd : MsgS -> Attr [ctor] .
-
-
+****  map from  (local) resource path to value
 op rsrcs : RMap -> Attr [ctor] .
-op ctr : Nat -> Attr [ctor] .
-op sendReqs : AMsgL -> Attr [ctor] .
-op config : CBnds -> Attr [ctor] .
 
-op sndCtr : Nat -> Attr [ctor] .
+***** role independed attributes
+**** counter used to generate unique strings
+op ctr : Nat -> Attr [ctor] .
+op config : CBnds -> Attr [ctor] .
 
 sorts LogItem LogItemL .
 subsort LogItem < LogItemL .
@@ -213,12 +230,14 @@ eq clearToLog(attrs:Attrs toLog(li1:LogItemL))
       =  attrs:Attrs .
 eq clearToLog(attrs:Attrs) =  attrs:Attrs [owise] .
 
+
+***** not used
 sorts ABnd ABnds .
 op mtA : -> ABnds [ctor] .
 op toApp : ABnds -> Attr [ctor] . --- reporting to App
 
 
-**** attacker attrs
+**** attacker attributes
 sort Cap Caps .
 subsort Cap < Caps .
 op mtC : -> Caps [ctor] .
@@ -241,6 +260,7 @@ eq addALog(attrs,dmsg:DMsg,cap:Cap) =
  attrs alog(al(dmsg:DMsg,cap:Cap)) .
 
 
+***** meta agent attribute
 op conf : Conf -> Attr [ctor] .
 
 **** constructing a coap msg from an app msg
@@ -257,12 +277,15 @@ ceq getId(mid) =
   (if ix :: Nat then substr(mid,0,ix) else "" fi)
 if ix := find(mid,".",0) .
 
+******************** helper functions
+
 op getCtr : Attrs -> Nat  .
 op incCtr : Attrs Nat -> Attrs .
 
 eq getCtr(devatts ctr(n)) = n .
 eq incCtr(devatts ctr(n), n1) = devatts ctr(n + n1) .
 
+****
 op canSend : Attrs -> Bool .
 eq canSend(devatts sndCtr(n)) = n == 0 .
 eq canSend(devatts) = true [owise] .
@@ -271,21 +294,11 @@ op getSndCtr : Attrs -> Nat .
 eq getSndCtr(devatts sndCtr(n)) = n .
 eq getSndCtr(devatts) = 0 [owise] .
 
-op getMsgQDelay : Attrs -> Nat .
-op getMsgQDelay : CBnds -> Nat .
-eq getMsgQDelay(devatts config(cbnds)) = getMsgQDelay(cbnds) .
-eq getMsgQDelay(cbnds cb("msgQD",n)) = n .
-
-op getw4AckBd : Attrs -> Nat .
-op getw4AckBd : CBnds -> Nat .
-eq getw4AckBd(devatts config(cbnds)) = getw4AckBd(cbnds) .
-eq getw4AckBd(cbnds cb("w4AckBd",n)) = n .
-eq getw4AckBd(cbnds) = 0 [owise] .
-
 op resetSndCtr : Attrs -> Attrs .
 eq resetSndCtr(devatts sndCtr(n)) 
     = devatts sndCtr(getMsgQDelay(devatts)) .
 eq resetSndCtr(devatts) = devatts [owise] .
+
 
 op addW4Ack : Attrs DMsgS -> Attrs .
 eq addW4Ack(w4Ack(dmsgs) attrs,dmsgs0) 
@@ -312,7 +325,7 @@ if getTgt(msg) == dst
 /\ getTok(msg) == tok .
 eq matchAckwRsp(dmsgs,dst,mid,tok) = dmsgs [owise] .
 
-************** rcv simple rsp -- remove w4ack and w4rsp
+************** rcv simple rsp -- remove w4rsp and any w4ack 
 op matchAckorRsp : Attrs String String String -> Attrs .
 ceq matchAckorRsp(devatts,dst,mid,tok) =
    devatts2 ansB(b1 or b2)
@@ -345,49 +358,67 @@ if getTgt(msg) == dst
 /\ getTok(msg) == tok .
 eq matchRsp(msgs,dst,tok) = msgs [owise] .
 
-****HERE
 
+**** checking for pending ACKs
 op noW4Ack : Attrs -> Bool .
-***(
-eq noW4Ack(devatts w4Ack(dmsgs)) =  
-   (if dmsgs == mtDM then true else false fi) .
-eq noW4Ack(devatts ) = true [owise] .
-)
-***()
 eq noW4Ack(devatts w4Ack(dmsgs)) =  
   (if size(dmsgs) > getw4AckBd(devatts)
   then false
   else true
   fi ) .
 
+
+****** looking up configuration parameters
+
+**** lookup "msgQD"  
+op getMsgQDelay : Attrs -> Nat .
+op getMsgQDelay : CBnds -> Nat .
+eq getMsgQDelay(devatts config(cbnds)) = getMsgQDelay(cbnds) .
+eq getMsgQDelay(cbnds cb("msgQD",n)) = n .
+
+**** lookup "w4AckBd"  
+**** --- number of pending ACKS that prevents msg send
+op getw4AckBd : Attrs -> Nat .
+op getw4AckBd : CBnds -> Nat .
+eq getw4AckBd(devatts config(cbnds)) = getw4AckBd(cbnds) .
+eq getw4AckBd(cbnds cb("w4AckBd",n)) = n .
+eq getw4AckBd(cbnds) = 0 [owise] .
+ 
+**** lookup "msgSD"  -- delay between message sends
 op getMsgSndDelay : CBnds -> Nat .
 op getMsgSndDelay : Attrs -> Nat .
 eq getMsgSndDelay(cb("msgSD",n) cbnds) = n .
 eq getMsgSndDelay(attrs config(cbnds)) =
       getMsgSndDelay(cbnds) .
 
+**** lookup "ACK_TIMEOUT" --- how long to wait for ACK
 op getAckWait4 : CBnds -> Nat .
 op getAckWait4 : Attrs -> Nat .
 eq getAckWait4(cb("ACK_TIMEOUT",n) cbnds) = n .
-**** eq getAckWait4(cb("ackW4",n) cbnds) = n .
 eq getAckWait4(attrs config(cbnds)) = getAckWait4(cbnds) .
 
 
+**** lookup "MAX_RETRANSMIT"
 op getMaxReSnd : CBnds -> Nat .
 op getMaxReSnd : Attrs -> Nat .
 eq getMaxReSnd(cb("MAX_RETRANSMIT",n) cbnds) = n .
-**** eq getMaxReSnd(cb("maxReSnd",n) cbnds) = n .
 eq getMaxReSnd(devatts config(cbnds)) = 0 [owise] .
 
+****  how long a message id or token is valid
+****  i.e. when can it be reused
+op getReqLife : Attrs -> Nat .
+eq getReqLife(devatts config(cbnds cb("ttl", n))) = n .
+eq getReqLife(devatts) = 10 [owise] .
 
 
+*********  not used
 ****              method
 op requiresResp : String -> Bool .
 eq requiresResp("GET") = true .
 eq requiresResp("POST") = true .
 eq requiresResp(meth) = false [owise] .
 
-
+******* resource handling
 op deleteResource : Attrs String -> Attrs .
 eq deleteResource(devatts rsrcs(rb(path,val) rbnds),path)
 = devatts rsrcs(rbnds) .
@@ -404,6 +435,7 @@ eq putResource(devatts rsrcs(rb(path,val1) rbnds),path,val)
 eq putResource(devatts,path,val)
   = devatts rsrcs(rb(path,val)) [owise] .
 
+***** tracking responses
 op addRspRcd : Attrs Msg -> Attrs .
 eq addRspRcd(devatts rspRcd(msgs),msg) = 
       devatts rspRcd(msgs msg) .
@@ -455,10 +487,5 @@ eq matchingRspD(devatts ,msg) = mtM [owise] .
 ceq matchingRspD(dmsgs msg0 @ s n,src,tok) = msg0
 if getTgt(msg0) == src and getTok(msg0) == tok .
 eq matchingRspD(dmsgs,src,tok) = mtM [owise] .
-
-
-op getReqLife : Attrs -> Nat .
-eq getReqLife(devatts config(cbnds cb("ttl", n))) = n .
-eq getReqLife(devatts) = 10 [owise] .
 
 endfm

@@ -17,6 +17,15 @@ eq DMsg2Msg(msg @ n) = msg .
 op DMsg2Delay : DMsg -> Nat .
 eq DMsg2Delay(msg @ n) = n .
 
+***(
+Message structure
+A CoAP message consists of a target (receiver),
+a source (sender), and content.
+Content has four components: head, token (request identifier) options, and body.
+Content head has type, code, and id components.
+Note: officially content also has a version number,
+that we omitted.
+)
 
 sort Content .  --- msg content
 sorts Head Option Options Body  .  --- msg parts
@@ -86,17 +95,6 @@ eq size(dmsgs) = sizeX(dmsgs,0) .
 eq sizeX(dmsgs dmsg, n) = sizeX(dmsgs,s n) .
 eq sizeX(mtDM, n) = n .
   
-
-sorts AMsg AMsgL .
-subsort AMsg < AMsgL .
-op nilAM : -> AMsgL [ctor] .
-op _;_ : AMsgL AMsgL -> AMsgL [ctor assoc id: nilAM] .
-****     appid    dst    type   meth   path  qparams body
-op amsg : String String String String String String Body
-          -> AMsg [ctor] .
-
-**** delay before next msg          
-op amsgd : Nat -> AMsg [ctor] .
 
 ****   Type   Code   MsgId
 op h : String String String -> Head  [ctor] .
@@ -190,5 +188,29 @@ ops getOsName  getOsSort getOsDefault :
     OptionSpec -> String .
 op isCritical : OptionSpecs String -> Bool .
 op isRepeatable : OptionSpecs String -> Bool .
+ 
+ 
+***(
+Application messages -- the interface to the
+application layer.  Used for driving scenarions.
+
+An application message has sufficient information to
+construct a CoAP message: appId, target, type,
+method (to compute code), resource path, query
+parameters, and body.
+
+)
+
+
+ sorts AMsg AMsgL .
+ subsort AMsg < AMsgL .
+ op nilAM : -> AMsgL [ctor] .
+ op _;_ : AMsgL AMsgL -> AMsgL [ctor assoc id: nilAM] .
+ ****     appid    tgt    type   meth   path  qparams body
+ op amsg : String String String String String String Body
+           -> AMsg [ctor] .
+
+ **** delay before next msg          
+ op amsgd : Nat -> AMsg [ctor] .
  
 endfm
