@@ -1,6 +1,6 @@
 load coap-msg  . 
 load coap-conf .
-load coap-rule-aux .
+load coap-rule-aux .   **** doc start here
 load coap-time .
 load coap-attacker .
 load coap-rules .

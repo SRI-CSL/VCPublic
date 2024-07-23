@@ -1,0 +1,168 @@
+fmod COAP-APP-BASE-SCENARIO is
+   inc  COAP-APP .
+
+vars msgSD j d  : Nat .
+vars abnds rbnds : RMap .
+var epid : String .
+var amsgl : AMsgL .
+var arules : ARules .
+vars conf conf0 conf1 : Conf .
+vars sndr rcvr aid tok path val cl sv  src tgt 
+      : String .
+var dmsg : DMsg .
+var msg : Msg .
+vars dmsgs dmsgs0 dmsgs1 : DMsgS .
+var msgs : MsgS .
+vars  attrs devatts  devatts1 :  Attrs .
+
+***** coap level global configuration parameters
+op mkCoapConf : Nat -> CBnds .
+eq mkCoapConf(msgSD) =
+  cb("ACK_TIMEOUT", 5)
+  cb("ACK_RANDOM_FACTOR", 2)
+  cb("MAX_RETRANSMIT", 1)
+  cb("msgSD", msgSD)
+  cb("msgQD",5)
+  cb("w4AckBd",1)
+  cb("ttl", 10) .
+  
+****  coap level shared initial attributes  
+op mkInitDevAttrs :  Nat -> Attrs .
+eq mkInitDevAttrs(msgSD) =
+  w4Ack(mtDM)    
+  w4Rsp(mtM) 
+  rspSntD(mtDM)
+  rspRcd(mtM)
+  ctr(0) 
+  config(mkCoapConf(msgSD)) .
+
+**** constructor for initial configurations for devices
+**** that may have an application layer
+op mkDevA : 
+     String Nat AMsgL RMap Nat RMap  ARules 
+     -> Agent .
+eq mkDevA(epid,j,amsgl,rbnds,msgSD,abnds,arules) 
+   =
+  [ epid | sendReqs(amsgl) rsrcs(rbnds)
+           aconf(abnds,arules)
+           sndCtr(j) mkInitDevAttrs(msgSD) ]  .
+
+********* basic application properties
+
+**** client sndr awaits resp from server rcvr
+**** with token matching aid 
+op rspPend : Conf String String String -> Bool .
+*******          cl   svr                
+ceq rspPend(conf,sndr,rcvr,aid) =
+       hasTokMatch(msgs,rcvr,aid) or
+       hasTokMatch(dmsgs,rcvr,aid)
+if  [sndr | devatts] conf1 := conf
+/\  w4Rsp(msgs) w4Ack(dmsgs) devatts1 := devatts .
+eq rspPend(conf,sndr,rcvr,aid) = false [owise] .
+
+op hasTokMatch : MsgS String String -> Bool .
+ceq hasTokMatch(msg msgs,rcvr,aid) = true
+   if (rcvr == getTgt(msg) and 
+       tokMatch(getTok(msg),aid) ) .
+eq hasTokMatch(msgs,rcvr,aid) = false [owise] .
+
+op hasTokMatch : DMsgS String String -> Bool .
+eq hasTokMatch(dmsgs,rcvr,aid) =
+      hasTokMatch(dmsgs2msgs(dmsgs),rcvr,aid) .
+
+op tokMatch : String String -> Bool .
+eq tokMatch(tok,aid) =
+  substr(tok,0,length(aid)) == aid .
+
+**** client sndr awaits resp from server rcvr
+**** with token == tok
+op rspPendT : Conf String String String -> Bool .
+*******          cl   svr                
+ceq rspPendT(conf,sndr,rcvr,tok) =
+     hasTok(msgs dmsgs2msgs(dmsgs), rcvr,tok)
+if  [sndr | devatts] conf1 := conf
+/\  w4Rsp(msgs) w4Ack(dmsgs) devatts1 := devatts .
+eq rspPendT(conf,sndr,rcvr,aid) = false [owise] .
+
+op hasTok : MsgS String String -> Bool .
+ceq hasTok(msgs msg,rcvr,tok) = true
+if tok == getTok(msg)
+/\ rcvr == getTgt(msg) .
+
+eq hasTok(msgs,rcvr,tok) = false [owise] .
+
+***** strip delays off dmsgs
+op dmsgs2msgs : DMsgS -> MsgS .
+op dmsgs2msgsX : DMsgS MsgS -> MsgS .
+eq dmsgs2msgs(dmsgs) = dmsgs2msgsX(dmsgs,mtM) .
+eq dmsgs2msgsX(dmsgs msg @ d,msgs) =
+        dmsgs2msgsX(dmsgs,msgs msg) .
+eq dmsgs2msgsX(mtDM,msgs) = msgs .
+
+
+***** device epid has resource at path
+**** having value val 
+****  aka checkRsrc
+****                   epid    path   val
+op hasV : Conf String String String -> Bool .
+ceq hasV(conf,epid,path,val) = true
+if [epid | devatts rsrcs(abnds rb(path,val))] conf1 := conf .
+eq hasV(conf,epid,path,val) = false [owise] .
+
+***** app layer of endpoint with identifier epid has kitem 
+**** at path having value val 
+****            ep     path    val
+op hasAV : Conf String String  String -> Bool .
+ceq hasAV(conf,epid,path,val) = true
+if  [epid | devatts aconf(abnds rb(path,val),arules) ] conf1  
+      := conf .
+eq hasAV(conf,epid,path,val) = false [owise] .
+
+**** sv has val at path and there is not a pending
+**** response with for given amid (that set val)
+op isV : Conf String String String String String
+          -> Bool .
+eq isV(conf,cl, sv, aid, path, val) = 
+      hasV(conf,sv,path,val) 
+      and
+      not(rspPend(conf,cl,sv,aid)) .
+
+**** sv has val at path and there is  a pending
+**** response with for given amid (that set val)
+**** hence achieving val is in progress
+op becomeV : Conf String String String String String
+          -> Bool .
+eq becomeV(conf,cl, sv, aid, path, val) = 
+      hasV(conf,sv,path,val) 
+      and
+      rspPend(conf,cl,sv,aid) .
+
+**** the attacker kb does not have a message
+**** with token tok 
+**** Used to force alternative attacks 
+  op aKbNotTok : Conf String String -> Bool .
+  ceq aKbNotTok(conf,epid, tok) = false
+   if conf1 [epid | kb(dmsgs msg @ d) attrs ] := conf
+   /\ getTok(msg) == tok .
+
+  eq aKbNotTok(conf,epid,tok) = true [owise] .
+
+
+**** reqInTransit(conf,bsid,bcid,amid)
+**** src has resp pending from tgt token tok
+*** exists request in net with matching amid and
+*** token == tok
+op reqInTransit : Conf String String String -> Bool .
+ceq reqInTransit(conf,tgt,src,aid) = true
+  if conf0 net(dmsgs0,dmsgs1) := conf
+  /\ (msg @ d)  dmsgs := dmsgs0 dmsgs1
+  /\ getSrc(msg) == src
+  /\ getTgt(msg) == tgt
+  /\ tok := getTok(msg)
+  /\ tokMatch(tok,aid) 
+  /\  rspPendT(conf,src,tgt,tok)
+  .
+
+eq reqInTransit(conf,tgt,src,aid) = false [owise] .
+
+endfm

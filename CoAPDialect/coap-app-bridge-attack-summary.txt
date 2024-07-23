@@ -1,0 +1,33 @@
+bctl idle => bridge close and gate open
+1 round mcX(20)
+"BSPass" < "GateOp:10" < "GateCL.2*" 
+"BSPass" < "BridgeCl:8" < "BridgeOp.4*" 
+2 round mcX(40)
+"BSPass" < "GateOp:10" < "GateCL.2*" 
+"BSPass" < "BridgeCl:19" < "BridgeOp:4*"
+
+gate open/opening/closing => bridge close
+1 round mcX(20)
+"BSPass" <  "BridgeCl" < "BridgeOp*" < GateOp
+"BSPass" < "GateOp" < "BridgeOp*" 
+2 round mcX(20)
+"BSPass" <  "BridgeCl"  < "BridgeOp*" < "GateOp"
+          
+
+bridge open/opening/closing => gate close
+1 round mcX(20) 
+"BSPass" < "BridgeCl" < "BridgeOp*" < "GateOp"
+"BSPass" < "BridgeCl" < "GateOp" < "BridgeOp*"
+2 round mcX(20)
+"BSPass" < "BridgeCl" < "BridgeOp*" < "GateOp"
+"BSPass" < "BridgeCl" < "GateOp" < "BridgeOp*"
+(in 2nd round)
+
+
+boat passing => bridge open and gate closed
+1 round mcX(20,30,40) no solution
+2 round mcX(20)
+BridgeOp < BridgeCl* < BSPass
+BSPass < GateOp*
+
+

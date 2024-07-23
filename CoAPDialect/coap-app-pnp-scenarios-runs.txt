@@ -1,0 +1,167 @@
+*************************************************
+--- pctl idle => grip open, arm atI
+--- pnpIdInv(c:Conf,pid,gid,aid,goI)
+
+search [1] {initRL("pctl","gr","arm",startAMsg("pctl","PUTS")) log(nilLI) ["eve" | kb(mtDM) caps(mcX(20))]} =>+ {c:Conf} such that pnpIdleInv(c:Conf,"pctl","gr","arm","goL") .
+
+Solution 1 (state 1142)
+states: 1143
+
+log(rcvPT("pctl", "PUTS:1", "pnp", "start") ; rcvPT("arm", "ArmGoNI:2", "arm", "goR") ; rcvRsp("ps", "pctl", "PUTS:1") ; rcvRsp("pctl", "arm", "ArmGoNI:2") ; rcvPT("gr", "GripCl:4", "grip", "close") ; rcvRsp( "pctl", "gr", "GripCl:4") ; rcvPT("arm", "ArmGoI:6", "arm", "goL") ; rcvRsp( "pctl", "arm", "ArmGoI:6") ; rcvPT("gr", "GripOp:8", "grip", "open") ; rcvPT("arm", "ArmGoNI:2", "arm", "goR") ; rcvRsp("pctl", "gr", "GripOp:8") ; rcvPT("ps", "PnPDone:10", "pnp", "done") ; rcvRsp("pctl", "ps", "PnPDone:10"))
+
+net(m("pctl", "arm", c(h("NON", "2.04", "arm.2"), "ArmGoNI:2", mtO, mtBody)) @ 0, mtDM)
+
+arm: rsrcs(rb("arm", "goR"))
+grip:  rsrcs(rb("grip", "open")
+pctl: rb("status", "idle"),
+    
+alog(al(m( "arm", "pctl", c(h("NON", "0.PUT", "ArmGoNI.1"), "ArmGoNI:2", o("Uri-Path", "arm") o("Uri-Query", ""), b("goR"))) @ 2, mcX(20))
+
+mcX(10) works as well
+mcX(50) no solution
+
+Solution 96 (state 1361) states: 1362
+
+attack replays
+ rcvPT("gr", "GripCl:4", "grip", "close")
+after PNPdone
+
+search [1] {initRL("pctl","gr","arm", startAMsg("pctl","PUTS0") ; amsgd(50) ; startAMsg("pctl","PUTS1")) log(nilLI) ["eve" | kb(mtDM) caps(mcX(20) mcX(50))]} =>+ {c:Conf} such that pnpIdleInv(c:Conf,"pctl","gr","arm","goL") .
+
+Solution 1 (state 9662) states: 9663 
+
+ log(rcvPT("pctl", "PUTS0:1", "pnp", "start") ; rcvPT("arm", "ArmGoNI:2", "arm", "goR") ; rcvRsp("ps", "pctl", "PUTS0:1") ; rcvRsp( "pctl", "arm", "ArmGoNI:2") ; rcvPT("gr", "GripCl:4", "grip", "close") ; rcvRsp("pctl", "gr", "GripCl:4") ; rcvPT("arm", "ArmGoI:6", "arm", "goL") ; rcvRsp("pctl", "arm", "ArmGoI:6") ; rcvPT("gr", "GripOp:8", "grip", "open") ; rcvPT("arm", "ArmGoNI:2", "arm", "goR") ; rcvRsp("pctl", "gr", "GripOp:8") ; rcvPT("ps", "PnPDone:10", "pnp", "done") ; rcvRsp("pctl", "ps", "PnPDone:10"))
+
+alog(al(m("pctl", "ps", c(h("NON", "0.PUT", "PUTS0.0"), "PUTS0:1", o("Uri-Path", "pnp") o("Uri-Query", ""), b("start"))) @ 2, mcX(50)) ; 
+
+al(m("arm", "pctl", c(h("NON", "0.PUT", "ArmGoNI.1"), "ArmGoNI:2", o("Uri-Path", "arm") o("Uri-Query", ""), b("goR"))) @ 2, mcX( 20)))  
+
+fails on first round  
+....
+Solution 4536 (state 62465) states: 62466  
+log(rcvPT("pctl", "PUTS0:1", "pnp", "start") ; rcvPT("arm", "ArmGoNI:2", "arm", "goR") ; rcvRsp("ps", "pctl", "PUTS0:1") ; rcvRsp("pctl", "arm", "ArmGoNI:2") ; rcvPT("gr", "GripCl:4", "grip", "close") ; rcvRsp( "pctl", "gr", "GripCl:4") ; rcvPT("arm", "ArmGoI:6", "arm", "goL") ; rcvRsp( "pctl", "arm", "ArmGoI:6") ; rcvPT("gr", "GripOp:8", "grip", "open") ; rcvRsp( "pctl", "gr", "GripOp:8") ; rcvPT("ps", "PnPDone:10", "pnp", "done") ; rcvRsp( "pctl", "ps", "PnPDone:10") ; rcvPT("gr", "GripCl:4", "grip", "close") ; rcvPT("arm", "ArmGoNI:2", "arm", "goR"))
+
+net(mtDM, (m("pctl", "arm", c(h("NON", "2.04", "arm.2"), "ArmGoNI:2", mtO, mtBody)) @ 5) m("pctl", "ps", c(h("NON", "0.PUT", "PUTS1.3"), "PUTS1:4", o( "Uri-Path", "pnp") o("Uri-Query", ""), b("start"))) @ 0)
+
+arm: rsrcs(rb("arm", "goR"))
+
+eve: (al(m("arm", "pctl", c(h("NON", "0.PUT", "ArmGoNI.1"), "ArmGoNI:2", o("Uri-Path", "arm") o("Uri-Query", ""), b("goR"))) @ 0, mcX(50)) ; al(m("gr", "pctl", c(h("NON", "0.PUT", "GripCl.3"), "GripCl:4", o("Uri-Path", "grip") o("Uri-Query", ""), b("close"))) @ 0, mcX( 20)))
+
+grip: rsrcs(rb("grip", "close")
+
+pctl: rb("status", "idle"),
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Solution 96672 (state 2321512)
+states: 2321513 
+log(rcvPT("pctl", "PUTS0:1", "pnp", "start") ; rcvPT("arm", "ArmGoNI:2", "arm", "goR") ; rcvRsp("ps", "pctl", "PUTS0:1") ; rcvRsp("pctl", "arm", "ArmGoNI:2") ; rcvPT("gr", "GripCl:4", "grip", "close") ; rcvRsp( "pctl", "gr", "GripCl:4") ; rcvPT("arm", "ArmGoI:6", "arm", "goL") ; rcvRsp( "pctl", "arm", "ArmGoI:6") ; rcvPT("gr", "GripOp:8", "grip", "open") ; rcvRsp( "pctl", "gr", "GripOp:8") ; rcvPT("ps", "PnPDone:10", "pnp", "done") ; rcvRsp( "pctl", "ps", "PnPDone:10") ; rcvPT("pctl", "PUTS1:4", "pnp", "start") ; rcvPT("arm", "ArmGoNI:13", "arm", "goR") ; rcvRsp("ps", "pctl", "PUTS1:4") ; rcvRsp("pctl", "arm", "ArmGoNI:13") ; rcvPT("gr", "GripCl:15", "grip", "close") ; rcvRsp("pctl", "gr", "GripCl:15") ; rcvPT("arm", "ArmGoI:17", "arm", "goL") ; rcvRsp("pctl", "arm", "ArmGoI:17") ; rcvPT("gr", "GripOp:19", "grip", "open") ; rcvRsp("pctl", "gr", "GripOp:19") ; rcvPT("ps", "PnPDone:21", "pnp", "done") ; rcvRsp("pctl", "ps", "PnPDone:21") ; rcvPT( "pctl", "PnPDone:10", "pnp", "done") ; rcvPT("gr", "GripCl:15", "grip", "close"))
+
+net(mtDM, mtDM)
+
+"arm" rsrcs(rb("arm", "goL")
+"eve" alog(al(m("ps", "pctl", c(h( "NON", "0.PUT", "PnPDone.9"), "PnPDone:10", o("Uri-Path", "pnp") o( "Uri-Query", ""), b("done"))) @ 0, mcX(50)) ; al(m("gr", "pctl", c(h("NON", "0.PUT", "GripCl.14"), "GripCl:15", o("Uri-Path", "grip") o("Uri-Query", ""), b("close"))) @ 0, mcX(20)))
+
+"gr"  rsrcs(rb("grip", "close"))
+"pctl"  rb("status", "idle"),
+
+ 
+*************************************************
+--- arm goingI => grip close
+--- armGoingIInv(c:Conf,pid,gid,aid,goI) 
+
+search [1] {initRL("pctl","gr","arm",startAMsg("pctl","PUTS")) log(nilLI) ["eve" | kb(mtDM) caps(mcX(20) )]} =>+ {c:Conf} such that armGoingIInv(c:Conf,"pctl","gr","arm","goL") .
+
+no solution mcX(20) or mcX(40)
+
+search [1] {initRL("pctl","gr","arm",startAMsg("pctl","PUTS0") ; amsgd(50) ; startAMsg("pctl","PUTS1")) log(nilLI) ["eve" | kb(mtDM) caps(mcX(20) )]} =>+ {c:Conf} such that armGoingIInv(c:Conf,"pctl","gr","arm","goL") .
+
+Solution 1 (state 9351) states: 9352
+log(rcvPT("pctl", "PUTS0:1", "pnp", "start") ; rcvPT("arm", "ArmGoNI:2", "arm", "goR") ; rcvRsp("ps", "pctl", "PUTS0:1") ; rcvRsp( "pctl", "arm", "ArmGoNI:2") ; rcvPT("gr", "GripCl:4", "grip", "close") ; rcvRsp("pctl", "gr", "GripCl:4") ; rcvPT("arm", "ArmGoI:6", "arm", "goL") ; rcvRsp("pctl", "arm", "ArmGoI:6") ; rcvPT("gr", "GripOp:8", "grip", "open") ; rcvRsp("pctl", "gr", "GripOp:8") ; rcvPT("ps", "PnPDone:10", "pnp", "done") ; rcvRsp("pctl", "ps", "PnPDone:10") ; rcvPT("pctl", "PUTS1:4", "pnp", "start") ; rcvPT("arm", "ArmGoNI:13", "arm", "goR") ; rcvRsp("ps", "pctl", "PUTS1:4") ; rcvRsp("pctl", "arm", "ArmGoNI:13") ; rcvPT("gr", "GripCl:15", "grip", "close") ; 
+rcvPT("gr", "GripOp:8", "grip", "open") ; rcvRsp("pctl", "gr", "GripCl:15") ; 
+rcvPT("arm", "ArmGoI:17", "arm", "goL"))
+
+net(
+(m("pctl", "arm", c(h("NON", "2.04", "arm.3"), "ArmGoI:17", mtO, mtBody)) @ 5)
+m("pctl", "gr", c(h("NON", "2.04", "gr.3"), "GripOp:8", mtO, mtBody)) @ 3, 
+mtDM)
+
+gr:   rsrcs(rb("grip", "open"))
+arm:  rsrcs(rb("arm", "goL"))
+pctl: w4Rsp(m("arm", "pctl", c(h("NON", "0.PUT", "ArmGoI.16"), "ArmGoI:17", o("Uri-Path", "arm") o("Uri-Query", ""), b("goL"))))
+     
+alog(al( m("gr", "pctl", c(h("NON", "0.PUT", "GripOp.7"), "GripOp:8", o("Uri-Path", "grip") o("Uri-Query", ""), b("open"))) @ 2, mcX(20))
+
+Solution 104 (state 11232) states: 18011
+
+log(rcvPT("pctl", "PUTS0:1", "pnp", "start") ; rcvPT("arm", "ArmGoNI:2", "arm", "goR") ; rcvRsp("ps", "pctl", "PUTS0:1") ; rcvRsp( "pctl", "arm", "ArmGoNI:2") ; rcvPT("gr", "GripCl:4", "grip", "close") ; rcvRsp("pctl", "gr", "GripCl:4") ; rcvPT("arm", "ArmGoI:6", "arm", "goL") ; rcvRsp("pctl", "arm", "ArmGoI:6") ; rcvPT("gr", "GripOp:8", "grip", "open") ; rcvRsp("pctl", "gr", "GripOp:8") ; rcvPT("ps", "PnPDone:10", "pnp", "done") ; rcvRsp("pctl", "ps", "PnPDone:10") ; rcvPT("pctl", "PUTS1:4", "pnp", "start") ; rcvPT("arm", "ArmGoNI:13", "arm", "goR") ; rcvRsp("ps", "pctl", "PUTS1:4") ; rcvRsp("pctl", "arm", "ArmGoNI:13") ; rcvPT("gr", "GripCl:15", "grip", "close") ; rcvRsp("pctl", "gr", "GripCl:15") ; 
+rcvPT( "gr", "GripOp:8", "grip", "open") ; rcvPT("arm", "ArmGoI:17", "arm", "goL"))
+
+pctl: w4Rsp(m("arm", "pctl", c(h("NON", "0.PUT", "ArmGoI.16"), "ArmGoI:17", o("Uri-Path", "arm") o("Uri-Query", ""), b("goL"))))
+
+*************************************************
+--- arm goingNI => grip open
+--- armGoingNIInv(c:Conf,pid,gid,aid,goNI) 
+
+search [1] {initRL("pctl","gr","arm",startAMsg("pctl","PUTS")) log(nilLI) ["eve" | kb(mtDM) caps(mcX(20) )]} =>+ {c:Conf} such that armGoingNIInv(c:Conf,"pctl","gr","arm","goR") .
+
+No solution. states: 1462  mcX(0,20,40)
+
+search [1] {initRL("pctl","gr","arm",startAMsg("pctl","PUTS0") ; amsgd(50) ; startAMsg("pctl","PUTS1")) log(nilLI) ["eve" | kb(mtDM) caps(mcX(20) )]} =>+ {c:Conf} such that armGoingNIInv(c:Conf,"pctl","gr","arm","goR") .
+
+Solution 1 (state 2920) states: 2921  
+
+log(rcvPT("pctl", "PUTS0:1", "pnp", "start") ; rcvPT("arm", "ArmGoNI:2", "arm", "goR") ; rcvRsp("ps", "pctl", "PUTS0:1") ; rcvRsp("pctl", "arm", "ArmGoNI:2") ; rcvPT("gr", "GripCl:4", "grip", "close") ; rcvRsp( "pctl", "gr", "GripCl:4") ; rcvPT("arm", "ArmGoI:6", "arm", "goL") ; rcvRsp( "pctl", "arm", "ArmGoI:6") ; rcvPT("gr", "GripOp:8", "grip", "open") ; rcvRsp( "pctl", "gr", "GripOp:8") ; rcvPT("ps", "PnPDone:10", "pnp", "done") ; rcvRsp( "pctl", "ps", "PnPDone:10") ;
+rcvPT("gr", "GripCl:4", "grip", "close") ; rcvPT("pctl", "PUTS1:4", "pnp", "start") ; rcvPT("arm", "ArmGoNI:13", "arm", "goR"))
+
+net((m("pctl", "arm", c(h("NON", "2.04", "arm.2"), "ArmGoNI:13", mtO, mtBody)) @ 5) (m("pctl", "gr", c(h("NON", "2.04", "gr.2"), "GripCl:4", mtO, mtBody)) @ 1) m("ps", "pctl", c(h("NON", "2.04", "pctl.11"), "PUTS1:4", mtO, mtBody)) @ 1, mtDM)
+
+alog(al(m( "gr", "pctl", c(h("NON", "0.PUT", "GripCl.3"), "GripCl:4", o("Uri-Path", "grip") o("Uri-Query", ""), b("close"))) @ 2, mcX(20)))
+
+*************************************************
+--- grip closing => arm atNI
+--- gripClosingInv(c:Conf,pid,gid,aid,goNI) 
+
+search [1] {initRL("pctl","gr","arm",startAMsg("pctl","PUTS")) log(nilLI) ["eve" | kb(mtDM) caps(mcX(20) )]} =>+ {c:Conf} such that gripClosingInv(c:Conf,"pctl","gr","arm","goR") .
+
+No solution. states: 1462
+
+search [1] {initRL("pctl","gr","arm",startAMsg("pctl","PUTS0") ; amsgd(50) ; startAMsg("pctl","PUTS1")) log(nilLI) ["eve" | kb(mtDM) caps(mcX(20) )]} =>+ {c:Conf} such that gripClosingInv(c:Conf,"pctl","gr","arm","goR") .
+
+Solution 1 (state 7001) states: 7002 
+
+log(rcvPT("pctl", "PUTS0:1", "pnp", "start") ; rcvPT("arm", "ArmGoNI:2", "arm", "goR") ; rcvRsp("ps", "pctl", "PUTS0:1") ; rcvRsp("pctl", "arm", "ArmGoNI:2") ; rcvPT("gr", "GripCl:4", "grip", "close") ; rcvRsp( "pctl", "gr", "GripCl:4") ; rcvPT("arm", "ArmGoI:6", "arm", "goL") ; rcvRsp( "pctl", "arm", "ArmGoI:6") ; rcvPT("gr", "GripOp:8", "grip", "open") ; rcvRsp( "pctl", "gr", "GripOp:8") ; rcvPT("ps", "PnPDone:10", "pnp", "done") ; rcvRsp( "pctl", "ps", "PnPDone:10") ; rcvPT("pctl", "PUTS1:4", "pnp", "start") ; rcvPT("arm", "ArmGoNI:13", "arm", "goR") ; rcvRsp("ps", "pctl", "PUTS1:4") ; rcvRsp("pctl", "arm", "ArmGoNI:13") ; rcvPT("arm", "ArmGoI:6", "arm", "goL") ; rcvPT("gr", "GripCl:15", "grip", "close"))
+
+net((m("pctl", "arm", c(h("NON", "2.04", "arm.3"), "ArmGoI:6", mtO, mtBody)) @ 3) m("pctl", "gr", c(h("NON", "2.04", "gr.2"), "GripCl:15", mtO, mtBody)) @ 5, mtDM)
+
+alog(al(m( "arm", "pctl", c(h("NON", "0.PUT", "ArmGoI.5"), "ArmGoI:6", o("Uri-Path", "arm") o("Uri-Query", ""), b("goL"))) @ 2, mcX(20)))
+    
+gr closing and arm is going L
+
+...........
+
+states: 18011
+
+Solution 116 (state 8734) states: 8735  
+
+log(rcvPT("pctl", "PUTS0:1", "pnp", "start") ; rcvPT("arm", "ArmGoNI:2", "arm", "goR") ; rcvRsp("ps", "pctl", "PUTS0:1") ; rcvRsp("pctl", "arm", "ArmGoNI:2") ; rcvPT("gr", "GripCl:4", "grip", "close") ; rcvRsp( "pctl", "gr", "GripCl:4") ; rcvPT("arm", "ArmGoI:6", "arm", "goL") ; rcvRsp( "pctl", "arm", "ArmGoI:6") ; rcvPT("gr", "GripOp:8", "grip", "open") ; rcvRsp( "pctl", "gr", "GripOp:8") ; rcvPT("ps", "PnPDone:10", "pnp", "done") ; rcvRsp( "pctl", "ps", "PnPDone:10") ; rcvPT("pctl", "PUTS1:4", "pnp", "start") ; rcvPT("arm", "ArmGoNI:13", "arm", "goR") ; rcvRsp("ps", "pctl", "PUTS1:4") ; rcvPT("arm", "ArmGoI:6", "arm", "goL") ; rcvRsp("pctl", "arm", "ArmGoNI:13") ; rcvPT("gr", "GripCl:15", "grip", "close"))
+
+net(mtDM, m("pctl", "gr", c(h("NON", "2.04", "gr.2"), "GripCl:15", mtO, mtBody)) @ 0)   
+
+al(m("arm", "pctl", c(h("NON", "0.PUT", "ArmGoI.5"), "ArmGoI:6", o("Uri-Path", "arm") o("Uri-Query", ""), b("goL"))) @ 0, mcX(20)) 
+
+same as soln 1
+
+*************************************************
+--- grip opening => arm atI
+--- gripOpeningInv(c:Conf,pid,gid,aid,goI) 
+
+search [1] {initRL("pctl","gr","arm",startAMsg("pctl","PUTS")) log(nilLI) ["eve" | kb(mtDM) caps(mcX(20) )]} =>+ {c:Conf} such that gripOpeningInv(c:Conf,"pctl","gr","arm","goL") .
+
+No solution. states: 1462
+
+search [1] {initRL("pctl","gr","arm",startAMsg("pctl","PUTS0") ; amsgd(50) ; startAMsg("pctl","PUTS1")) log(nilLI) ["eve" | kb(mtDM) caps(mcX(20))]} =>+ {c:Conf} such that gripOpeningInv(c:Conf,"pctl","gr","arm","goL") .
+
+No solution. states: 18011  mcX(20)
+No solution. states: 24375  mcX(0)
+
+mcX(20) mcX(20)  --- not terminate???

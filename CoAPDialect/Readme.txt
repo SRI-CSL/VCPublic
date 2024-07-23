@@ -1,42 +1,53 @@
-These files implement the CoAP messaging specification
-(RFC7252), active and reactive attack models, and a
-generic dialect transformation that mitigates reactive
-attacks.  (The specification and case studies are 
-explained in the technical report available at
+These files implement the CoAP messaging
+specification (RFC7252), active and reactive
+attack models, and a generic dialect
+transformation that mitigates reactive attacks.
+(The specification and case studies are explained
+in the technical report available at
 https://arxiv.org/abs/2405.13295.)
 
-This Readme has two parts.  The first part lists the
-files and provides instructions for repeating/varying
-the tests and and case studies.  The second part has
+This Readme has three parts. The first part
+lists the files and provides instructions for
+repeating/varying the tests and case studies for
+the CoAP messaging specification. The second
+part lists the files and provides instructions
+for repeating/varying the tests and case studies
+for an extension defining a basic application
+layer using CoAP messaging. The third part has
 some implementation notes on representation of
 endpoint state and rules for receiving messages
 (distilled from RFC7252).
 
-**********************************************************
-Files
------------
-The CoAP messaging specification
+*************************************************
+*************************************************
+1. The CoAP messaging specification
 -----------
   coap-msg.maude  --- message data types
-  coap-conf.maude --- configuration data types, functions
+  coap-conf.maude 
+    --- configuration data types, functions
   coap-time.maude  --- time model and defn of mte
-  coap-rule-aux.maude --- functions for sending/receiving
-                     --- messages, used in send/rcv rules
-  coap-rules.maude  --- rules to send/receive messages
-                        and pass time
+  coap-rule-aux.maude 
+    --- functions for sending/receiving messages
+    --- used in send/rcv rules
+  coap-rules.maude  
+    --- rules to send/receive messages
+    --- and pass time
 
 -----------
 Specification of attacker capabilities and semantics
 -----------
-  coap-attacker.maude  -- active and reactive capabilities
-    --- specific attacks: drop, delay, redirect message 
+  coap-attacker.maude  
+    --- active and reactive capabilities
+    --- specific attacks: drop, delay, redirect
     --- generic multi-action capability
  
 -----------
-Specification of CoAP dialect functions and transform
+Specification of CoAP dialect functions and 
+transform
 -----------
- coap-dialect.maude  --- rules for dialect wrapper
-                     --- withh one family of lingos 
+  coap-dialect.maude 
+    --- rules for dialect wrapper
+    --- with one family of lingos 
  
 -----------
 Test scenario definitions
@@ -44,9 +55,10 @@ Test scenario definitions
   coap-test.maude  
     --- 2 or 3 coap endpoint scenarios 
     --- application message constructors, 
-    --- definitions of properties characterizing attacks
+    --- definitions of properties characterizing
+        CoAP level attacks
 
-coap-dialect-test.maude 
+  coap-dialect-test.maude 
    --- defines functions D,UD mapping CoAP scenarios to 
        dialected form and vice-versa
    --- These functions can be used to lift CoAP scenarios
@@ -87,7 +99,7 @@ dload.maude --- adds dialect modules and transforms
 rsload.maude --- loads CoAP and reactive attack case study
 drsload.maude --- loads dialected version of above
 
-*******************************************************
+************************************************
 To repeat the tests in coap-test-runs.txt, in a
 terminal window type the following
 
@@ -102,8 +114,7 @@ maude dload
 
 Then copy/paste test commands into the Maude prompt.
 
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+************************************************
 To repeat the active attacker scenarios
 in a terminal window type the following
 
@@ -126,7 +137,7 @@ followed by
 
 load coap-attacks-dialected-scenarios.maude
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+************************************************
 To repeat/vary the reactive attacker scenarios,
 in a terminal window type 
 
@@ -144,10 +155,66 @@ maude drsload
 
 Then proceed as above.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Some implementation notes 
+************************************************
+************************************************
+2. Adding an application layer.  The following
+files add a simple language to specify applications running on top of the CoAP messaging
+layer, define two applications, initial configurations of scenarios and their properties,
+and commands to check properties and search
+for attacks.  (See final appendix of 
+ https://arxiv.org/abs/2405.13295).
+
+--- the application language
+ coap-app.maude --- constructs and semantics
+ coap-app-base-scenario.maude
+   --- useful functions for defining 
+       application properties
+ coap-app-test.maude 
+   --- tests of the application language elements
+
+--- the movable bridge application
+ coap-app-bridge-scenarios.maude
+ coap-app-bridge-test-runs.txt
+    --- sample test runs testing the app defn
+ coap-app-bridge-scenarios-runs.txt
+    ---commands and results for systematic
+    --- checking of properties and attacks
+    --- with and without dialect protection.
+ coap-app-bridge-attack-summary.txt
+    --- summary of attack resuts
+
+--- the pick-n-place application
+ coap-app-pnp-scenarios.maude
+ 
+ coap-app-pnp-test-runs.txt
+    --- sample test runs testing the app defn
+ coap-app-pnp-scenarios-runs.txt
+    ---commands and results for systematic
+    --- checking of properties and attacks
+    --- with and without dialect protection.
+
+ aload.maude --- loads the basic app files
+ aload-bridge.maude --- loads the bridge app 
+ aload-pnp.maude --- loads the pnp app 
+
+*****************************
+To run the tests and analyses recorded in
+the .txt files start Maude and type
+
+  aload aload-bridge .  --- for the bridge app
+or
+  aload aload-pnp .  --- for the pnp app
+
+Then copy/paste sample commands to Maude prompt,
+or make up your own initial configurations and
+commands.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+3. Some implementation notes 
 See technical report for more details.
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 ******** attributes holding device state
 --------------------------------------------------------   

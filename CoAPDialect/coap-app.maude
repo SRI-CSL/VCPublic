@@ -1,0 +1,344 @@
+fmod COAP-APP is
+   inc COAP-CONF .
+
+  vars str str0 amid var val to id type : String .
+  vars src meth path ty ct  : String .
+  vars methP pathP valP idP toP tyP  typeP : Pat .
+  vars methP1 pathP1 valP1 idP1 toP1 tyP1 : Pat .
+  vars pat0 pat1 srcP tgtP varP pat : Pat .
+  vars abnds abnds1 rbnds rbnds1 : RMap .
+  vars bnds bnds0 bnds1 bnds2 bnds3 : RMap .
+  vars cacts cacts0  cacts1 : CActs .
+  vars cact cact0 : CAct .
+  vars acts acts0 acts1 : Acts .
+  vars act act0 : Act .
+  vars cond cond1 cond0 : Cond .
+  vars conds conds0 : Conds .
+  var mpat : MPat .
+  var msg : Msg .
+  var amsg : AMsg .
+  var amsgl : AMsgL .
+  var attrs attrs0 datts : Attrs .
+  var arule : ARule .
+  var arules : ARules .
+  var body : Body .
+  vars b b0 b1 b2 b3 sf : Bool .
+
+ **** application behavior is specified by rules
+  sorts ARule ARules .
+  subsort ARule < ARules .
+  op none : -> ARules [ctor] .
+  op __ : ARules ARules -> ARules
+         [ctor assoc comm id: none] .
+
+****  a rule consists of a pattern that selects
+****  determines which incoming messages the rule
+**** responds to, and a set of condition actions
+**** to execute when selected
+
+  sorts Var  Pat .
+  subsort Var < Pat .
+  subsort String < Pat .
+
+  op v : String -> Var [ctor] .
+  sort MPat .
+
+**** rsp(tgtP,amid,sf,valP)    - matches responses
+**** req(srcP,methP,pathP,valP) - matches requests
+  op rsp : Pat String Bool Pat -> MPat [ctor] .
+  op req : Pat Pat Pat Pat -> MPat [ctor] .
+
+**** conditional actions
+  sorts CAct CActs Cond Conds Act Acts .
+  subsort CAct < CActs .
+  subsort Act < Acts .
+  subsort Cond < Conds .
+  
+  sort SendAct UpDateAct .
+  subsort SendAct UpDateAct < Act .
+
+  op none : -> Acts [ctor] .
+  op __ : Acts Acts -> Acts
+         [ctor assoc comm id: none] .
+
+  op none : -> CActs [ctor] .
+  op __ : CActs CActs -> CActs
+         [ctor assoc comm id: none] .
+
+  op none : -> Conds [ctor] .
+  op __ : Conds Conds -> Conds
+         [ctor assoc comm id: none] .
+
+
+  op ca : Cond Acts -> CAct [ctor] .
+  op ar : MPat CActs -> ARule [ctor] .
+
+****  conditions
+   op eq : Pat Pat -> Cond [ctor] .
+   op neq : Pat Pat -> Cond [ctor] .
+   op disj : Conds -> Cond [ctor] .
+   op conj : Conds -> Cond [ctor] .
+
+**** F = disj(none)  T = conj(none) 
+   
+**** actions
+   op set : Pat Pat -> UpDateAct [ctor] .
+      --- updates the local knowledge base
+   op put : Pat Pat -> UpDateAct [ctor] .
+      --- updates the coap resource map
+*****       amid tgt type meth path val   
+   op send : Pat Pat Pat Pat Pat Pat ->
+             SendAct [ctor] .
+ 
+**** The application state is an attribute
+**** of a coap endpoint consisting of a local
+**** knowledge base (variabe binding) and
+**** a set of rules
+   op aconf : RMap ARules -> Attr [ctor] .
+ 
+ **** app semantics
+  sort BoolBnds .
+  op `{_`,_`} : Bool RMap -> BoolBnds [ctor] .
+ 
+ **** expressions with variables are instantiated
+ **** using the application local knowledge base
+ **** and the coap resource map
+  op inst : Pat RMap RMap -> Pat .
+  eq inst(str,abnds,rbnds) = str .
+  eq inst(v(str),rb(str,val) abnds,rbnds) = val .
+  eq inst(v(str),abnds,rb(str,val) rbnds) 
+          = val [owise] .
+  eq inst(v(str),abnds, rbnds) = v(str) [owise] .
+
+  op inst : CActs RMap RMap -> CActs .
+  op instX : CActs RMap RMap CActs -> CActs .
+  op inst1 : CAct RMap RMap -> CAct .
+  eq inst(cacts,abnds,rbnds) = 
+      instX(cacts,abnds,rbnds,none) .
+  eq instX(none,abnds,rbnds,cacts) = cacts .
+  eq instX(cact cacts,abnds,rbnds,cacts0) =
+     instX(cacts,abnds,rbnds,
+           cacts0 inst1(cact,abnds,rbnds)) .
+
+  ceq inst1(ca(cond,acts),abnds,rbnds) =
+       ca(cond1,acts1)
+  if cond1 := inst(cond,abnds,rbnds)
+  /\ acts1 := inst(acts,abnds,rbnds) .
+
+
+  op inst : Cond  RMap RMap -> Cond .
+  op instS : Conds  RMap RMap Conds -> Cond .
+
+  eq inst(disj(conds), abnds,rbnds) =
+      disj(instS(conds,abnds,rbnds,none)) .
+  eq inst(conj(conds), abnds,rbnds) =
+      conj(instS(conds,abnds,rbnds,none)) .
+  
+  eq instS(none,abnds,rbnds,conds) = conds .
+  ceq instS(cond conds0,abnds,rbnds,conds)
+      = instS(conds0,abnds,rbnds, conds cond0) 
+   if cond0 := inst(cond,abnds,rbnds)    .
+  
+  eq inst(eq(pat0,pat1),abnds,rbnds) =
+     eq(inst(pat0,abnds,rbnds),
+        inst(pat1,abnds,rbnds)) .
+  eq inst(neq(pat0,pat1),abnds,rbnds) =
+     neq(inst(pat0,abnds,rbnds),
+        inst(pat1,abnds,rbnds)) .
+
+  op inst : Acts  RMap RMap -> Acts .
+  op instS : Acts  RMap RMap Acts -> Acts .
+  op instA : Act  RMap RMap -> Act .
+  eq inst(acts,abnds,rbnds) =
+         instS(acts,abnds,rbnds,none) .
+  eq instS(act acts,abnds,rbnds,acts0) 
+      = instS(acts,abnds,rbnds,
+              acts0 instA(act,abnds,rbnds)) .
+  eq instS(none,abnds,rbnds,acts0) = acts0 .
+  eq instA(set(pat0,pat1),abnds,rbnds) 
+     = set(inst(pat0,abnds,rbnds),
+           inst(pat1,abnds,rbnds)) .
+   eq instA(put(pat0,pat1),abnds,rbnds) 
+     = put(inst(pat0,abnds,rbnds),
+           inst(pat1,abnds,rbnds)) .
+  ceq instA(send(idP,toP,tyP,methP,pathP,valP),
+          abnds,rbnds) 
+     = send(idP1,toP1,tyP1,methP1,pathP1,valP1)
+  if idP1   := inst(idP,abnds,rbnds)     
+  /\ toP1   := inst(toP,abnds,rbnds)     
+  /\ tyP1   := inst(tyP,abnds,rbnds)     
+  /\ methP1 := inst(methP,abnds,rbnds)     
+  /\ pathP1 := inst(pathP,abnds,rbnds)     
+  /\ valP1  := inst(valP,abnds,rbnds)     
+.
+
+**** collect the conditional actions from
+**** rules matching a message
+  op amatch : Msg ARules CActs -> CActs .
+  eq amatch(msg,none,cacts) = cacts .
+  ceq amatch(msg,ar(mpat,cacts0) arules,cacts) =
+        amatch(msg,arules,cacts1 cacts)
+     if ct := ctype(getCode(msg))
+     /\ {b,bnds} := 
+         (if ct == "Request"
+         then amatchReq(msg,mpat)
+         else (if ct == "Response"
+               then amatchRsp(msg,mpat)
+               else {false,mtR}
+               fi) fi)
+     /\ cacts1 := (if b
+                   then inst(cacts0,bnds,mtR)
+                   else none
+                   fi)  .
+
+**** matching requests
+  op amatchReq : Msg MPat -> BoolBnds .
+  ceq amatchReq(msg,req(srcP,methP,pathP,valP)) 
+     = (if (b0 and b1 and b2 and b3)
+        then {true, bnds0 bnds1 bnds2 bnds3}
+        else {false, mtR}
+     fi)
+   if src := getSrc(msg)
+   /\ meth := getMethod(msg)
+   /\ path := getPath(msg)
+   /\ body := getBody(msg)
+   /\ {b0,bnds0} := pmbnd(src,srcP)
+   /\ {b1,bnds1} := pmbnd(meth,methP)
+   /\ {b2,bnds2} := pmbnd(path,pathP)
+   /\ {b3,bnds3} := pmbnd(getBodyVal(body,""),valP)
+   .
+   
+ op pmbnd : String Pat -> BoolBnds .   
+ eq pmbnd(str,str) = {true,mtR} .
+ eq pmbnd(str,v(str0)) = {true,rb(str0,str)} .
+ eq pmbnd(str,pat) = {false,mtR} [owise] .
+   
+  eq amatchReq(msg,mpat) = {false, mtR} [owise] .
+
+**** matching responses  
+**** rsp(tgtP,amid,sf,valP) 
+  op amatchRsp : Msg MPat -> BoolBnds .
+  ceq amatchRsp(msg,rsp(toP,amid,sf,valP)) 
+       = (if (b0 and b1 and b2 and b3)
+          then {true, bnds0 bnds3}
+          else {false, mtR}
+       fi)
+     if to := getSrc(msg)
+     /\ body := getBody(msg)
+     /\ {b0,bnds0} := pmbnd(to,toP)
+     /\ b1 :=         
+        substr(getTok(msg),0,length(amid)) == amid
+     /\ b2 := 
+         (sf == (substr(getCode(msg),0,1) == "2"))
+     /\ {b3,bnds3} :=
+         pmbnd(getBodyVal(body,""),valP)
+     .
+
+  eq amatchRsp(msg,mpat) = {false, mtR} [owise] .
+  
+**** toApp(true) only if msg is a fresh req
+**** or anexpected rsp
+  op doApp : Msg Attrs -> Attrs .
+  ceq doApp(msg,aconf(rbnds,arules) toApp(true) datts)
+     = (if (cacts == none)
+        then (aconf(rbnds,arules) datts)
+        else doCActs(cacts,
+                     aconf(rbnds,arules) datts)
+        fi)     
+  if cacts := amatch(msg,arules,none) .
+ 
+  eq doApp(msg, datts) = datts [owise] .
+ 
+**** semantics of conditiona actions
+**** updates attributes including the
+**** application state (aconf)  and the
+**** application messages to be sent (sendReqs)
+  op doCActs : CActs Attrs -> Attrs .
+  op doCAct : CActs Attrs -> Attrs .
+  op doActs : Acts Attrs -> Attrs .
+  op doAct : Act Attrs -> Attrs .
+  
+  eq doCActs(cact cacts,attrs) =
+     doCActs(cacts, doCAct(cact,attrs)) .
+  eq doCActs(none,attrs) = attrs .
+
+  ceq doCAct(ca(cond,acts), attrs)
+     = if evalCond(cond,abnds,rbnds)
+       then doActs(acts,attrs)
+       else attrs
+       fi 
+    if aconf(abnds,arules) rsrcs(rbnds) attrs0
+      := attrs .
+
+  eq doActs(none,attrs) = attrs .
+  eq doActs(act acts,attrs) = 
+        doActs(acts,doAct(act,attrs)) .
+      
+  ceq doAct(sact:SendAct,sendReqs(amsgl) attrs)  
+        = (sendReqs(amsgl ; amsg) attrs) 
+    if attrs0 aconf(abnds,arules) rsrcs(rbnds)
+       := attrs
+    /\ amsg := mkAmsg(sact:SendAct, abnds,rbnds) .       
+  ceq doAct(set(varP,valP),aconf(abnds,arules) 
+            rsrcs(rbnds) attrs)  
+     =  aconf(abnds1,arules) rsrcs(rbnds) attrs
+    if var := inst(varP,abnds,rbnds)
+    /\ val := inst(valP,abnds,rbnds)
+    /\ abnds1 := update(abnds,var,val) .
+    
+  ceq doAct(put(varP,valP),aconf(abnds,arules) 
+            rsrcs(rbnds) attrs)  
+     =  aconf(abnds,arules) rsrcs(rbnds1) attrs
+    if var := inst(varP,abnds,rbnds)
+    /\ val := inst(valP,abnds,rbnds)
+    /\ rbnds1 := update(rbnds,var,val) .
+ 
+ **** evaluating conditions 
+  op evalCond : Cond RMap RMap -> Bool .
+  op evalCondsD : Conds RMap RMap -> Bool .
+  op evalCondsC : Conds RMap RMap -> Bool .
+  eq evalCond(eq(pat0,pat1),abnds,rbnds) =
+      inst(pat0,abnds,rbnds) ==
+       inst(pat1,abnds,rbnds) .
+  eq evalCond(neq(pat0,pat1),abnds,rbnds) =
+      inst(pat0,abnds,rbnds) =/=
+       inst(pat1,abnds,rbnds) .
+  eq evalCond(disj(conds),abnds,rbnds) =
+      evalCondsD(conds,abnds,rbnds) .
+  eq evalCond(conj(conds),abnds,rbnds) =
+      evalCondsC(conds,abnds,rbnds) .
+
+  eq evalCondsD(none,abnds,rbnds) = false .
+  eq evalCondsD(cond conds,abnds,rbnds)
+     = if evalCond(cond,abnds,rbnds)
+       then true
+       else evalCondsD(conds,abnds,rbnds)
+       fi .
+  eq evalCondsC(none,abnds,rbnds) = true .
+  eq evalCondsC(cond conds,abnds,rbnds)
+     = if evalCond(cond,abnds,rbnds)
+       then evalCondsC(conds,abnds,rbnds)
+       else false
+       fi .
+
+**** generate an application message from
+**** a send action
+  op mkAmsg : SendAct RMap RMap -> AMsg .
+  ceq mkAmsg(send(idP,toP,typeP,methP,
+                   pathP,valP), abnds,rbnds)
+ **** appid tgt  type   meth  path  qparams body
+      = amsg(id,to,type,meth,path,"",b(val))
+   if to := inst(toP,abnds,rbnds)                
+   /\ id := inst(idP,abnds,rbnds)                
+   /\ type := inst(typeP,abnds,rbnds)
+   /\ meth := inst(methP,abnds,rbnds)      
+   /\ path := inst(pathP,abnds,rbnds)       
+   /\ val := inst(valP,abnds,rbnds)              
+  .
+
+endfm  
+eof
+
+   
+   
+   

@@ -261,7 +261,7 @@ var epid : String .
 vars dmsgs0 dmsgs1 dmsgs2 dmsgs ddmsgs0 ddmsgs1 : DMsgS .
 var ddmsg  : DMsg .
 vars msg msgd : Msg .
-vars dattrs dattrs1 devatts devatts1 devatts2 : Attrs .
+vars dattrs dattrs1 devatts devatts0 devatts1 devatts2 : Attrs .
 vars conf conf1 : Conf .
 var n : Nat .
 
@@ -281,22 +281,24 @@ if dmsgs (msg @ n) := dmsgs0 dmsgs1
 crl[ddevrcv]:
 {[epid | conf([epid | devatts ] net(dmsgs0,dmsgs1))
          dattrs ] 
-  net(ddmsgs0,ddmsgs1 msgd @ 0) conf}
+  net(ddmsgs0,ddmsgs1 ddmsg) conf}
 =>
 {[epid | conf([epid | devatts2 ]
               net(dmsgs0 dmsgs2,dmsgs1)) 
         dattrs1 ]
   net(ddmsgs0,ddmsgs1)  conf1}
-if getTgt(msgd) == epid
+if DMsg2Delay(ddmsg) == 0
+/\ msgd := DMsg2Msg(ddmsg)
+/\ getTgt(msgd) == epid
 /\ toRcv(dmsgs) dattrs1 := decodeDialect(dattrs,msgd)
-
 /\ toSend(dmsgs2) devatts1 := 
     (if dmsgs :: DMsg
      then rcvMsg(epid, devatts, DMsg2Msg(dmsgs))
      else toSend(mtDM) devatts
      fi)
+/\ devatts0 := doApp(DMsg2Msg(dmsgs),devatts1)
 /\ conf1 := doLog(conf,devatts1)
-/\ devatts2 := clearToLog(devatts1) 
+/\ devatts2 := clearToLog(devatts0) 
 
 [print "\n[ddevrcv] "  "\nmsgd " msgd "\ndmsgs " dmsgs] 
  .

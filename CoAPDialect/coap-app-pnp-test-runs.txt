@@ -1,0 +1,128 @@
+Maude> rew {initRL(startAMsg("ctlRL")) log(nilLI)} .
+
+[tick] nz 1
+
+[devsend] by"ps"
+ msg m("ctlRL", "ps", c(h("NON", "0.PUT", "putN.0"), "putN:1", o("Uri-Path", "pnp") o(
+    "Uri-Query", ""), b("start"))) @ 2
+
+[tick] nz 2
+
+[net]
+
+toLog: path = "pnp" val = "start"
+
+[rcv] by"ctlRL"
+ msg m("ctlRL", "ps", c(h("NON", "0.PUT", "putN.0"), "putN:1", o("Uri-Path", "pnp") o(
+    "Uri-Query", ""), b("start")))
+
+[devsend] by"ctlRL"
+ msg m("armRL", "ctlRL", c(h("NON", "0.PUT", "ArmGoNI.1"), "ArmGoNI:2", o("Uri-Path",
+    "arm") o("Uri-Query", ""), b("goR"))) @ 2
+
+[tick] nz 2
+
+[net]
+
+toLog: path = "arm" val = "goR"
+
+[rcv] by"armRL"
+ msg m("armRL", "ctlRL", c(h("NON", "0.PUT", "ArmGoNI.1"), "ArmGoNI:2", o("Uri-Path",
+    "arm") o("Uri-Query", ""), b("goR")))
+
+[tick] nz 1
+
+[net]
+
+[net]
+
+[rcv] by"ps"
+ msg m("ps", "ctlRL", c(h("NON", "2.04", "ctlRL.0"), "putN:1", mtO, mtBody))
+
+[tick] nz 4
+
+[rcv] by"ctlRL"
+ msg m("ctlRL", "armRL", c(h("NON", "2.04", "armRL.0"), "ArmGoNI:2", mtO, mtBody))
+
+[devsend] by"ctlRL"
+ msg m("grRL", "ctlRL", c(h("NON", "0.PUT", "GripCl.3"), "GripCl:4", o("Uri-Path",
+    "grip") o("Uri-Query", ""), b("close"))) @ 2
+
+[tick] nz 2
+
+[net]
+
+toLog: path = "grip" val = "close"
+
+[rcv] by"grRL"
+ msg m("grRL", "ctlRL", c(h("NON", "0.PUT", "GripCl.3"), "GripCl:4", o("Uri-Path",
+    "grip") o("Uri-Query", ""), b("close")))
+
+[tick] nz 5
+
+[net]
+
+[rcv] by"ctlRL"
+ msg m("ctlRL", "grRL", c(h("NON", "2.04", "grRL.0"), "GripCl:4", mtO, mtBody))
+
+[devsend] by"ctlRL"
+ msg m("armRL", "ctlRL", c(h("NON", "0.PUT", "ArmGoI.5"), "ArmGoI:6", o("Uri-Path",
+    "arm") o("Uri-Query", ""), b("goL"))) @ 2
+
+[tick] nz 2
+
+[net]
+
+toLog: path = "arm" val = "goL"
+
+[rcv] by"armRL"
+ msg m("armRL", "ctlRL", c(h("NON", "0.PUT", "ArmGoI.5"), "ArmGoI:6", o("Uri-Path",
+    "arm") o("Uri-Query", ""), b("goL")))
+
+[tick] nz 5
+
+[net]
+
+[rcv] by"ctlRL"
+ msg m("ctlRL", "armRL", c(h("NON", "2.04", "armRL.1"), "ArmGoI:6", mtO, mtBody))
+
+[devsend] by"ctlRL"
+ msg m("grRL", "ctlRL", c(h("NON", "0.PUT", "GripOp.7"), "GripOp:8", o("Uri-Path",
+    "grip") o("Uri-Query", ""), b("open"))) @ 2
+
+[tick] nz 2
+
+[net]
+
+toLog: path = "grip" val = "open"
+
+[rcv] by"grRL"
+ msg m("grRL", "ctlRL", c(h("NON", "0.PUT", "GripOp.7"), "GripOp:8", o("Uri-Path",
+    "grip") o("Uri-Query", ""), b("open")))
+
+[tick] nz 5
+
+[net]
+
+[rcv] by"ctlRL"
+ msg m("ctlRL", "grRL", c(h("NON", "2.04", "grRL.1"), "GripOp:8", mtO, mtBody))
+
+rewrites: 4104 in 3ms cpu (3ms real) (1198948 rewrites/second)
+result Sys: {
+log(rcvPT("ctlRL", "putN:1", "pnp", "start") ; rcvPT("armRL", "ArmGoNI:2", "arm", "goR") ; rcvRsp("ps", "ctlRL", "putN:1") ; rcvRsp("ctlRL", "armRL", "ArmGoNI:2") ; rcvPT("grRL", "GripCl:4", "grip", "close") ; rcvRsp("ctlRL", "grRL", "GripCl:4") ; rcvPT("armRL", "ArmGoI:6", "arm", "goL") ; rcvRsp("ctlRL", "armRL", "ArmGoI:6") ; rcvPT("grRL", "GripOp:8", "grip", "open") ; rcvRsp("ctlRL", "grRL", "GripOp:8"))
+net(mtDM, mtDM)
+["armRL" | w4Ack(mtDM) w4Rsp(mtM) rspRcd(mtM) sendReqs(nilAM) sndCtr(0) rspSntD((m( "ctlRL", "armRL", c(h("NON", "2.04", "armRL.0"), "ArmGoNI:2", mtO, mtBody)) @ 0) m( "ctlRL", "armRL", c(h("NON", "2.04", "armRL.1"), "ArmGoI:6", mtO, mtBody)) @ 0) rsrcs(rb("arm", "goL")) ctr(2) config(cb("ACK_RANDOM_FACTOR", 2) cb("ACK_TIMEOUT", 5) cb("MAX_RETRANSMIT", 1) cb("msgQD", 5) cb("msgSD", 4) cb("ttl", 10) cb("w4AckBd", 1)) aconf(mtR, none)]
+
+["ctlRL" | w4Ack(mtDM) w4Rsp(mtM) rspRcd(m("ctlRL", "armRL", c(h("NON", "2.04", "armRL.0"), "ArmGoNI:2", mtO, mtBody)) m("ctlRL", "armRL", c(h("NON", "2.04", "armRL.1"), "ArmGoI:6", mtO, mtBody)) m("ctlRL", "grRL", c(h("NON", "2.04", "grRL.0"), "GripCl:4", mtO, mtBody)) m("ctlRL", "grRL", c(h("NON", "2.04", "grRL.1"), "GripOp:8", mtO, mtBody))) sendReqs(nilAM) sndCtr(0) rspSntD(m("ps", "ctlRL", c(h( "NON", "2.04", "ctlRL.0"), "putN:1", mtO, mtBody)) @ 0) rsrcs(rb("pnp", "start")) ctr(9) config(cb("ACK_RANDOM_FACTOR", 2) cb("ACK_TIMEOUT", 5) cb("MAX_RETRANSMIT", 1) cb("msgQD", 5) cb("msgSD", 2) cb("ttl", 10) cb("w4AckBd", 1)) aconf(rb("goI", "goL") rb("goNI", "goR") rb("myarm", "armRL") rb("mygrip", "grRL") rb("source", "ps") rb( "status", "working"), ar(rsp(v("arm"), "ArmGoI", true, ""), ca(eq(v("arm"), v( "myarm")), send("GripOp", v("mygrip"), "NON", "PUT", "grip", "open"))) ar(rsp(v( "arm"), "ArmGoNI", true, ""), ca(eq(v("arm"), v("myarm")), send("GripCl", v( "mygrip"), "NON", "PUT", "grip", "close"))) ar(rsp(v("grip"), "GripCl", true, ""), ca(eq(v("grip"), v("mygrip")), send("ArmGoI", v("myarm"), "NON", "PUT", "arm", v( "goI")))) ar(rsp(v("grip"), "GripOg", true, ""), ca(eq(v("grip"), v("mygrip")), send( "PnPDone", v("source"), "NON", "PUT", "pnp", v("done")))) ar(req(v("id"), "PUT", "pnp", "start"), ca(eq(v("status"), "idle"), set("source", v("id")) set("status", "working") send("ArmGoNI", v("myarm"), "NON", "PUT", "arm", v("goNI")))))]
+
+["grRL" | w4Ack(mtDM) w4Rsp(mtM) rspRcd(mtM) sendReqs(nilAM) sndCtr(0) rspSntD((m( "ctlRL", "grRL", c(h("NON", "2.04", "grRL.0"), "GripCl:4", mtO, mtBody)) @ 0) m( "ctlRL", "grRL", c(h("NON", "2.04", "grRL.1"), "GripOp:8", mtO, mtBody)) @ 5) rsrcs( rb("grip", "open")) ctr(2) config(cb("ACK_RANDOM_FACTOR", 2) cb("ACK_TIMEOUT", 5) cb( "MAX_RETRANSMIT", 1) cb("msgQD", 5) cb("msgSD", 4) cb("ttl", 10) cb("w4AckBd", 1)) aconf(mtR, none)]
+
+["ps" | w4Ack(mtDM) w4Rsp(mtM) rspRcd(m("ps", "ctlRL", c(h("NON", "2.04", "ctlRL.0"), "putN:1", mtO, mtBody))) sendReqs(nilAM) sndCtr(0) rspSntD(mtDM) rsrcs(mtR) ctr(2) config(cb("ACK_RANDOM_FACTOR", 2) cb("ACK_TIMEOUT", 5) cb("MAX_RETRANSMIT", 1) cb( "msgQD", 5) cb("msgSD", 2) cb("ttl", 10) cb("w4AckBd", 1)) aconf(mtR, none)]}
+
+------------------------------
+rew {initLR(startAMsg("ctlLR")) log(nilLI)} .
+
+log(rcvPT("ctlLR", "putN:1", "pnp", "start") ; rcvPT("armLR", "ArmGoNI:2", "arm", "goL") ; rcvRsp("ps", "ctlLR", "putN:1") ; rcvRsp("ctlLR", "armLR", "ArmGoNI:2") ; rcvPT("grLR", "GripCl:4", "grip", "close") ; rcvRsp("ctlLR", "grLR", "GripCl:4") ; rcvPT("armLR", "ArmGoI:6", "arm", "goR") ; rcvRsp("ctlLR", "armLR", "ArmGoI:6") ; rcvPT("grLR", "GripOp:8", "grip", "open") ; rcvRsp("ctlLR", "grLR", "GripOp:8"))
+
+------------------------------
+

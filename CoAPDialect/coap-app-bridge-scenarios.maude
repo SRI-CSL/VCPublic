@@ -1,0 +1,376 @@
+fmod COAP-APP-BRIDGE-SCENARIO is
+   inc  COAP-APP-BASE-SCENARIO  .
+  
+  
+***(
+Controller: Bctl
+Sensor,actuators: boat sensor bs, gate ga, bridge br
+bs sends boat here req and boat passed rsp
+ga rcvs close, open reqs, 
+   responds when action complete
+br rcvs open, close reqs,  
+   responds when action complete
+
+*************************
+status idle
+rcvBoatArr
+BS -> BCtl : boat here [BCtl resp ok]
+ status = working
+ BCtl -> GA : gate close
+rcvGateClose
+GA -> BCtl : success
+  BCtl -> BR : bridge open
+
+rcvBROpen
+BR -> BCtl : success
+  BCtl -> BS : boat pass
+rcvBoatPassed
+BS   -> BCtl : success
+ BCtl -> BR : bridge close
+rcvBRclosed
+BR -> BCtl : success
+  BCtl -> GA : gate open
+rcvGateOpen
+GA -> BCtl : success
+  status idle
+)
+  
+op rcvBoatArr : -> ARule .
+eq rcvBoatArr  =
+   ar(req("bs","PUT","boat","here"),
+      ca(eq(v("status"),"idle"),
+         send("GateCL","ga","NON", 
+              "PUT","gate", "close")
+         set("status","working") ) ) .
+
+op rcvGateClose : -> ARule .
+eq rcvGateClose =
+   ar(rsp("ga","GateCL",true,""),
+      ca(conj(none),send("BridgeOp","br","NON",
+                     "PUT","bridge","open"))) .
+
+op rcvBridgeOpen : -> ARule .
+eq rcvBridgeOpen =
+   ar(rsp("br","BridgeOp",true,""),
+      ca(conj(none),send("BSPass","bs","NON", 
+                     "PUT","boat","pass")) ) .
+
+op rcvBoatPass : -> ARule .
+eq rcvBoatPass =
+    ar(rsp("bs","BSPass",true,""),
+       ca(conj(none),send("BridgeCl","br","NON", 
+                "PUT","bridge","close"))) .
+
+op rcvBridgeClose : -> ARule .
+eq rcvBridgeClose =
+   ar(rsp("br","BridgeCl",true,""),
+      ca(conj(none),send("GateOp","ga","NON", 
+                    "PUT","gate","open")) ) .
+
+op rcvGateOpen : -> ARule .
+eq rcvGateOpen =
+   ar(rsp("ga","GateOp",true,""),
+      ca(conj(none), set("status","idle")) ) .
+
+
+op bridge-rules  : ->   ARules .
+eq bridge-rules =
+    rcvBoatArr
+    rcvGateClose
+    rcvBridgeOpen
+    rcvBoatPass
+    rcvBridgeClose
+    rcvGateOpen
+  .
+  
+
+op boatHereAMsg : -> AMsg .
+eq boatHereAMsg = 
+amsg("putN", "bctl", "NON", "PUT", "boat", "", b("here")) .
+
+op boatHereMsg : -> Msg .
+eq boatHereMsg =
+m("bctl","bs",c(h("NON","0.PUT","putN.0"),
+"putN:1",o("Uri-Path", "boat") o("Uri-Query", ""),b("here"))) .
+ 
+ops bctl bs ga br : -> Agent .
+
+op bctlAtts : -> Attrs .
+eq bctlAtts =  
+  sendReqs(nilAM)           
+  rsrcs(rb("boat","none"))                
+  aconf(rb("status","idle"),bridge-rules) 
+  sndCtr(1) mkInitDevAttrs(2) .
+
+eq bctl = 
+mkDevA("bctl",1,nilAM,rb("boat","none"),
+       2,rb("status","idle"),bridge-rules) .
+
+eq bs = mkDevA("bs",1,boatHereAMsg,mtR,6,
+               mtR,none) .
+op bs2 : Nat -> Agent .
+eq bs2(n:Nat) = mkDevA("bs",1,
+boatHereAMsg ; amsgd(n:Nat) ; boatHereAMsg, 
+mtR,6, mtR,none) .
+
+eq ga = 
+mkDevA("ga",1,nilAM,rb("gate","open"),4, 
+       mtR,none) .
+
+eq br = 
+mkDevA("br",1,nilAM,rb("bridge","close"),6, 
+       mtR,none) .
+       
+
+op brInit : -> Conf .
+eq brInit = bctl bs ga br net(mtDM,mtDM) .
+
+op brInit2 : Nat -> Conf .
+eq brInit2(n:Nat) = 
+        bctl bs2(n:Nat) ga br net(mtDM,mtDM) .
+
+op test1 : -> Conf .
+eq test1 = bctl bs net(mtDM,mtDM) .
+
+op test2 : -> Conf .
+eq test2 = bctl ga bs net(mtDM,mtDM) .
+
+vars bcid brid gid bsid : String .
+var conf : Conf .
+
+********** BridgeCtl properties
+--- controlIdle 
+ op bcIdle : Conf String -> Bool .
+ eq bcIdle(conf,bcid) =
+     hasAV(conf,bcid,"status","idle") .
+
+--- bridgeClose
+---  rb("bridge","close") 
+---  ctl not have "BridgeCl" rsp pending
+  op brClose : Conf String String -> Bool .
+  eq brClose(conf,bcid,brid) =
+     isV(conf,bcid,brid,"BridgeCl","bridge","close") .
+
+--- bridgeClosing
+--- rb("bridge","close") 
+---  ctl has "BridgeCl" rsp pending
+  op brClosing : Conf String String -> Bool .
+  eq brClosing(conf,bcid,brid) =
+     becomeV(conf,bcid,brid,
+             "BridgeCl","bridge", "close")  .
+
+--- bridgeOpen
+--- rb("bridge","open") 
+--- ctl not have "BridgeOp" rsp pending
+  op brOpen : Conf String String -> Bool .
+  eq brOpen(conf,bcid,brid) =
+     isV(conf,bcid,brid,"BridgeOp","bridge","open") .
+
+--- bridgeOpening
+--- rb("bridge","open") 
+---    rspPend(conf,"bctl","br","BridgeOp")  
+  op brOpening : Conf String String -> Bool .
+  eq brOpening(conf,bcid,brid) =
+     becomeV(conf,bcid,brid,
+             "BridgeOp","bridge", "open")  .
+
+--- gateClose
+--- rb("gate","close") 
+--- ctl not have "gateCL" rsp pending
+  op gaClose : Conf String String -> Bool .
+  eq gaClose(conf,bcid,gid) =
+ isV(conf,bcid,gid, "gateCL", "gate", "close") .
+
+--- gateClosing
+--- rb("gate","close") 
+--- ctl has "gateCL" rsp pending
+  op gaClosing : Conf String String -> Bool .
+  eq gaClosing(conf,bcid,gid) =
+ becomeV(conf,bcid,gid, "gateCL","gate","close") .
+         
+--- gateOpen
+--- rb("gate","open") 
+--- ctl not have "gateOp" rsp pending
+  op gaOpen : Conf String String -> Bool .
+  eq gaOpen(conf,bcid,gid) =
+ isV(conf,bcid,gid,"gateOp","gate","open") .
+
+--- gateOpening
+--- rb("gate","open") 
+--- ctl has "gateOp" rsp pending
+  op gaOpening : Conf String String -> Bool .
+  eq gaOpening(conf,bcid,gid) =
+  becomeV(conf,bcid,gid,"gateOp","gate","open") .
+    
+--- boat passing 
+  op boatPass : Conf String String 
+                -> Bool .
+  eq boatPass(conf,bcid,bsid) =               
+     becomeV(conf,bcid, bsid,"BSPass","boat","pass")  
+      and
+      not(reqInTransit(conf,bsid,bcid,"BSPass")) 
+      .
+---------------- bridge app invariants -------------
+--- bctl idle => bridge close, gate open
+--- bcIdle and (not(brClose) or not(gaOpen))
+ op bclIdleInv : Conf String String String -> Bool .
+ eq bclIdleInv(conf,bcid,brid,gid) = 
+      bcIdle(conf,bcid) and
+       (not(brClose(conf,bcid,brid)) or 
+        not(gaOpen(conf,bcid,gid))) .
+
+**** isV(conf,bcid,brid,"BridgeCl","bridge","close") 
+
+--- gate open/opening/closing => bridge close
+--- counter ex:  (gate o or gate c) and not b c
+ op gateNClInv : Conf String String String -> Bool .
+ eq gateNClInv(conf,bcid,brid,gid) =
+      (hasV(conf,gid,"gate","open") or
+       becomeV(conf,bcid,gid,"gateCL","gate","close"))
+      and not(isV(conf,bcid,brid, 
+                 "BridgeCl","bridge","close")) .
+
+---- bridge open/opening/closing => gate close
+ op brNClInv : Conf String String String -> Bool .
+ eq brNClInv(c:Conf,bcid,brid,gid) =
+  (hasV(c:Conf,brid,"bridge","open") or 
+        becomeV(c:Conf,bcid,brid, 
+        "bridgeOp","bridge","close") ) 
+  and not(isV(c:Conf,bcid,gid, 
+          "GateCL","gate","close")) .
+          
+--- boat passing => bridge open and gate closed
+  op boatPassInv : Conf String String String String 
+               -> Bool .
+  eq boatPassInv(conf,bcid,bsid,brid,gid) =
+     boatPass(conf,bcid,bsid) and
+     (not(brOpen(conf,bcid,brid)) or 
+      not(gaClose(conf,bcid,gid))) .
+
+endfm  
+   
+mod COAP-APP-BRIDGE-SYSTEM is 
+   inc COAP-APP-BRIDGE-SCENARIO . 
+   inc COAP-RULES . 
+
+endm
+
+
+mod COAP-APP-BRIDGE-SYSTEM-DIALECTED is 
+   inc COAP-APP-BRIDGE-SYSTEM  . 
+   inc COAP-DIALECT-TRANSFORMS .
+   
+***(
+rew D(sys) .
+
+search D(sys) =>+ {c:Conf} such that
+P(UDC(c:Conf)) .
+)   
+
+endm
+
+
+eof
+
+set print attribute on .
+
+rew {test1} .
+rew {test2} .
+rew {brInit log(nilLI)} .
+rew {brInit2(40) log(nilLI)} .
+
+rew {brInit ["eve" | kb(mtDM) caps(mcX(0))]} .
+
+       
+rew {brInit2(40) log(nilLI) ["eve" | kb(mtDM) caps(mcX(40))]} .
+
+search [1] {brInit2(40) log(nilLI) ["eve" | kb(mtDM) caps(mcX(40))]} =>+ {c:Conf} such that hasV(c:Conf,"ga","gate","open") and hasV(c:Conf,"br","bridge","open") .
+*** see coap-app-logs.txt
+
+
+search [1] {brInit2(40) log(nilLI) ["eve" | kb(mtDM) caps(mcX(40))]} =>+ {c:Conf} such that hasV(c:Conf,"ga","gate","open") and hasV(c:Conf,"br","bridge","open") and aKbNotTok(c:Conf,"eve", "BridgeOp:4") .
+
+*** no solution
+
+search [1] {brInit log(nilLI)} =>+ {c:Conf} such that hasV(c:Conf,"ga","gate","open") and hasV(c:Conf,"br","bridge","open") .
+
+*** no solution
+
+********* systematic evaluation
+**** see coap-app-bridge-scenarios-runs.txt
+***(
+---------------------- 
+--- bctl idle => bridge close, gate open
+--- search for violation  A and not(B and C)
+--- bclIdleInv(conf,bcid,bid,gid)
+***(
+hasAV(c:Conf,"bctl","status","idle") and (not(isV(c:Conf,"bctl", "br", "BridgeCl", "bridge", "close")) or not(isV(c:Conf,"bctl", "ga", "gateOp", "gate", "open")) ) 
+)
+
+**** No Attacker
+search {brInit} =>+ {c:Conf} such that bclIdleInv(c:Conf,"bctl","br","ga") .
+
+No solution. states: 65  
+
+search [1] {brInit2(40) log(nilLI)} =>+ {c:Conf} such that bclIdleInv(c:Conf,"bctl","br","ga") .
+
+No solution. states: 139
+
+****  Attacker mcX(40)
+**** 1 attack cap 1 round
+search [1] {brInit log(nilLI) ["eve" | kb(mtDM) caps(mcX(40))]} =>+ {c:Conf} such that bclIdleInv(c:Conf,"bctl","br","ga") .
+ 
+No solution. states: 586 
+
+search [1] {brInit log(nilLI) ["eve" | kb(mtDM) caps(mcX(20))]} =>+ {c:Conf} such that bclIdleInv(c:Conf,"bctl","br","ga") .
+
+Solution 1 (state 1321)
+
+
+***(
+--- gate open/opening/closing => bridge close
+--- counter ex:  (gate o or gate c) and not b c
+--- gateNClInv(conf,bcid,brid,gid) =
+
+
+search {brInit2(40)} =>+ {c:Conf} such that gateNClInv(c:Conf,"bctl","br","ga") .
+
+brInit
+No solution. states: 65
+
+brInit2(40)
+No solution. states: 139
+
+search {brInit log(nilLI) ["eve" | kb(mtDM) caps(mcX(40))]} =>+ {c:Conf} such that gateNClInv(c:Conf,"bctl","br","ga") .
+
+No solution.
+states: 586
+
+***(
+---- bridge open/opening/closing => gate close
+---- brNCl(c:Conf,"bctl","br","ga")
+
+search {brInit} =>+ {c:Conf} such that brNClInv(c:Conf,"bctl","br","ga") .
+
+brInit
+No solution. states: 65
+
+brInit2(40)
+No solution. states: 139
+
+)
+
+**********  Dialected version
+set print attribute on .
+rew D({brInit log(nilLI) ["eve" | kb(mtDM) caps(mcX(0))]}) .
+
+log(rcvPT("bctl", "putN:1", "boat", "here") ; rcvPT("ga", "GateCL:2", "gate", "close") ; rcvRsp("bs", "bctl", "putN:1") ; rcvRsp( "bctl", "ga", "GateCL:2") ; rcvPT("br", "BridgeOp:4", "bridge", "open") ; rcvRsp("bctl", "br", "BridgeOp:4") ; rcvPT("bs", "BSPass:6", "boat", "pass") ; rcvRsp("bctl", "bs", "BSPass:6") ; rcvPT("br", "BridgeCl:8", "bridge", "close") ; rcvRsp("bctl", "br", "BridgeCl:8") ; rcvPT("ga", "GateOp:10", "gate", "open") ; rcvRsp("bctl", "ga", "GateOp:10"))
+
+
+set print attribute off .
+
+search [1] D({brInit log(nilLI) ["eve" | kb(mtDM) caps(mcX(40) mcX(20))]}) =>+ {c:Conf} such that
+bclIdleInv(UDC(c:Conf),"bctl","br","ga") .
+
+No solution.
+states: 99

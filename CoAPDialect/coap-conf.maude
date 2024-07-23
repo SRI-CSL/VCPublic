@@ -24,7 +24,7 @@ var ix : FindResult .
 var rbnds : RMap .
 var bseen b b1 b2 : Bool .
 vars litl plitl : LogItemL .
-  
+
   
   ***(
           Conf
@@ -104,6 +104,12 @@ op rb : String String -> RBnd [ctor] .
 op getRBndVal : RBnd -> String .
 eq getRBndVal(rb(path,val)) = val .
 
+op update : RMap String String -> RMap .
+eq update(rbnds rb(str,val0),str,val) 
+      = rbnds rb(str,val) .
+eq update(rbnds,str,val) 
+      = rbnds rb(str,val) [owise] .
+
 **** configuration parameters
 sorts CBnd CBnds .
 subsort CBnd < CBnds .
@@ -156,6 +162,10 @@ eq nthCdr(lil:LogItemL,  0)  = lil:LogItemL .
 
 **** rcvP(epid,path,val) --- rcv put
 op rcvP : String String String -> LogItem [ctor] .
+**** rcvP(epid,tok,path,val) --- rcv put 
+op rcvPT : String String String String -> LogItem [ctor] .
+**** rcvRsp(epid,dst,tok)
+op rcvRsp : String String String  -> LogItem [ctor] .
 op log : LogItemL -> Log [ctor] .
 
 sort LogItemIx .
@@ -230,11 +240,7 @@ eq clearToLog(attrs:Attrs toLog(li1:LogItemL))
       =  attrs:Attrs .
 eq clearToLog(attrs:Attrs) =  attrs:Attrs [owise] .
 
-
-***** not used
-sorts ABnd ABnds .
-op mtA : -> ABnds [ctor] .
-op toApp : ABnds -> Attr [ctor] . --- reporting to App
+op toApp : Bool -> Attr [ctor] . --- report to App?
 
 
 **** attacker attributes

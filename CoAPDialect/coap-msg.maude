@@ -1,13 +1,13 @@
 fmod COAP-MSG is
   inc CONVERSION .
 
-vars path qparams type code mid : String .
+vars path qparams type code mid meth ct : String .
 var opts : Options .
 var n : Nat .
 var dmsgs : DMsgS .
 var dmsg : DMsg .
 var msg : Msg .
-vars dst src tpat spat : String .
+vars dst src tpat spat str str0 : String .
 
 sorts Msg DMsg .   
 op _@_ : Msg Nat -> DMsg [ctor] .  --- delayed msg
@@ -37,11 +37,19 @@ op m : String String Content -> Msg [ctor] .
 op mtBody : -> Body [ctor] .
 op b : String -> Body [ctor] .
 
+op getBodyVal : Body String -> String .
+eq getBodyVal(mtBody,str) = str .
+eq getBodyVal(b(str),str0) = str .
+
 op getTgt : Msg -> String .
 eq getTgt(m(dst:String,src:String,c:Content)) = dst:String .
 
 op getSrc : Msg -> String .
 eq getSrc(m(dst:String,src:String,c:Content)) = src:String .
+
+op getContent : Msg -> Content .
+eq getContent(m(dst:String,src:String,c:Content))
+    = c:Content .
 
 op setTgtSrc : Msg String String -> Msg .
 eq setTgtSrc(m(dst,src,c:Content),tpat,spat) =
@@ -212,5 +220,41 @@ parameters, and body.
 
  **** delay before next msg          
  op amsgd : Nat -> AMsg [ctor] .
+ 
+ 
+ ****** message type
+ op isMethod : String -> Bool .
+ eq isMethod("GET") = true .
+ eq isMethod("PUT") = true .
+ eq isMethod("POST") = true .
+ eq isMethod("DELETE") = true .
+ eq isMethod(meth) = false [owise] .
+
+ op ctype : String -> String .
+ ceq ctype(code) =
+  (if (ct == "0")
+   then (if code == "0.00"
+         then "Empty"
+         else (if isMethod(substr(code,2,length(code)))
+               then "Request"
+               else "UnKnown"
+               fi)
+         fi)
+   else (if (find("245",ct,0) :: Nat )
+         then "Response"
+         else "UnKnown"
+         fi) fi)
+ if ct := substr(code,0,1) 
+ .
+ 
+ op getMethod : Msg -> String .
+ ceq getMethod(msg) = 
+     (if isMethod(str)
+     then str
+     else ""
+     fi)
+ if code := getCode(msg)
+ /\ str := substr(code,2,length(code))
+ .
  
 endfm

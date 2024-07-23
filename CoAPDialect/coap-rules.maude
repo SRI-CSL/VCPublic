@@ -26,13 +26,14 @@ mod COAP-RULES is
   inc COAP-TIME .
   inc COAP-RULE-AUX .
   inc COAP-ATTACKER .
+  inc COAP-APP .
   
 vars epid aid src dst tok : String .
 var amsg : AMsg .
 var amsgl : AMsgL .  
 vars dmsgs dmsgs0 dmsgs1 dmsgs2  ddmsgs0 ddmsgs1 : DMsgS .
-vars devatts devatts1 devatts2 attrs attrs1  dattrs dattrs1
-       : Attrs .
+vars devatts devatts0 devatts1 devatts2 
+     attrs attrs1  dattrs dattrs1 : Attrs .
 vars opts  opts0 : Options .
 var hd : Head .
 var body : Body .
@@ -61,13 +62,16 @@ if noW4Ack(devatts)
 
 
 crl[rcv]:
-{[epid | devatts] net(dmsgs0,dmsgs1 msg @ 0 ) conf}
+{[epid | devatts] net(dmsgs0,dmsgs1 dmsg) conf}
 =>
 {[epid | devatts2 ] net(dmsgs0 dmsgs,dmsgs1) conf1}
-if getTgt(msg) == epid
+if DMsg2Delay(dmsg) == 0
+/\ msg := DMsg2Msg(dmsg)
+/\ getTgt(msg) == epid
 /\ toSend(dmsgs) devatts1 := rcvMsg(epid, devatts, msg)
-/\ conf1 := doLog(conf,devatts1)
-/\ devatts2 := clearToLog(devatts1) 
+/\ devatts0 := doApp(msg,devatts1)
+/\ conf1 := doLog(conf,devatts0)
+/\ devatts2 := clearToLog(devatts0) 
 [print "\n[rcv] by" epid "\n msg " msg] 
 .
 
@@ -146,6 +150,22 @@ if toSend(dmsgs) attrs1 :=
       doAttack(attrs caps(acaps),dmsg,acap)
 [print "\n[attack] " acap "\nmsg " dmsg] 
 .
+
+**** apply a generic attacker capability
+crl[attack]:
+{ [aid  |  caps(acaps mcX(n)) attrs]  
+  conf
+  net(dmsgs0 dmsg,dmsgs1) }
+=>
+{ [aid  |  addALog(attrs1,dmsg,mcX(n))] 
+  conf
+  net(dmsgs0,dmsgs1 dmsgs) }
+if toSend(dmsgs) attrs1 := 
+      doAttack(attrs caps(acaps),dmsg,mcX(n),conf)
+[print "\nattack  mcX " n "\nmsg " dmsgs] 
+.
+
+
 
 crl[tick]:
 {conf} => {passTime(conf,nz,mt)}

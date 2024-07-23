@@ -112,8 +112,9 @@ eq passTime({conf},nz) = {passTime(conf,nz,mt)} .
 eq passTime([id | attrs] conf,nz,conf1) = 
    passTime(conf,nz,conf1 [id | passTime(attrs,nz,mtA)]) .
 eq passTime(net(dmsgs0,dmsgs1) conf,nz,conf1)   =
-   passTime(conf,nz,conf1 net(passTime(dmsgs0,nz,mtDM), 
-                              passTime(dmsgs1,nz,mtDM))) .
+   passTime(conf,nz,
+        conf1 net(passTime(dmsgs0,nz,mtDM), 
+                  passTime(dmsgs1,nz,mtDM))) .
 eq passTime(conf,nz,conf1)   = conf1 conf [owise] .
 
 eq passTime(dmsgs msg @ n,nz,dmsgs1) =

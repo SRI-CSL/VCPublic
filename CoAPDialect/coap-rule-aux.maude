@@ -56,7 +56,7 @@ if amsg(appid,dst,type,meth,path,qparams,body) := amsg
 
 eq sndAMsg(epid,amsgd(n1), attrs sndCtr(n)) =
              toSend(mtDM) attrs sndCtr(n + n1) .  
-
+***(
 *************  receive
 op isMethod : String -> Bool .
 eq isMethod("GET") = true .
@@ -64,8 +64,9 @@ eq isMethod("PUT") = true .
 eq isMethod("POST") = true .
 eq isMethod("DELETE") = true .
 eq isMethod(meth) = false [owise] .
+)
 
-
+***(
 op ctype : String -> String .
 ceq ctype(code) =
  (if (ct == "0")
@@ -81,8 +82,8 @@ ceq ctype(code) =
         else "UnKnown"
         fi) fi)
 if ct := substr(code,0,1) 
-.
-        
+.      
+)
 
 op  rcvMsg : String Attrs Msg -> Attrs .
 op  rcvRequest : String Attrs Msg String String -> Attrs .
@@ -123,7 +124,7 @@ ceq rcvRequest(epid,devatts,msg,type,mid) =
           fi)
     else toSend(mtDM) devatts
     fi)
-  else 
+  else toApp(true)
   (if meth == "DELETE"
   then rcvDelete(epid,devatts,src,type,mid,tok,path)
   else (if meth == "GET"
@@ -134,7 +135,8 @@ ceq rcvRequest(epid,devatts,msg,type,mid) =
       then rcvPut(epid,devatts,src,type,mid,tok,path,body)
       ---- unk method
       else sendMT(epid,devatts,src,mid,tok,"RST")
-      fi) fi) fi) fi) fi)
+      fi) fi) fi) fi)
+       fi)
 if m(epid,src,c(h(type,code,mid),tok,opts,body)) := msg
 /\ msgs := matchingRspD(devatts,msg)
 /\ meth := substr(code,2,length(code))
@@ -185,7 +187,7 @@ opt ("Location-Path", newpath) xosw 2.01
   op rcvPost : String Attrs String String String 
                  String  String  Body ->  Attrs .
   ceq rcvPost(epid,devatts,src,type,mid,tok,path,b(val)) =
-    toSend(dmsgsAck (msg @ s delay)) toApp(mtA) 
+    toSend(dmsgsAck (msg @ s delay)) 
      addRspSentD(devatts2,msg)
   if delay := getMsgSndDelay(devatts)
   /\ dmsgsAck := 
@@ -222,9 +224,8 @@ Response Code.  Assuming can be modified or created.
                  String  String Body ->  Attrs .
   ceq rcvPut(epid,devatts,src,type,mid,tok,path,b(val)) =
     toSend(dmsgsAck (msg @ s delay)) 
-    toLog(rcvP(epid,path,val))
+    toLog(rcvPT(epid,tok,path,val))
      addRspSentD(devatts1,msg)
-     **** toApp(mtA) 
   if delay := getMsgSndDelay(devatts)
   /\ dmsgsAck := 
     (if type == "CON" 
@@ -295,12 +296,15 @@ ceq rcvAckResponse(epid,devatts,msg,dst,mid,tok) =
    toSend(mtDM) devatts2
 if devatts1 ansB(b) := matchAckwRsp(devatts,dst,mid,tok) 
 /\ devatts2 := 
-    (if b then addRspRcd(devatts1,msg) else devatts1 fi)
+    (if b 
+     then addRspRcd(devatts1,msg) toApp(true)
+     else devatts1 fi)
 .
 
 ceq rcvSimpleResponse(epid,devatts,msg,type,dst,mid,tok) =
     (if b  --- the response is expected
     then processRsp(epid,devatts1,msg,type,mid,dst,tok)
+         toApp(true) toLog(rcvRsp(epid,dst,tok))
     else (if type == "CON"
          then (if findRspRcd(devatts1,dst,mid,tok)
            then sendMT(epid,devatts1,dst,mid,tok,"ACK")
@@ -311,21 +315,7 @@ ceq rcvSimpleResponse(epid,devatts,msg,type,dst,mid,tok) =
 if devatts1 ansB(b) := matchAckorRsp(devatts,dst,mid,tok) 
 .
 
-***(
-ceq rcvResponse(epid,devatts,msg,type,mid) = 
-  (if hasMatchReq(devatts,dst,mid,tok)
-  then processRsp(epid,devatts,msg,type,mid,dst,tok)
-  else (if type == "CON"
-        then (if findRspRcd(devatts,dst,mid,ok)
-         then sendMT(epid,devatts,dst,mid,tok,"ACK")
-         else sendMT(epid,devatts,dst,mid,tok,"RST")
-          fi)
-        else toSend(mtDM) devatts
-        fi) fi)
-if dst := getSrc(msg)
-/\ tok := getTok(msg)
-.
-)
+
 ****             epid  devatts   type   mid    dst    tok
 op processRsp : String Attrs Msg String String String String
                 -> Attrs .
@@ -354,7 +344,7 @@ ceq processRsp(epid,devatts,msg,type,mid,dst,tok) =
 ---- empty msg of type ACK
 ---- update w4Ack ; inform app
   ceq rcvMtAck(epid,devatts,msg,mid) =
-     toSend(mtDM) devatts2 w4Ack(dmsgs) **** toApp(mtA)
+     toSend(mtDM) devatts2 w4Ack(dmsgs)
   if devatts1 w4Ack((msg0 @ n) dmsgs) := devatts
   /\ getMid(getHead(msg0)) == mid
   /\ getTgt(msg0) == getSrc(msg)
@@ -371,7 +361,7 @@ ceq processRsp(epid,devatts,msg,type,mid,dst,tok) =
 ---- empty msg of type RST
 ---- update w4Ack ; inform app
   ceq  rcvRST(epid,devatts,msg,mid) =
-     toSend(mtDM) toApp(mtA) attrs w4Ack(dmsgs)
+     toSend(mtDM) attrs w4Ack(dmsgs)
   if attrs w4Ack((msg0 @ n) dmsgs) := devatts
   /\ h("CON",code,mid) := getHead(msg0) .
 

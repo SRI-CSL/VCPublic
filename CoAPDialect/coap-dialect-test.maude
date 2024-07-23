@@ -1,8 +1,8 @@
 mod COAP-DIALECT-TEST is
-  inc COAP-DIALECT .
+  inc COAP-DIALECT-TRANSFORMS .
   inc COAP-TEST .
-  inc COAP-DIALECT-ATTACKER .
 
+***(
 op sharedDialectAttrs : -> Attrs .
 eq sharedDialectAttrs =  randSize(128) used(mtU) .
 
@@ -74,7 +74,6 @@ eq addCaps({conf},caps1) = {conf} [owise] .
 **** extract unwrapped endpoints and non net confelts
 op UD : Sys -> Sys .
 op UDX : Conf Conf -> Conf .
-**** eq UD({conf net(dmsgs0,dmsgs1)}) = {UDX(conf,mt)} .
 eq UD({conf}) = {UDX(conf,mt)} .
 eq UDX([eid | conf([eid | devatts] conf1) ddevatts] conf0,
                uconf) =
@@ -82,10 +81,9 @@ eq UDX([eid | conf([eid | devatts] conf1) ddevatts] conf0,
 eq UDX(conf0, uconf) = uconf conf0 [owise] .
 
 op UDC : Conf -> Conf .
-**** eq UDC(conf net(dmsgs0,dmsgs1)) = UDX(conf,mt) .
 eq UDC(conf) = UDX(conf,mt) .
 
-
+)
 ************** TESTS               
 op devX0 : -> Agent .
 eq devX0 =  mkDevC(0,0, 

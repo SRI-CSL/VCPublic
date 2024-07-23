@@ -1,0 +1,13 @@
+load coap-msg  . 
+load coap-conf .
+load coap-app .
+load coap-rule-aux .  
+load coap-time .
+load coap-attacker .
+load coap-rules .
+
+load coap-dialect .
+load coap-dialect-transforms .
+
+load coap-app-base-scenario .
+

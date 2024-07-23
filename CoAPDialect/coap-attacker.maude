@@ -1,16 +1,22 @@
 fmod COAP-ATTACKER is
   inc COAP-CONF .
+  inc COAP-TIME .
 
 vars n n0 n1 : Nat . 
-var dmsgs  dmsgs0 dmsgs1 : DMsgS .
-var attrs : Attrs .
+var nz : NzNat .
+vars ni ni0 ni1 : NatInf .
+vars dmsgs  dmsgs0 dmsgs1 : DMsgS .
+var attrs datts : Attrs .
 var msg : Msg .
-var dmsg dmsg0 dmsg1 : DMsg .
+vars dmsg dmsg0 dmsg1 : DMsg .
 var cap : Cap .
-var acaps acaps0 : Caps .
-var epid0 epid1 epid src tgt spat tpat str : String .
+vars acaps acaps0 : Caps .
+vars epid0 epid1 epid id src tgt str : String .
+vars  spat tpat  meth path val : String  .
 var content : Content .
 var b : Bool .
+vars conf conf0 : Conf .
+var rbnds : RMap .
  
  op delay : Nat -> Cap [ctor] .
  op drop : -> Cap [ctor] .
@@ -45,12 +51,13 @@ op mc : String String Bool Caps -> Cap .
      toSend((msg @ n0) (msg @ (n0 + n1))) kb(dmsgs (msg @ n0)) attrs .
 
 
-
-  ceq doAttack(attrs kb(dmsgs),dmsg,redirect(epid0,epid1)) = 
+  ceq doAttack(attrs kb(dmsgs),dmsg, 
+               redirect(epid0,epid1)) = 
      toSend(dmsg1) kb(dmsgs dmsg) attrs 
    if m(epid0,epid,content) @ n := dmsg
    /\ dmsg1 := m(epid1,epid,content) @ n .
-**** hopefully attack rule won't match
+
+**** attack rule won't match
   eq doAttack(attrs caps(acaps) kb(dmsgs),dmsg,redirect(epid0,epid1)) = 
       kb(dmsgs) attrs [owise] .
      
@@ -92,15 +99,54 @@ eq applyCaps(msg @ n,act(tpat,spat,n0) acaps,dmsgs) =
   eq doAttack(attrs kb(dmsgs),dmsg,mc(tpat,spat,b,acaps))
   = attrs kb(dmsgs) [owise] .
   
-**** hopefully attack rule won't match
-  eq doAttack(attrs caps(acaps) kb(dmsgs),dmsg,mc(tpat,spat,b,acaps0)) = 
-      kb(dmsgs) attrs [owise] .
-     
      
 --- unsupported cap
   eq doAttack(attrs kb(dmsgs),dmsg,cap) = 
-     toSend(dmsg) kb(dmsgs dmsg) attrs [owise] .
+      kb(dmsgs dmsg) attrs [owise] .
 
+
+-------------- generic attacker
+  op mcX : -> Cap .
+  op mcX : Nat -> Cap .
+ 
+  op _@@_ : Msg Nat -> DMsg .
+  **** msg @@ n doesnot count in mte calculation
+  ****     counts down using monus
+  **** msg @@ 0 can be delivered now or later
+  ****  will only appear in output of network
+
+********* dealing with time
+  eq DMsg2Delay(msg @@ n) = n .
+  eq DMsg2Msg(msg @@ n) = msg .
+  eq mte((msg @@ n) dmsgs,ni) = mte(dmsgs,ni) .
+  eq passTime(dmsgs msg @@ n,nz,dmsgs1) =
+   passTime(dmsgs,nz,dmsgs1 msg @@ monus(n,nz)) .
+
+  op doAttack : Attrs DMsg Cap Conf -> Attrs .
+  ceq doAttack(attrs kb(dmsgs)
+               caps(acaps),dmsg,mcX(n0),conf)
+  = toSend(dmsg dmsgs0) kb(dmsgs dmsg) 
+   caps(acaps acaps0) attrs 
+   if msg @ n := dmsg
+   /\ ctype(getCode(msg)) == "Request"
+   /\ path := getPath(msg)
+   /\ conf0 [id | datts rsrcs(rbnds rb(path,val))]
+      := conf
+   /\ src := getSrc(msg)
+   /\ tgt := getTgt(msg)
+   /\ meth := getMethod(msg)
+   /\ dmsgs0 :=
+        (if meth == "GET"
+         then m(id,src,getContent(msg)) @ n 
+         else m(id,src,getContent(msg)) @@ n + n0
+         fi)
+   /\ acaps0 :=
+       (if meth == "GET"
+        then mc(src,id,false,act(src,tgt,0))
+        else mtC
+        fi)  .
+ 
+  eq doAttack(attrs,dmsg,mcX(n0),conf) =  attrs [owise] .
 
 
 

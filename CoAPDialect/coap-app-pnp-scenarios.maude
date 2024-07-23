@@ -1,0 +1,491 @@
+fmod COAP-APP-PNP-SCENARIO is
+   inc  COAP-APP-BASE-SCENARIO .
+
+
+------------- single pnp  scenario -------------  
+***(
+Pick-n-Place
+pctl : Controller
+arm : Arm
+gr : Gripper
+ps : part sensor
+
+ps->pctl:  Put start
+pctl->arm: Put arm goR
+arm->pctl: success  (at right)
+pctl->grip: PUT grip close
+grip->pctl: success
+pctl->arm: Put  arm goL
+arm->pctl: success  (at left)
+pctl->grip: PUT grip open
+grip->pctl: success
+pctl->ps success
+)
+
+***(
+In order to combine multiple PnPs
+we parameterize PnP by whether they
+start at the left  or right 
+
+RL (start left pick from right drop on left)
+    goI == goL, goNI == goR
+LR (start right, pick from left drop on right)
+    goI == goR, goNI == goL
+
+Role states:
+
+pctl : Controller  
+      app state: idle, working
+      rcvs start, drives one round  of pnp
+arm : Arm
+       -- arm inital position, drop location
+      "arm" = "goI", 
+        goingI -- put response in transit
+        atI  --   put response received
+                  (or initial state)
+
+      -- opposite position, pick location
+      "arm" = "goNI", 
+       goingNI -- put response in transit
+       atNI    -- put response received
+
+grip : Gripper
+       "grip"  == "open"
+         opening --- dropping if loaded
+                    put response in transit
+         open       put response received
+       "grip"  == "close"
+         closing --- gripping if at pick location
+                    put response in transit
+         close      put response received
+)
+
+***(
+Invariants
+pctl idle => grip open, arm goI
+
+arm atI  => grip open or opening
+arm goingI => grip close
+arm goingNI => grip open
+
+grip closing => arm atNI
+grip opening => arm atI
+ )
+ 
+***(
+-------------  protocol 
+initially
+  pnpCtl idle, arm atI grip open
+  
+pnpCtl 
+ status idle
+ rcvStart  --- from a sensor that notices a part
+ status := working
+ pnpCtl->arm : goNI
+
+ rcvAtNI -- goNI complete
+ pnpCtl->grip close
+
+ rcvClosed
+ pnpCtl->arm : goI
+
+ rcvAtI -- goI complete
+ pnpCtl->grip open
+
+ rcvOpened
+ status := idle
+
+arm,gr simple actuators-no app level
+ 
+)
+ 
+var abnds : RMap .
+vars amsgl amsgl0 amsgl1 : AMsgL .
+vars ctl src id id0 id1 amid goI goNI
+    pid gid aid pid0 gid0 aid0 pid1 gid1 aid1 
+       : String .
+       
+ 
+-------------- pnpCtl rules -------------------  
+ 
+ops rcvStart                
+    rcvAtNI     
+    rcvGrCl
+    rcvAtI     
+    rcvGrOp
+    rcvPnPDone : -> ARule .
+
+eq rcvStart =
+   ar(req(v("id"),"PUT","pnp","start"),
+      ca(eq(v("status"),"idle"),
+         send("ArmGoNI",v("myarm"),"NON", 
+              "PUT","arm", v("goNI"))
+         set("status","working")
+         set("source",v("id")) ) ) .
+
+eq rcvAtNI =
+   ar(rsp(v("arm"),"ArmGoNI",true,""),
+      ca(eq(v("arm"),v("myarm")),
+         send("GripCl",v("mygrip"),"NON",
+                     "PUT","grip","close"))) .
+
+eq rcvAtI =
+   ar(rsp(v("arm"),"ArmGoI",true,""),
+      ca(eq(v("arm"),v("myarm")),
+         send("GripOp",v("mygrip"),"NON",
+                     "PUT","grip","open"))) .
+
+eq rcvGrCl =
+   ar(rsp(v("grip"),"GripCl",true,""),
+      ca(eq(v("grip"),v("mygrip")),
+         send("ArmGoI",v("myarm"),"NON",
+                     "PUT","arm",v("goI")))) .
+
+eq rcvGrOp =
+   ar(rsp(v("grip"),"GripOp",true,""),
+      ca(eq(v("grip"),v("mygrip")),
+         send("PnPDone",v("source"),"NON",
+                     "PUT","pnp","done"))) .
+
+eq rcvPnPDone =
+   ar(rsp(v("ps"),"PnPDone",true,""),
+      ca(eq(v("ps"),v("source")),
+         set("status","idle"))) .
+
+op pnpArules : -> ARules .
+eq pnpArules =
+    rcvStart                
+    rcvAtNI     
+    rcvGrCl
+    rcvAtI     
+    rcvGrOp
+    rcvPnPDone .
+
+***(
+Agents
+ps -- part sensor
+ctlRL armRL grRL
+ctlLR armLR grLR
+)
+ops   ctlRLKb ctlLRKb : String String -> RMap .
+eq ctlRLKb(gid,aid) = 
+     rb("goNI", "goR") rb("goI", "goL")
+     rb("myarm", aid) rb("mygrip", gid) .
+eq ctlLRKb(gid,aid) = 
+     rb("goNI", "goL") rb("goI", "goR")
+     rb("myarm", aid)  rb("mygrip", gid) .
+          
+op startAMsg : String String -> AMsg .
+eq startAMsg(ctl,amid) = 
+    amsg(amid, ctl, "NON",
+         "PUT", "pnp", "", b("start")) .
+
+op startMsg : String String String -> Msg .
+eq startMsg(ctl,src,amid) =
+m(ctl,src,c(h("NON","0.PUT",amid + ".0"),
+amid + ":1",o("Uri-Path", "pnp") o("Uri-Query", ""),b("start"))) .
+ 
+***(
+op pnpAtts : RMap -> Attrs .
+eq pnpAtts(abnds) =  
+  sendReqs(nilAM)           
+  rsrcs(rb("pnp","none"))                
+  aconf(rb("status","idle") abnds,pnpArules) 
+  sndCtr(1) mkInitDevAttrs(2) .
+)
+op  ps : AMsgL -> Agent .  --- part sensor
+eq ps(amsgl) = mkDevA("ps",1,amsgl, mtR,2, mtR,none) .
+
+ops ctlRL ctlLR : String String String -> Agent .
+op arm  : String String -> Agent .
+op gr : String -> Agent .
+
+eq ctlRL(id,gid,aid) =
+     mkDevA(id,1,nilAM,rb("pnp","none"),2,
+            rb("status","idle") ctlRLKb(gid,aid),
+            pnpArules) .
+
+eq ctlLR(id,gid,aid) =
+     mkDevA(id,1,nilAM,rb("pnp","none"),2,
+            rb("status","idle") ctlLRKb(gid,aid),
+            pnpArules) .
+
+eq arm(id,goI) =
+    mkDevA(id,1,nilAM,rb("arm",goI),4,mtR,none) .
+
+eq gr(id) =
+  mkDevA(id,1,nilAM,rb("grip","open"),4,mtR,none) .
+
+
+op confRL :  String String String -> Conf .
+eq confRL(pid,gid,aid) = 
+     ctlRL(pid,gid,aid) gr(gid) arm(aid,"goL")
+      net(mtDM,mtDM) .
+
+op confLR : String String String -> Conf .
+eq confLR(pid,gid,aid) = 
+     ctlLR(pid,gid,aid) gr(gid) arm(aid,"goR")
+      net(mtDM,mtDM) .
+
+op initRL : String String String AMsgL -> Conf .
+eq initRL(pid,gid,aid,amsgl) 
+      = confRL(pid,gid,aid) ps(amsgl) .
+
+op initLR : String String String AMsgL -> Conf .
+eq initLR(pid,gid,aid,amsgl) 
+      = confLR(pid,gid,aid) ps(amsgl) .
+
+op initRLLR : String String String 
+              String String String 
+              AMsgL -> Conf .
+eq initRLLR(id0,gid0,aid0,id1,gid1,aid1,amsgl) = 
+     confRL(id0,gid0,aid0) confLR(id1,gid1,aid1)
+     ps(amsgl) .
+
+****** Invariants
+
+--- pctl idle => grip open, arm atI
+--- pctl idle and (not(grip open)  or not(arm atI))
+
+op pnpIdleInv : Conf String String String  String 
+               -> Bool .
+*********       ctlId armId gid 
+eq pnpIdleInv(c:Conf,pid,gid,aid,goI)
+   =
+   hasAV(c:Conf,pid,"status","idle") 
+   and    
+   (not(isV(c:Conf,pid,aid,"ArmGoI","arm",goI)) 
+    or 
+    not(isV(c:Conf,pid,gid,"GripOp","grip","open"))    )   .
+
+-----------------
+--- arm atI  => grip open or opening
+--- arm atI and not(grip open or opening)
+
+op armAtIInv : Conf String String String String
+               -> Bool .
+eq armAtIInv(c:Conf,pid,gid,aid,goI) 
+   =
+  isV(c:Conf,pid,aid,"ArmGoI","arm",goI)
+  and
+  not(hasV(c:Conf,gid,"grip","open") ) .
+
+-----------------
+--- arm goingI => grip close
+--- arm goingI and not(grip close)
+
+op armGoingIInv : Conf String String String String
+    -> Bool .
+eq armGoingIInv(c:Conf,pid,gid,aid,goI) 
+   =
+   becomeV(c:Conf,pid,aid,"ArmGoI","arm", goI) 
+   and 
+   not(isV(c:Conf,pid,gid,"GripCl","grip","close"))
+.
+
+------------------
+--- arm goingNI => grip open
+
+op armGoingNIInv : Conf String String String String
+    -> Bool .
+eq armGoingNIInv(c:Conf,pid,gid,aid,goNI) 
+   =
+   becomeV(c:Conf,pid,aid,"ArmGoNI","arm", goNI) 
+   and
+   not(isV(c:Conf,pid,gid,"GripOp","grip","open"))
+.
+
+------------------
+--- grip closing => arm atNI
+
+op gripClosingInv : Conf String String String 
+                    String -> Bool .
+eq gripClosingInv(c:Conf,pid,gid,aid,goNI) 
+   =
+  becomeV(c:Conf,pid,gid,"GripCl","grip","close") 
+  and 
+  not(isV(c:Conf,pid,aid,"ArmGoNI","arm",goNI)) .
+
+------------------
+--- grip opening => arm atI
+
+op gripOpeningInv : Conf String String String 
+                    String -> Bool .
+eq gripOpeningInv(c:Conf,pid,gid,aid,goI) 
+   =
+  becomeV(c:Conf,pid,gid,"GriOp","grip","open") 
+  and 
+  not(isV(c:Conf,pid,aid,"ArmGoI","arm",goI)) .
+
+endfm   
+
+mod COAP-APP-PNP-SYSTEM is 
+   inc COAP-APP-PNP-SCENARIO . 
+   inc COAP-RULES . 
+endm
+
+mod COAP-APP-PNP-SYSTEM-DIALECTED is 
+   inc COAP-APP-PNP-SYSTEM  . 
+   inc COAP-DIALECT-TRANSFORMS .
+   
+***(
+rew D(sys) .
+
+search D(sys) =>+ {c:Conf} such that
+P(UDC(c:Conf)) .
+)   
+
+endm
+
+
+eof
+amsgd(n:Nat)
+
+set print attribute on .
+
+red startAMsg("pctl","PUTS") .
+**** AMsg: amsg("PUTS", "pctl", "NON", "PUT", "pnp", "", b("start"))
+
+red startMsg("pctl","ps","PUTS") .
+****  Msg: m("pctl", "ps", c(h("NON", "0.PUT", "PUTS.0"), "PUTS:1", o( "Uri-Path", "pnp") o("Uri-Query", ""), b("start")))
+
+red initRL("pctl","gr","arm",startAMsg("pctl","PUTS")) .
+
+set print attribute on .
+ 
+rew {initRL("pctl","gr","arm",startAMsg("pctl","PUTS")) log(nilLI)} .
+
+**** log(rcvPT("pctl", "PUTS:1", "pnp", "start") ; rcvPT("arm", "ArmGoNI:2", "arm", "goR") ; rcvRsp("ps", "pctl", "PUTS:1") ; rcvRsp("pctl", "arm", "ArmGoNI:2") ; rcvPT("gr", "GripCl:4", "grip", "close") ; rcvRsp( "pctl", "gr", "GripCl:4") ; rcvPT("arm", "ArmGoI:6", "arm", "goL") ; rcvRsp( "pctl", "arm", "ArmGoI:6") ; rcvPT("gr", "GripOp:8", "grip", "open") ; rcvRsp("pctl", "gr", "GripOp:8") ; rcvPT("ps", "PnPDone:10", "pnp", "done") ; rcvRsp("pctl", "ps", "PnPDone:10"))
+    
+rew {initLR("pctl","gr","arm",startAMsg("pctl","PUTS")) log(nilLI)} .
+**** ok
+    
+rew {initRL("pctl","gr","arm",startAMsg("pctl","PUTS0") ; amsgd(20) ; startAMsg("pctl","PUTS1") )  log(nilLI)} .
+
+**** 20 is too short, 50 works
+
+Testing Invariants
+
+--- pctl idle => grip open, arm atI
+--- pctl idle and (not(grip open)  or not(arm atI))
+--- pnpIdInv(c:Conf,pid,gid,aid,goI)
+
+red hasAV(initRL("pctl","gr","arm",startAMsg("pctl")) log(nilLI),"pctl","status","idle") .
+**** true
+
+red isV(initRL("pctl","gr","arm",startAMsg("pctl","PUTS")) log(nilLI),"pctl","arm","ArmGoI","arm", "goL") .
+**** true
+
+red isV(initRL("pctl","gr","arm",startAMsg("pctl","PUTS")) log(nilLI),"pctl","gr","GripOp","grip", "open") .
+**** true
+
+set print attribute off .
+
+--- pctl idle => grip open, arm atI
+--- pctl idle and (not(grip open)  or not(arm atI))
+--- pnpIdInv(c:Conf,pid,gid,aid,goI)
+
+search [1] {initRL("pctl","gr","arm",startAMsg("pctl","PUTS")) log(nilLI)} =>+ {c:Conf} such that pnpIdleInv(c:Conf,"pctl","gr","arm","goL") .
+**** no solution
+
+
+-----------------
+--- arm atI  => grip open or opening
+--- arm atI and not(grip open or opening)
+--- armAtIInv(c:Conf,pid,gid,aid,goI) 
+
+search [1] {initRL("pctl","gr","arm",startAMsg("pctl","PUTS")) log(nilLI)} =>+ {c:Conf} such that armAtIInv(c:Conf,"pctl","gr","arm","goL") .
+
+**** fails as arm arrives at init with grip
+****  closed, there is pending amsg to open grip
+
+-----------------
+--- arm goingI => grip close
+--- arm goingI and not(grip close)
+--- armGoingIInv(c:Conf,pid,gid,aid,goI) 
+
+search [1] {initRL("pctl","gr","arm",startAMsg("pctl","PUTS")) log(nilLI)} =>+ {c:Conf} such that armGoingIInv(c:Conf,"pctl","gr","arm","goL") .
+
+*****  no solution
+
+----------------------------
+--- arm goingNI => grip open
+--- armGoingNIInv(c:Conf,pid,gid,aid,goNI) 
+
+search [1] {initRL("pctl","gr","arm",startAMsg("pctl","PUTS")) log(nilLI)} =>+ {c:Conf} such that armGoingNIInv(c:Conf,"pctl","gr","arm","goR") .
+
+**** no solution
+
+------------------
+--- grip closing => arm atNI
+--- gripClosingInv(c:Conf,pid,gid,aid,goNI) 
+
+search [1] {initRL("pctl","gr","arm",startAMsg("pctl","PUTS")) log(nilLI)} =>+ {c:Conf} such that gripClosingInv(c:Conf,"pctl","gr","arm","goR") .
+
+**** no solution
+
+------------------
+--- grip opening => arm atI
+--- gripOpeningInv(c:Conf,pid,gid,aid,goI) 
+
+search [1] {initRL("pctl","gr","arm",startAMsg("pctl","PUTS")) log(nilLI)} =>+ {c:Conf} such that gripOpeningInv(c:Conf,"pctl","gr","arm","goL") .
+
+**** no solution
+
+*************************************************
+*****   attacking invariants
+*************************************************
+--- pctl idle => grip open, arm atI
+--- pnpIdInv(c:Conf,pid,gid,aid,goI)
+
+search [1] {initRL("pctl","gr","arm",startAMsg("pctl","PUTS")) log(nilLI) ["eve" | kb(mtDM) caps(mcX(20))]} =>+ {c:Conf} such that pnpIdleInv(c:Conf,"pctl","gr","arm","goL") .
+
+Solution 1 (state 1142)
+states: 1143
+
+search [1] {initRL("pctl","gr","arm", startAMsg("pctl","PUTS0") ; amsgd(50) ; startAMsg("pctl","PUTS1")) log(nilLI) ["eve" | kb(mtDM) caps(mcX(20) mcX(50))]} =>+ {c:Conf} such that pnpIdleInv(c:Conf,"pctl","gr","arm","goL") .
+
+
+-----------------
+--- arm atI  => grip open or opening
+--- arm atI and not(grip open or opening)
+--- armAtIInv(c:Conf,pid,gid,aid,goI) 
+
+search [1] {initRL("pctl","gr","arm",startAMsg("pctl","PUTS")) log(nilLI)} =>+ {c:Conf} such that armAtIInv(c:Conf,"pctl","gr","arm","goL") .
+
+**** fails as arm arrives at init with grip
+****  closed, there is pending amsg to open grip
+
+-----------------
+--- arm goingI => grip close
+--- arm goingI and not(grip close)
+--- armGoingIInv(c:Conf,pid,gid,aid,goI) 
+
+search [1] {initRL("pctl","gr","arm",startAMsg("pctl","PUTS")) log(nilLI)} =>+ {c:Conf} such that armGoingIInv(c:Conf,"pctl","gr","arm","goL") .
+
+*****  no solution
+
+----------------------------
+--- arm goingNI => grip open
+--- armGoingNIInv(c:Conf,pid,gid,aid,goNI) 
+
+search [1] {initRL("pctl","gr","arm",startAMsg("pctl","PUTS")) log(nilLI)} =>+ {c:Conf} such that armGoingNIInv(c:Conf,"pctl","gr","arm","goR") .
+
+**** no solution
+
+------------------
+--- grip closing => arm atNI
+--- gripClosingInv(c:Conf,pid,gid,aid,goNI) 
+
+search [1] {initRL("pctl","gr","arm",startAMsg("pctl","PUTS")) log(nilLI)} =>+ {c:Conf} such that gripClosingInv(c:Conf,"pctl","gr","arm","goR") .
+
+**** no solution
+
+------------------
+--- grip opening => arm atI
+--- gripOpeningInv(c:Conf,pid,gid,aid,goI) 
+
+search [1] {initRL("pctl","gr","arm",startAMsg("pctl","PUTS")) log(nilLI)} =>+ {c:Conf} such that gripOpeningInv(c:Conf,"pctl","gr","arm","goL") .
+
+**** no solution
+

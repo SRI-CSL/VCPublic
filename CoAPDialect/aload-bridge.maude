@@ -1,0 +1,3 @@
+load aload .
+load coap-app-bridge-scenarios .
+

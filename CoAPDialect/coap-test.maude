@@ -316,9 +316,11 @@ ceq checkRsrc(conf,epid,path,val) = true
 if [epid | devatts rsrcs(rmap rb(path,val))] conf1 := conf .
 eq checkRsrc(conf,epid,path,val) = false [owise] .
     
-**** client rcvr has get response from sndr with value val 
-**** val == "*" matches any val1
-***************  by     from        aid      val        
+***( client rcvr has get response from sndr with value matching val and token matching aid
+  val == "" matches any val1
+  aid == "" matches any token, ow must be prefix
+  get response means code is that for get request
+)
 op hasGetRsp : Conf String String String String -> Bool .
 ceq hasGetRsp(conf, rcvr,sndr,aid,val) = true
 if [rcvr | devatts rspRcd(msgs)] conf1 := conf
@@ -326,11 +328,14 @@ if [rcvr | devatts rspRcd(msgs)] conf1 := conf
 /\  (val == val1) or (val == "")
 /\ code := getCode(hd) 
 /\  (code == "2.05") or (code == "2.03")
-/\ (if aid =/= "" then find(tok,aid,0) :: Nat else true fi)
- .
+/\ (if aid =/= "" 
+    then find(tok,aid,0) :: Nat 
+    else true fi)  .
 
 eq hasGetRsp(conf, rcvr,sndr,aid,val) = false [owise] .    
 
+**** server sndr has sent response to client rcvr
+**** with given code
 op hasRspSnt : Conf String String String -> Bool .
 ceq hasRspSnt(conf,sndr, rcvr,code) = true
 if  [sndr | devatts] conf1 := conf
@@ -340,7 +345,8 @@ if  [sndr | devatts] conf1 := conf
 
 eq hasRspSnt(conf, sndr,rcvr,code) = false [owise] .   
 
-
+**** requestor, rcvr, has response from 
+**** server, sndr, with code
 op hasRspRcd : Conf String String String -> Bool .
 ceq hasRspRcd(conf,rcvr,sndr,code) = true
 if  [rcvr | devatts] conf1 := conf
@@ -349,6 +355,7 @@ if  [rcvr | devatts] conf1 := conf
 /\  code == getCode(content) .
 
 eq hasRspRcd(conf,rcvr, sndr,code) = false [owise] .    
+
 
 op rspPending : Conf String String 
                 String String String String -> Bool .
@@ -360,7 +367,8 @@ if  [sndr | devatts] conf1 := conf
 
 eq rspPending(conf,sndr,rcvr,type,code,path,val) = false [owise] .
 
-
+**** one response sent before the other if the
+**** former has more time to live (larger delay)
 op rspSntBefore : Conf String String String String -> Bool .
 **** sndr is the client rcvr the server
 ceq rspSntBefore(conf,rcvr,sndr,code0,code1) = true
@@ -373,8 +381,9 @@ if [rcvr | devatts rspSntD(dmsgs)] conf1 := conf
 
 eq rspSntBefore(conf,sndr,rcvr,code0,code1) = false [owise] .
 
-******************* using Tokens ********************
-********* client
+************** using Tokens ********************
+**** client rcvr has resp from server sndr
+**** with token matching aid 
 op hasRspTRcd : Conf String String String -> Bool .
 ceq hasRspTRcd(conf,rcvr,sndr,aid) = true
 if  [rcvr | devatts] conf1 := conf
@@ -384,6 +393,8 @@ if  [rcvr | devatts] conf1 := conf
 eq hasRspTRcd(conf,rcvr, sndr,aid) = false [owise] .  
 
 
+**** client sndr awaits resp from server rcvr
+**** with token matching aid 
 op rspPend : Conf String String String -> Bool .
 *******          cl   svr                
 ceq rspPend(conf,sndr,rcvr,aid) =

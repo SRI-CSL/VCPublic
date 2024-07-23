@@ -1,0 +1,230 @@
+24jul11
+
+1 round initConf = brInit
+2 rounds initConf = brInit2(40)
+
+--- %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+--- bctl idle => bridge close, gate open
+
+search {brInit} =>+ {c:Conf} such that bclIdleInv(c:Conf,"bctl","br","ga") .
+
+no attacker 1 round no solution 65 states
+
+search {brInit2(40)} =>+ {c:Conf} such that bclIdleInv(c:Conf,"bctl","br","ga") .
+
+no attacker 2 rounds no solution 139 states
+----------with attacker -------------------------
+search [1] {brInit log(nilLI) ["eve" | kb(mtDM) caps(mcX(40))]} =>+ {c:Conf} such that bclIdleInv(c:Conf,"bctl","br","ga") .
+ 
+No solution. states: 586 
+
+search [1] {brInit log(nilLI) ["eve" | kb(mtDM) caps(mcX(20))]} =>+ {c:Conf} such that bclIdleInv(c:Conf,"bctl","br","ga") .
+
+Solution 1 (state 1321)
+
+log(rcvPT("bctl", "putN:1", "boat", "here") ; rcvPT("ga", "GateCL:2", "gate", "close") ; rcvRsp("bs", "bctl", "putN:1") ; rcvRsp("bctl", "ga", "GateCL:2") ; rcvPT( "br", "BridgeOp:4", "bridge", "open") ; rcvRsp("bctl", "br", "BridgeOp:4") ; rcvPT( "bs", "BSPass:6", "boat", "pass") ; rcvRsp("bctl", "bs", "BSPass:6") ; rcvPT("br", "BridgeCl:8", "bridge", "close") ; rcvRsp("bctl", "br", "BridgeCl:8") ; rcvPT("ga", "GateOp:10", "gate", "open") ; rcvPT("ga", "GateCL:2", "gate", "close") ; rcvRsp( "bctl", "ga", "GateOp:10"))
+
+rctl: aconf(rb("status", "idle"),...)
+br: rsrcs(rb("bridge", "close"))
+eve: al(m("ga", "bctl", c(h( "NON", "0.PUT", "GateCL.1"), "GateCL:2", o("Uri-Path", "gate") o("Uri-Query", ""), b( "close"))) @ 2, mcX(20))
+ga: rsrcs(rb("gate", "close"))
+
+------------------
+Solution 78 (state 1599) states: 1600  
+
+log(rcvPT("bctl", "putN:1", "boat", "here") ; rcvPT("ga", "GateCL:2", "gate", "close") ; rcvRsp("bs", "bctl", "putN:1") ; rcvRsp("bctl", "ga", "GateCL:2") ; rcvPT( "br", "BridgeOp:4", "bridge", "open") ; rcvRsp("bctl", "br", "BridgeOp:4") ; rcvPT( "bs", "BSPass:6", "boat", "pass") ; rcvRsp("bctl", "bs", "BSPass:6") ; rcvPT("br", "BridgeCl:8", "bridge", "close") ; rcvRsp("bctl", "br", "BridgeCl:8") ; rcvPT("ga", "GateOp:10", "gate", "open") ; rcvRsp("bctl", "ga", "GateOp:10") ; rcvPT("br", "BridgeOp:4", "bridge", "open"))
+
+bctl: aconf(rb("status", "idle"), ...)
+br:  rsrcs(rb("bridge", "open"))
+eve: al(m("br", "bctl", c(h("NON", "0.PUT", "BridgeOp.3"), "BridgeOp:4", o("Uri-Path", "bridge") o( "Uri-Query", ""), b("open"))) @ 0, mcX(20)))
+ga:  rsrcs(rb("gate", "open"))
+
+***********  dialected 
+search [1] D({brInit log(nilLI) ["eve" | kb(mtDM) caps(mcX(20))]}) =>+ {c:Conf} such that bclIdleInv(UDC(c:Conf),"bctl","br","ga") .
+
+No solution. states: 99
+
+-----------------------------------
+search [1] {brInit2(40) log(nilLI) ["eve" | kb(mtDM) caps(mcX(40))]} =>+ {c:Conf} such that bclIdleInv(c:Conf,"bctl","br","ga") .
+
+2 rounds mcX(40)
+Solution 1 (state 721) states: 722  gate close
+
+ log(rcvPT("bctl", "putN:1", "boat", "here") ; rcvPT("ga", "GateCL:2", "gate", "close") ; rcvRsp("bs", "bctl", "putN:1") ; rcvRsp("bctl", "ga", "GateCL:2") ; rcvPT( "br", "BridgeOp:4", "bridge", "open") ; rcvRsp("bctl", "br", "BridgeOp:4") ; rcvPT( "bs", "BSPass:6", "boat", "pass") ; rcvRsp("bctl", "bs", "BSPass:6") ; rcvPT("br", "BridgeCl:8", "bridge", "close") ; rcvRsp("bctl", "br", "BridgeCl:8") ; rcvPT("ga", "GateOp:10", "gate", "open") ; rcvRsp("bctl", "ga", "GateOp:10") ; rcvPT("ga", "GateCL:2", "gate", "close"))
+
+["bctl" | ... aconf(rb("status", "idle"),...) ...]
+
+
+Solution 88 (state 10184) states: 10185  bridge open
+
+log(rcvPT("bctl", "putN:1", "boat", "here") ; rcvPT("ga", "GateCL:2", "gate", "close") ; rcvRsp("bs", "bctl", "putN:1") ; rcvRsp("bctl", "ga", "GateCL:2") ; rcvPT( "br", "BridgeOp:4", "bridge", "open") ; rcvRsp("bctl", "br", "BridgeOp:4") ; rcvPT( "bs", "BSPass:6", "boat", "pass") ; rcvRsp("bctl", "bs", "BSPass:6") ; rcvPT("br", "BridgeCl:8", "bridge", "close") ; rcvRsp("bctl", "br", "BridgeCl:8") ; rcvPT("ga", "GateOp:10", "gate", "open") ; rcvRsp("bctl", "ga", "GateOp:10") ; rcvPT("bctl", "putN:4", "boat", "here") ; rcvPT("ga", "GateCL:13", "gate", "close") ; rcvRsp("bs", "bctl", "putN:4") ; rcvRsp("bctl", "ga", "GateCL:13") ; rcvPT("br", "BridgeOp:15", "bridge", "open") ; rcvRsp("bctl", "br", "BridgeOp:15") ; rcvPT("bs", "BSPass:17", "boat", "pass") ; rcvRsp("bctl", "bs", "BSPass:17") ; rcvPT("br", "BridgeCl:19", "bridge", "close") ; rcvRsp("bctl", "br", "BridgeCl:19") ; rcvPT("ga", "GateOp:21", "gate", "open") ; rcvRsp("bctl", "ga", "GateOp:21") ; rcvPT("br", "BridgeOp:4", "bridge", "open"))
+
+rsrcs(rb("bridge", "open"))
+
+-------------- dialected
+search [1] D({brInit2(40) log(nilLI) ["eve" | kb(mtDM) caps(mcX(40))]}) =>+ {c:Conf} such that bclIdleInv(UDC(c:Conf),"bctl","br","ga") .
+
+No solution. states: 209
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+--- gate open/opening/closing => bridge close
+
+search {brInit log(nilLI)} =>+ {c:Conf} such that gateNClInv(c:Conf,"bctl","br","ga") .
+
+no attack 1 round No solution. states: 65
+
+search {brInit2(40) log(nilLI)} =>+ {c:Conf} such that gateNClInv(c:Conf,"bctl","br","ga") .
+
+no attack 2 rounds No solution. states: 139
+
+search [1] {brInit log(nilLI) ["eve" | kb(mtDM) caps(mcX(20))]} =>+ {c:Conf} such that gateNClInv(c:Conf,"bctl","br","ga") .
+
+Solution 1 (state 983) states: 984 
+log(rcvPT("bctl", "putN:1", "boat", "here") ; rcvPT("ga", "GateCL:2", "gate", "close") ; rcvRsp("bs", "bctl", "putN:1") ; rcvRsp("bctl", "ga", "GateCL:2") ; rcvPT("br", "BridgeOp:4", "bridge", "open") ; rcvRsp("bctl", "br", "BridgeOp:4") ; rcvPT("bs", "BSPass:6", "boat", "pass") ; rcvRsp("bctl", "bs", "BSPass:6") ; rcvPT("br", "BridgeCl:8", "bridge", "close") ; rcvPT("br", "BridgeOp:4", "bridge", "open") ; rcvRsp("bctl", "br", "BridgeCl:8") ; rcvPT( "ga", "GateOp:10", "gate", "open"))
+
+br: rb("bridge", "open"))
+ga: rb("gate", "open"))
+eve: al( m("br", "bctl", c(h("NON", "0.PUT", "BridgeOp.3"), "BridgeOp:4", o("Uri-Path", "bridge") o("Uri-Query", ""), b("open"))) @ 2, mcX(20)))]
+
+....    
+Solution 132 (state 1599) states: 1600  
+log(rcvPT("bctl", "putN:1", "boat", "here") ; rcvPT("ga", "GateCL:2", "gate", "close") ; rcvRsp("bs", "bctl", "putN:1") ; rcvRsp("bctl", "ga", "GateCL:2") ; rcvPT("br", "BridgeOp:4", "bridge", "open") ; rcvRsp("bctl", "br", "BridgeOp:4") ; rcvPT("bs", "BSPass:6", "boat", "pass") ; rcvRsp("bctl", "bs", "BSPass:6") ; rcvPT("br", "BridgeCl:8", "bridge", "close") ; rcvRsp( "bctl", "br", "BridgeCl:8") ; rcvPT("ga", "GateOp:10", "gate", "open") ; rcvRsp("bctl", "ga", "GateOp:10") ; rcvPT("br", "BridgeOp:4", "bridge", "open"))
+    
+        
+search [1] {brInit2(40) log(nilLI) ["eve" | kb(mtDM) caps(mcX(20))]} =>+ {c:Conf} such that gateNClInv(c:Conf,"bctl","br","ga") .
+
+Solution 1 (state 1196) states: 1197 
+log(rcvPT("bctl", "putN:1", "boat", "here") ; rcvPT("ga", "GateCL:2", "gate", "close") ; rcvRsp("bs", "bctl", "putN:1") ; rcvRsp("bctl", "ga", "GateCL:2") ; rcvPT("br", "BridgeOp:4", "bridge", "open") ; rcvRsp("bctl", "br", "BridgeOp:4") ; rcvPT("bs", "BSPass:6", "boat", "pass") ; rcvRsp("bctl", "bs", "BSPass:6") ; rcvPT("br", "BridgeCl:8", "bridge", "close") ; rcvPT("br", "BridgeOp:4", "bridge", "open") ; rcvRsp("bctl", "br", "BridgeCl:8") ; rcvPT( "ga", "GateOp:10", "gate", "open"))
+        
+search [1] D({brInit log(nilLI) ["eve" | kb(mtDM) caps(mcX(20))]}) =>+ {c:Conf} such that gateNClInv(UDC(c:Conf),"bctl","br","ga") .
+   
+No solution. states: 99    
+    
+search D({brInit2(40) log(nilLI) ["eve" | kb(mtDM) caps(mcX(40))]}) =>+ {c:Conf} such that gateNClInv(UDC(c:Conf),"bctl","br","ga") .
+
+No solution. states: 209
+
+1 attack mcX(40) 1 round No solution. states: 586
+1 attack mcX(20) 1 round 
+    Solution 132 (state 1599) states: 1600
+1 attack mcX(20) 1 round dialected
+    No solution. states: 99
+    
+1 attack mcX(20) 2 rounds 
+br is closing but not closed
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+--- bridge open/opening/closing => gate close
+
+search {brInit} =>+ {c:Conf} such that brNClInv(c:Conf,"bctl","br","ga") .
+
+no attack 1 round No solution. states: 65
+
+search {brInit2(40)} =>+ {c:Conf} such that brNClInv(c:Conf,"bctl","br","ga") .
+
+no attack 2 round No solution. states: 139
+
+search [1] {brInit log(nilLI) ["eve" | kb(mtDM) caps(mcX(20))]} =>+ {c:Conf} such that brNClInv(c:Conf,"bctl","br","ga") .
+
+mcX(20) 1 round
+
+Solution 1 (state 983) states: 984  
+log(rcvPT("bctl", "putN:1", "boat", "here") ; rcvPT("ga", "GateCL:2", "gate", "close") ; rcvRsp("bs", "bctl", "putN:1") ; rcvRsp("bctl", "ga", "GateCL:2") ; rcvPT( "br", "BridgeOp:4", "bridge", "open") ; rcvRsp("bctl", "br", "BridgeOp:4") ; rcvPT( "bs", "BSPass:6", "boat", "pass") ; rcvRsp("bctl", "bs", "BSPass:6") ; rcvPT("br", "BridgeCl:8", "bridge", "close") ; rcvPT("br", "BridgeOp:4", "bridge", "open") ; rcvRsp("bctl", "br", "BridgeCl:8") ; rcvPT("ga", "GateOp:10", "gate", "open"))
+
+bctl: aconf(rb("status", "working"), ...)
+br:  rsrcs(rb("bridge", "open"))
+eve: al(m("br", "bctl", c(h("NON", "0.PUT", "BridgeOp.3"), "BridgeOp:4", o("Uri-Path", "bridge") o( "Uri-Query", ""), b("open"))) @ 2, mcX(20))
+ga: rsrcs(rb("gate", "open"))
+
+.....
+Solution 132 (state 1599) states: 1600
+
+log(rcvPT("bctl", "putN:1", "boat", "here") ; rcvPT("ga", "GateCL:2", "gate", "close") ; rcvRsp("bs", "bctl", "putN:1") ; rcvRsp("bctl", "ga", "GateCL:2") ; rcvPT( "br", "BridgeOp:4", "bridge", "open") ; rcvRsp("bctl", "br", "BridgeOp:4") ; rcvPT( "bs", "BSPass:6", "boat", "pass") ; rcvRsp("bctl", "bs", "BSPass:6") ; rcvPT("br", "BridgeCl:8", "bridge", "close") ; rcvRsp("bctl", "br", "BridgeCl:8") ; rcvPT("ga", "GateOp:10", "gate", "open") ; rcvRsp("bctl", "ga", "GateOp:10") ; rcvPT("br", "BridgeOp:4", "bridge", "open"))
+
+bctl:  aconf(rb("status", "idle"), ...)
+br:  rsrcs(rb("bridge", "open"))
+eve: al(m("br", "bctl", c(h("NON", "0.PUT", "BridgeOp.3"), "BridgeOp:4", o("Uri-Path", "bridge") o( "Uri-Query", ""), b("open"))) @ 0, mcX(20))
+ga: rsrcs(rb("gate", "open"))
+
+---------------------
+search [1] D({brInit log(nilLI) ["eve" | kb(mtDM) caps(mcX(20))]}) =>+ {c:Conf} such that brNClInv(UDC(c:Conf),"bctl","br","ga") .
+
+mcX(20) 1 round - dialected
+No solution. states: 99
+
+-------------------------------
+search [1] {brInit2(40) log(nilLI) ["eve" | kb(mtDM) caps(mcX(20))]} =>+ {c:Conf} such that brNClInv(c:Conf,"bctl","br","ga") .
+
+mcX(20) 2 rounds
+
+Solution 1 (state 1196) states: 1197  
+log(rcvPT("bctl", "putN:1", "boat", "here") ; rcvPT("ga", "GateCL:2", "gate", "close") ; rcvRsp("bs", "bctl", "putN:1") ; rcvRsp("bctl", "ga", "GateCL:2") ; rcvPT("br", "BridgeOp:4", "bridge", "open") ; rcvRsp("bctl", "br", "BridgeOp:4") ; rcvPT("bs", "BSPass:6", "boat", "pass") ; rcvRsp("bctl", "bs", "BSPass:6") ; rcvPT("br", "BridgeCl:8", "bridge", "close") ; rcvPT("br", "BridgeOp:4", "bridge", "open") ; rcvRsp("bctl", "br", "BridgeCl:8") ; rcvPT( "ga", "GateOp:10", "gate", "open"))
+
+Solution 1682 (state 20416) states: 20417 
+log(rcvPT("bctl", "putN:1", "boat", "here") ; rcvPT("ga", "GateCL:2", "gate", "close") ; rcvRsp("bs", "bctl", "putN:1") ; rcvRsp("bctl", "ga", "GateCL:2") ; rcvPT("br", "BridgeOp:4", "bridge", "open") ; rcvRsp("bctl", "br", "BridgeOp:4") ; rcvPT("bs", "BSPass:6", "boat", "pass") ; rcvRsp("bctl", "bs", "BSPass:6") ; rcvPT("br", "BridgeCl:8", "bridge", "close") ; rcvRsp( "bctl", "br", "BridgeCl:8") ; rcvPT("ga", "GateOp:10", "gate", "open") ; rcvRsp("bctl", "ga", "GateOp:10") ; rcvPT("bctl", "putN:4", "boat", "here") ; rcvPT("ga", "GateCL:13", "gate", "close") ; rcvRsp("bs", "bctl", "putN:4") ; rcvRsp("bctl", "ga", "GateCL:13") ; rcvPT("br", "BridgeOp:15", "bridge", "open") ; rcvRsp("bctl", "br", "BridgeOp:15") ; rcvPT("bs", "BSPass:17", "boat", "pass") ; rcvRsp("bctl", "bs", "BSPass:17") ; rcvPT("br", "BridgeCl:19", "bridge", "close") ; rcvRsp("bctl", "br", "BridgeCl:19") ; rcvPT("ga", "GateOp:21", "gate", "open") ; rcvRsp("bctl", "ga", "GateOp:21") ; rcvPT("br", "BridgeOp:15", "bridge", "open"))
+
+-------------------------
+search [1] D({brInit2(40) log(nilLI) ["eve" | kb(mtDM) caps(mcX(20))]}) =>+ {c:Conf} such that brNClInv(UDC(c:Conf),"bctl","br","ga") .
+
+mcX(40) 2 rounds - dialected
+No solution.  states: 209
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+--- boat passing => bridge open, gate closed
+
+search {brInit} =>+ {c:Conf} such that boatPassInv(c:Conf,"bctl","bs","br","ga") .
+
+No solution. states: 65
+
+search {brInit2(40)} =>+ {c:Conf} such that boatPassInv(c:Conf,"bctl","bs","br","ga") .
+
+No solution. states: 139
+
+search {brInit log(nilLI) ["eve" | kb(mtDM) caps(mcX(20))]} =>+ {c:Conf} such that boatPassInv(c:Conf,"bctl","bs","br","ga") .
+
+mcX(20,30,40) No solution. states: 1704
+
+search [1 ]{brInit2(40) log(nilLI) ["eve" | kb(mtDM) caps(mcX(20))]} =>+ {c:Conf} such that boatPassInv(c:Conf,"bctl","bs","br","ga") .
+
+Solution 1 (state 11029) states: 11030 
+log(rcvPT("bctl", "putN:1", "boat", "here") ; rcvPT("ga", "GateCL:2", "gate", "close") ; rcvRsp("bs", "bctl", "putN:1") ; rcvRsp("bctl", "ga", "GateCL:2") ; rcvPT("br", "BridgeOp:4", "bridge", "open") ; rcvRsp("bctl", "br", "BridgeOp:4") ; rcvPT("bs", "BSPass:6", "boat", "pass") ; rcvRsp("bctl", "bs", "BSPass:6") ; rcvPT("br", "BridgeCl:8", "bridge", "close") ; rcvRsp( "bctl", "br", "BridgeCl:8") ; rcvPT("ga", "GateOp:10", "gate", "open") ; rcvRsp("bctl", "ga", "GateOp:10") ; rcvPT("bctl", "putN:4", "boat", "here") ; rcvPT("ga", "GateCL:13", "gate", "close") ; rcvRsp("bs", "bctl", "putN:4") ; rcvRsp("bctl", "ga", "GateCL:13") ; 
+rcvPT("br", "BridgeOp:15", "bridge", "open") ; 
+rcvPT("br", "BridgeCl:8", "bridge", "close") ; 
+rcvRsp("bctl", "br", "BridgeOp:15") ; 
+rcvPT("bs", "BSPass:17", "boat", "pass"))
+
+net((m("bctl", "br", c(h("NON", "2.04", "br.3"), "BridgeCl:8", mtO, mtBody)) @ 5) m("bctl", "bs", c(h("NON", "2.04", "bs.5"), "BSPass:17", mtO, mtBody)) @ 7, mtDM)
+    
+"bctl" 
+ w4Rsp(m("bs", "bctl", c(h("NON", "0.PUT", "BSPass.16"),
+rsrcs(rb("boat", "here"))
+
+"br" rsrcs(rb("bridge", "close")) 
+
+"bs"  rsrcs(rb("boat", "pass"))
+
+"eve" alog(al( m("br", "bctl", c(h("NON", "0.PUT", "BridgeCl.7"), "BridgeCl:8", o("Uri-Path", "bridge") o("Uri-Query", ""), b("close"))) @ 2, mcX(20)))
+
+"ga"  rsrcs(rb("gate", "close")) 
+  
+.....
+
+Solution 208 (state 13024) states: 13025
+log(rcvPT("bctl", "putN:1", "oat", "here") ; rcvPT("ga", "GateCL:2", "gate", "close") ; rcvRsp("bs", "bctl", "putN:1") ; rcvRsp("bctl", "ga", "GateCL:2") ; rcvPT("br", "BridgeOp:4", "bridge", "open") ; rcvRsp("bctl", "br", "BridgeOp:4") ; rcvPT("bs", "BSPass:6", "boat", "pass") ; rcvRsp("bctl", "bs", "BSPass:6") ; rcvPT("br", "BridgeCl:8", "bridge", "close") ; rcvRsp( "bctl", "br", "BridgeCl:8") ; rcvPT("ga", "GateOp:10", "gate", "open") ; rcvRsp("bctl", "ga", "GateOp:10") ; rcvPT("bctl", "putN:4", "boat", "here") ; rcvPT("ga", "GateCL:13", "gate", "close") ; rcvRsp("bs", "bctl", "putN:4") ; rcvRsp("bctl", "ga", "GateCL:13") ; rcvPT("br", "BridgeOp:15", "bridge", "open") ; rcvRsp("bctl", "br", "BridgeOp:15") ; rcvPT("bs", "BSPass:17", "boat", "pass") ; rcvPT("ga", "GateOp:10", "gate", "open"))
+
+net(mtDM, m("bctl", "bs", c(h("NON", "2.04", "bs.5"), "BSPass:17", mtO, mtBody)) @ 0)
+
+"bctl" : w4Rsp(m("bs", "bctl", c(h("NON", "0.PUT", "BSPass.16"), "BSPass:17", o("Uri-Path", "boat") o("Uri-Query", ""), b("pass"))))
+aconf(rb("status", "working"), ...)
+
+"br" rsrcs(rb("bridge", "open"))
+
+"eve" alog(al(m( "ga", "bctl", c(h("NON", "0.PUT", "GateOp.9"), "GateOp:10", o("Uri-Path", "gate") o("Uri-Query", ""), b("open"))) @ 0, mcX(20)))
+
+"ga" rsrcs(rb("gate", "open"))
+
+----------------------------------------
+search [1] D({brInit2(40) log(nilLI) ["eve" | kb(mtDM) caps(mcX(20))]}) =>+ {c:Conf} such that boatPassInv(UDC(c:Conf),"bctl","bs","br","ga") .
+
+No solution.  states: 209

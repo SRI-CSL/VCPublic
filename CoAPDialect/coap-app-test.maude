@@ -1,0 +1,207 @@
+fmod COAP-APP-TEST is
+  inc COAP-APP .
+  
+ops saX0 saX1 : -> SendAct .
+eq saX0 = 
+  send("agetN","dev1","NON","GET","door","") .
+eq saX1 = 
+  send("agetN","dev1","NON",v("meth"),v("path"),"") .
+
+op putActX : -> UpDateAct .
+eq putActX = put(v("path"),"unlock") .
+op setActX : -> UpDateAct .
+eq setActX = put(v("x"),"0") .
+
+op reqX0 : -> Msg .
+eq reqX0 = m("dev0", "dev1", c(h("NON", "0.GET", "agetN.0"), "agetN:1", o("Uri-Path", "door") o("Uri-Query", ""), mtBody)) .
+
+op reqPatX0a : -> MPat . 
+eq reqPatX0a = req("dev1","GET","door","") .
+op reqPatX0b : -> MPat . 
+eq reqPatX0b = req(v("src"),"GET",v("path"),"") .
+
+op rspX0 : -> Msg .
+eq rspX0 = m("dev0", "dev1", c(h("NON", "2.05", "dev1.0"), "agetN:1", mtO, b("locked"))) .
+
+op rspX0f : -> Msg .
+eq rspX0f = m("dev0", "dev1", c(h("ACK", "4.04", "dev1.0"), "agetC:1", mtO, mtBody)) .
+
+op rspPatX0 : -> MPat . 
+eq rspPatX0 = rsp("dev1","agetN",true,v("door")) .
+
+op rspPatX0f : -> MPat . 
+eq rspPatX0f = rsp("dev1","agetC",false,v("door")) .
+
+op reqX1 : -> Msg .
+eq reqX1 = m("dev1", "dev0", c(h("CON", "0.PUT", "aputC.0"), "aputC:1", o("Uri-Path", "door") o( "Uri-Query", ""), b("lock"))) .
+
+op reqPatX1a : -> MPat . 
+eq reqPatX1a = req("dev1","PUT","door",v("door")) .
+op reqPatX1b : -> MPat . 
+eq reqPatX1b = 
+      req(v("src"),"PUT",v("path"),v("val")) .
+
+op ackX1 : -> Msg .
+eq ackX1 = m("dev0", "dev1", c(h("ACK", "0.00", "aputC.0"), "", mtO, mtBody)) .
+
+
+op rspX1 : -> Msg .
+eq rspX1 = m("dev0", "dev1", c(h("NON", "2.04", "dev1.0"), "aputC:1", mtO, mtBody)) .
+
+op rspPatX1 : -> MPat . 
+eq rspPatX1 = rsp("dev1","aputC",true,v("")) .
+
+  **** rsp(tgtP,amid,sf,valP) 
+  **** req(srcP,methP,pathP,valP) 
+  op rsp : Pat String Bool Pat -> MPat [ctor] .
+  op req : Pat Pat Pat Pat -> MPat [ctor] .
+ 
+ 
+op caX0 : -> CAct .
+eq caX0 = ca(conj(none),saX0) .
+
+op arX0a : -> ARule .
+eq arX0a = ar(reqPatX0a,ca(conj(none),saX0)) .
+
+op arX0b : -> ARule .
+eq arX0b = ar(reqPatX0b,ca(conj(none),saX1)) .
+**** needs rb("meth","GET") in abnds
+
+**** msg rspX0
+ops arspX0 arspX0f : -> ARule .
+eq arspX0 =
+ ar(rspPatX0,ca(conj(none),set("door",v("door")))) .
+eq arspX0f =
+ ar(rspPatX0f,ca(conj(none),set("door","fail"))) .
+ 
+ 
+op arsX : -> ARules .
+eq arsX = arX0a arX0b arspX0 arspX0f .
+
+op daX : AMsgL RMap -> Attrs .
+eq daX(amsgl:AMsgL,rbnds:RMap) =
+***  w4Ack(mtDM)    
+***  w4Rsp(mtM) 
+***  rspSntD(mtDM)
+***  rspRcd(mtM)
+***  ctr(0) 
+  sendReqs(amsgl:AMsgL)
+  rsrcs(rbnds:RMap)
+***  config(cb("ACK_TIMEOUT", 5) cb("ACK_RANDOM_FACTOR", 2) cb("MAX_RETRANSMIT", 1) cb("msgSD",2) cb("msgQD",5) cb("ttl", 10))
+   .
+
+
+op abndsX : -> RMap .
+op rbndsX : -> RMap .
+eq abndsX = rb("x","1") rb("y","2") .
+eq rbndsX = rb("door","lock") rb("light","off") .
+
+op abndsX1 : -> RMap .
+eq abndsX1 = rb("meth","GET") rb("path","door") .
+
+ops condXt condXf condXCf condXCt condXDt condXDf
+   : -> Cond .
+   
+eq condXf = eq(v("x"),v("y")) .
+eq condXt = neq(v("door"),"unlock") .
+
+eq condXCf = conj(eq(v("x"),v("y")) neq(v("door"),"unlock")) .
+
+eq condXCt = conj(neq(v("x"),v("y")) eq(v("door"),"lock")) .
+
+eq condXDf = disj(eq(v("x"),v("y")) eq(v("door"),"unlock")) .
+eq condXDt = disj(eq(v("x"),v("y")) neq(v("door"),"unlock")) .
+
+op dAttsX : -> Attrs .
+eq dAttsX =
+  sendReqs(nilAM) aconf(abndsX1,none) rsrcs(rbndsX) .
+
+endfm  
+eof
+
+red inst(condXf,abndsX,rbndsX) .
+red inst(condXt,abndsX,rbndsX) .
+red inst(condXCt,abndsX,rbndsX) .
+red inst(condXCf,abndsX,rbndsX) .
+red inst(condXDt,abndsX,rbndsX) .
+red inst(condXDf,abndsX,rbndsX) .
+
+
+red evalCond(condXf,abndsX,rbndsX) .
+red evalCond(condXt,abndsX,rbndsX) .
+red evalCond(condXCt,abndsX,rbndsX) .
+red evalCond(condXCf,abndsX,rbndsX) .
+red evalCond(condXDt,abndsX,rbndsX) .
+red evalCond(condXDf,abndsX,rbndsX) .
+
+red mkAmsg(saX0,abndsX,mtR) .
+red mkAmsg(saX1,abndsX1,mtR) .
+
+red doAct(saX0,dAttsX) .
+
+red amatchReq(reqX0,reqPatX0a) .
+*** {true, mtR}
+red amatchReq(reqX0, req("dev1", "GET", "door", v("?"))) . 
+***  {true, rb("?", "")}
+red amatchReq(reqX0,reqPatX0b) .
+***  {true, rb("path", "door") rb("src", "dev1")}
+
+red amatchRsp(rspX0,rspPatX0) .
+*** {true, rb("door", "locked")}
+red amatchRsp(rspX0f,rspPatX0f) .
+***  {true, rb("door", "")}
+
+
+**** msgs reqX0 rspX0 rspX0f 
+**** arules  arX0a arX0b arspX0 arspX0f 
+
+red amatch(reqX0,arsX ,none) .
+***(
+ca(conj(none), send("agetN", "dev1", "NON", "GET", "door", "")) 
+ca(conj(none), send("agetN", "dev1", "NON", v("meth"), "door", ""))
+    )    
+
+red amatch(rspX0,arsX ,none) .
+*** ca(conj(none), set("door", "locked"))
+red amatch(rspX0f,arsX ,none) .
+*** ca(conj(none), set("door", "fail"))
+
+red amatch(reqX1,arsX ,none) .
+***  (none).CActs
+
+red doCActs(ca(conj(none), send("agetN", "dev1", "NON", "GET", "door", "")) ca(conj(none), send("agetN", "dev1", "NON", v("meth"), "door", "")), sendReqs(nilAM) aconf(abndsX1,none) rsrcs(rbndsX)) .
+***(
+ sendReqs(amsg("agetN", "dev1", "NON", "GET", "door", "", b("")) ; amsg( "agetN", "dev1", "NON", "GET", "door", "", b(""))) rsrcs(rb("door", "lock") rb( "light", "off")) aconf(rb("meth", "GET") rb("path", "door"), none))
+
+red doCActs(ca(conj(none), set("door", "unlock")), sendReqs(nilAM) aconf(abndsX1,none) rsrcs(rbndsX)) .
+***  sendReqs(nilAM) rsrcs(rb("door", "lock") rb("light", "off")) aconf(rb( "door", "unlock") rb("meth", "GET") rb("path", "door"), none)
+
+red doCActs(ca(conj(none), put("door", "unlock")), sendReqs(nilAM) aconf(abndsX1,none) rsrcs(rbndsX)) .
+*** sendReqs(nilAM) rsrcs(rb("door", "unlock") rb("light", "off")) aconf(rb( "meth", "GET") rb("path", "door"), none)
+
+red doCActs(ca(conj(none), set("door", "fail")), sendReqs(nilAM) aconf(abndsX1,none) rsrcs(rbndsX)) .
+*** sendReqs(nilAM) rsrcs(rb("door", "lock") rb("light", "off")) aconf(rb( "door", "fail") rb("meth", "GET") rb("path", "door"), none)
+
+red doCActs((none).CActs, sendReqs(nilAM) aconf(abndsX1,none) rsrcs(rbndsX)) .
+
+**** rspX0 rspX0f reqX1
+red doApp(reqX0,sendReqs(nilAM) aconf(abndsX1,arsX) rsrcs(rbndsX)) .
+***(
+ sendReqs(amsg("agetN", "dev1", "NON", "GET", "door", "", b("")) ; 
+          amsg( "agetN", "dev1", "NON", "GET", "door", "", b(""))) 
+rsrcs(rb("door", "lock") rb( "light", "off")) aconf(rb("meth", "GET") rb("path", "door"), 
+  ar(rsp("dev1", "agetC", false, v("door")), ca(conj(none), set("door", "fail"))) 
+  ar(rsp("dev1", "agetN", true, v("door")), ca(conj(none), set("door", v("door")))) 
+  ar(req("dev1", "GET", "door", ""), ca(conj(none), send("agetN", "dev1", "NON", "GET", "door", ""))) 
+  ar(req(v( "src"), "GET", v("path"), ""), ca(conj(none), send("agetN", "dev1", "NON", v("meth"), v("path"), "")))))
+  
+  
+red doApp(rspX0,sendReqs(nilAM) aconf(abndsX1,arsX) rsrcs(rbndsX)) .
+**** rsrcs(rb("door", "lock") rb("light", "off")) aconf(rb( "door", "locked") rb("meth", "GET") rb("path", "door"), ar(rsp("dev1", "agetC", false, v("door")), arsX)
+
+red doApp(rspX0f,sendReqs(nilAM) aconf(abndsX1,arsX) rsrcs(rbndsX)) .
+****  rsrcs(rb("door", "lock") rb("light", "off")) aconf(rb( "door", "fail") rb("meth", "GET") rb("path", "door"),arsX)
+
+red doApp(reqX1,sendReqs(nilAM) aconf(abndsX1,arsX) rsrcs(rbndsX)) .
+**** rsrcs(rb("door", "lock") rb("light", "off")) aconf(rb( "meth", "GET") rb("path", "door"),  arsX)
+

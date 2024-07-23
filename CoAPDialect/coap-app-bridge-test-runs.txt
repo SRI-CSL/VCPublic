@@ -1,0 +1,709 @@
+eq brInit = bctl bs ga br net(mtDM,mtDM) .
+
+Maude> rew {brInit} .
+rewrite in COAP-APP-SYSTEM : {brInit} .
+
+[tick] nz 1
+
+[devsend] by"bs"
+ msg m("bctl", "bs", c(h("NON", "0.PUT", "putN.0"), "putN:1", o("Uri-Path", "boat") o(
+    "Uri-Query", ""), b("here"))) @ 6
+
+[tick] nz 6
+
+[net]
+
+toLog: path = "boat" val = "here"
+
+[rcv] by"bctl"
+ msg m("bctl", "bs", c(h("NON", "0.PUT", "putN.0"), "putN:1", o("Uri-Path", "boat") o(
+    "Uri-Query", ""), b("here")))
+
+[devsend] by"bctl"
+ msg m("ga", "bctl", c(h("NON", "0.PUT", "GateCL.1"), "GateCL:2", o("Uri-Path", "gate")
+    o("Uri-Query", ""), b("close"))) @ 2
+
+[tick] nz 2
+
+[net]
+
+[net]
+
+toLog: path = "gate" val = "close"
+
+[rcv] by"ga"
+ msg m("ga", "bctl", c(h("NON", "0.PUT", "GateCL.1"), "GateCL:2", o("Uri-Path", "gate")
+    o("Uri-Query", ""), b("close")))
+
+[tick] nz 1
+
+[rcv] by"bs"
+ msg m("bs", "bctl", c(h("NON", "2.04", "bctl.0"), "putN:1", mtO, mtBody))
+
+[tick] nz 4
+
+[net]
+
+[rcv] by"bctl"
+ msg m("bctl", "ga", c(h("NON", "2.04", "ga.0"), "GateCL:2", mtO, mtBody))
+
+[devsend] by"bctl"
+ msg m("br", "bctl", c(h("NON", "0.PUT", "BridgeOp.3"), "BridgeOp:4", o("Uri-Path",
+    "bridge") o("Uri-Query", ""), b("open"))) @ 2
+
+[tick] nz 2
+
+[net]
+
+toLog: path = "bridge" val = "open"
+
+[rcv] by"br"
+ msg m("br", "bctl", c(h("NON", "0.PUT", "BridgeOp.3"), "BridgeOp:4", o("Uri-Path",
+    "bridge") o("Uri-Query", ""), b("open")))
+
+[tick] nz 7
+
+[net]
+
+[rcv] by"bctl"
+ msg m("bctl", "br", c(h("NON", "2.04", "br.0"), "BridgeOp:4", mtO, mtBody))
+
+[devsend] by"bctl"
+ msg m("bs", "bctl", c(h("NON", "0.PUT", "BSPass.5"), "BSPass:6", o("Uri-Path", "boat")
+    o("Uri-Query", ""), b("pass"))) @ 2
+
+[tick] nz 2
+
+[net]
+
+toLog: path = "boat" val = "pass"
+
+[rcv] by"bs"
+ msg m("bs", "bctl", c(h("NON", "0.PUT", "BSPass.5"), "BSPass:6", o("Uri-Path", "boat")
+    o("Uri-Query", ""), b("pass")))
+
+[tick] nz 7
+
+[net]
+
+[rcv] by"bctl"
+ msg m("bctl", "bs", c(h("NON", "2.01", "bs.2"), "BSPass:6", mtO, mtBody))
+
+[devsend] by"bctl"
+ msg m("br", "bctl", c(h("NON", "0.PUT", "BridgeCl.7"), "BridgeCl:8", o("Uri-Path",
+    "bridge") o("Uri-Query", ""), b("close"))) @ 2
+
+[tick] nz 2
+
+[net]
+
+toLog: path = "bridge" val = "close"
+
+[rcv] by"br"
+ msg m("br", "bctl", c(h("NON", "0.PUT", "BridgeCl.7"), "BridgeCl:8", o("Uri-Path",
+    "bridge") o("Uri-Query", ""), b("close")))
+
+[tick] nz 7
+
+[net]
+
+[rcv] by"bctl"
+ msg m("bctl", "br", c(h("NON", "2.04", "br.1"), "BridgeCl:8", mtO, mtBody))
+
+[devsend] by"bctl"
+ msg m("ga", "bctl", c(h("NON", "0.PUT", "GateOp.9"), "GateOp:10", o("Uri-Path", "gate")
+    o("Uri-Query", ""), b("open"))) @ 2
+
+[tick] nz 2
+
+[net]
+
+toLog: path = "gate" val = "open"
+
+[rcv] by"ga"
+ msg m("ga", "bctl", c(h("NON", "0.PUT", "GateOp.9"), "GateOp:10", o("Uri-Path", "gate")
+    o("Uri-Query", ""), b("open")))
+
+[tick] nz 5
+
+[net]
+
+[rcv] by"bctl"
+ msg m("bctl", "ga", c(h("NON", "2.04", "ga.1"), "GateOp:10", mtO, mtBody))
+rewrites: 5050 in 5ms cpu (5ms real) (1003178 rewrites/second)
+result Sys: {
+net(mtDM, mtDM)
+["bctl" | w4Ack(mtDM) w4Rsp(mtM) rspRcd(m("bctl", "br",
+c(h("NON", "2.04", "br.0"), "BridgeOp:4", mtO, mtBody))
+m("bctl", "br", c(h("NON", "2.04", "br.1"),
+"BridgeCl:8", mtO, mtBody)) m("bctl", "bs", c(h("NON",
+"2.01", "bs.2"), "BSPass:6", mtO, mtBody)) m("bctl",
+"ga", c(h("NON", "2.04", "ga.0"), "GateCL:2", mtO,
+mtBody)) m("bctl", "ga", c(h("NON", "2.04", "ga.1"),
+"GateOp:10", mtO, mtBody))) sendReqs(nilAM) sndCtr(0)
+rspSntD(m("bs", "bctl", c(h("NON", "2.04", "bctl.0"),
+"putN:1", mtO, mtBody)) @ 0) rsrcs(rb("boat", "here"))
+ctr(11) config(cb("ACK_RANDOM_FACTOR", 2)
+cb("ACK_TIMEOUT", 5) cb("MAX_RETRANSMIT", 1) cb("msgQD",
+5) cb("msgSD", 2) cb("ttl", 10) cb("w4AckBd", 1))
+
+aconf(rb("status", "idle"), ar(rsp("br", "BridgeCl",
+true, ""), ca(conj(none), send("GateOp", "ga", "NON",
+"PUT", "gate", "open"))) ar(rsp("br", "BridgeOp", true,
+""), ca(conj(none), send("BSPass", "bs", "NON", "PUT",
+"boat", "pass"))) ar(rsp("bs", "BSPass", true, ""),
+ca(conj(none), send("BridgeCl", "br", "NON", "PUT",
+"bridge", "close"))) ar(rsp("ga", "GateCL", true, ""),
+ca(conj(none), send("BridgeOp", "br", "NON", "PUT",
+"bridge", "open"))) ar(rsp("ga", "GateOp", true, ""),
+ca(conj(none), set("status", "idle"))) ar(req("bs",
+"PUT", "boat", "here"), ca(eq(v("status"), "idle"),
+set("status", "working") send("GateCL", "ga", "NON",
+"PUT", "gate", "close"))))
+]
+["br" | w4Ack(mtDM) w4Rsp(mtM) rspRcd(mtM) sendReqs(nilAM) sndCtr(0) rspSntD((m("bctl",
+    "br", c(h("NON", "2.04", "br.0"), "BridgeOp:4", mtO, mtBody)) @ 0) m("bctl", "br", c(
+    h("NON", "2.04", "br.1"), "BridgeCl:8", mtO, mtBody)) @ 0) rsrcs(rb("bridge",
+    "close")) ctr(2) config(cb("ACK_RANDOM_FACTOR", 2) cb("ACK_TIMEOUT", 5) cb(
+    "MAX_RETRANSMIT", 1) cb("msgQD", 5) cb("msgSD", 6) cb("ttl", 10) cb("w4AckBd", 1))
+    aconf(mtR, none)]
+["bs" | w4Ack(mtDM) w4Rsp(mtM) rspRcd(m("bs", "bctl", c(h("NON", "2.04", "bctl.0"),
+    "putN:1", mtO, mtBody))) sendReqs(nilAM) sndCtr(0) rspSntD(m("bctl", "bs", c(h("NON",
+    "2.01", "bs.2"), "BSPass:6", mtO, mtBody)) @ 0) rsrcs(mtR) rsrcs(rb("boat", "pass"))
+    ctr(3) config(cb("ACK_RANDOM_FACTOR", 2) cb("ACK_TIMEOUT", 5) cb("MAX_RETRANSMIT", 1)
+    cb("msgQD", 5) cb("msgSD", 6) cb("ttl", 10) cb("w4AckBd", 1)) aconf(mtR, none)]
+["ga" | w4Ack(mtDM) w4Rsp(mtM) rspRcd(mtM) sendReqs(nilAM) sndCtr(0) rspSntD((m("bctl",
+    "ga", c(h("NON", "2.04", "ga.0"), "GateCL:2", mtO, mtBody)) @ 0) m("bctl", "ga", c(h(
+    "NON", "2.04", "ga.1"), "GateOp:10", mtO, mtBody)) @ 5) rsrcs(rb("gate", "open"))
+    ctr(2) config(cb("ACK_RANDOM_FACTOR", 2) cb("ACK_TIMEOUT", 5) cb("MAX_RETRANSMIT", 1)
+    cb("msgQD", 5) cb("msgSD", 4) cb("ttl", 10) cb("w4AckBd", 1)) aconf(mtR, none)]}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+rewrite in COAP-APP-SYSTEM : {brInit2(40)} .
+
+[tick] nz 1
+
+[devsend] by"bs"
+ msg m("bctl", "bs", c(h("NON", "0.PUT", "putN.0"), "putN:1", o("Uri-Path", "boat") o(
+    "Uri-Query", ""), b("here"))) @ 6
+
+[tick] nz 5
+
+[devsend] by"bs"
+ msg mtDM
+
+[tick] nz 1
+
+[net]
+
+toLog: path = "boat" val = "here"
+
+[rcv] by"bctl"
+ msg m("bctl", "bs", c(h("NON", "0.PUT", "putN.0"), "putN:1", o("Uri-Path", "boat") o(
+    "Uri-Query", ""), b("here")))
+
+[devsend] by"bctl"
+ msg m("ga", "bctl", c(h("NON", "0.PUT", "GateCL.1"), "GateCL:2", o("Uri-Path", "gate")
+    o("Uri-Query", ""), b("close"))) @ 2
+
+[tick] nz 2
+
+[net]
+
+[net]
+
+toLog: path = "gate" val = "close"
+
+[rcv] by"ga"
+ msg m("ga", "bctl", c(h("NON", "0.PUT", "GateCL.1"), "GateCL:2", o("Uri-Path", "gate")
+    o("Uri-Query", ""), b("close")))
+
+[tick] nz 1
+
+[rcv] by"bs"
+ msg m("bs", "bctl", c(h("NON", "2.04", "bctl.0"), "putN:1", mtO, mtBody))
+
+[tick] nz 4
+
+[net]
+
+[rcv] by"bctl"
+ msg m("bctl", "ga", c(h("NON", "2.04", "ga.0"), "GateCL:2", mtO, mtBody))
+
+[devsend] by"bctl"
+ msg m("br", "bctl", c(h("NON", "0.PUT", "BridgeOp.3"), "BridgeOp:4", o("Uri-Path",
+    "bridge") o("Uri-Query", ""), b("open"))) @ 2
+
+[tick] nz 2
+
+[net]
+
+toLog: path = "bridge" val = "open"
+
+[rcv] by"br"
+ msg m("br", "bctl", c(h("NON", "0.PUT", "BridgeOp.3"), "BridgeOp:4", o("Uri-Path",
+    "bridge") o("Uri-Query", ""), b("open")))
+
+[tick] nz 7
+
+[net]
+
+[rcv] by"bctl"
+ msg m("bctl", "br", c(h("NON", "2.04", "br.0"), "BridgeOp:4", mtO, mtBody))
+
+[devsend] by"bctl"
+ msg m("bs", "bctl", c(h("NON", "0.PUT", "BSPass.5"), "BSPass:6", o("Uri-Path", "boat")
+    o("Uri-Query", ""), b("pass"))) @ 2
+
+[tick] nz 2
+
+[net]
+
+toLog: path = "boat" val = "pass"
+
+[rcv] by"bs"
+ msg m("bs", "bctl", c(h("NON", "0.PUT", "BSPass.5"), "BSPass:6", o("Uri-Path", "boat")
+    o("Uri-Query", ""), b("pass")))
+
+[tick] nz 7
+
+[net]
+
+[rcv] by"bctl"
+ msg m("bctl", "bs", c(h("NON", "2.01", "bs.2"), "BSPass:6", mtO, mtBody))
+
+[devsend] by"bctl"
+ msg m("br", "bctl", c(h("NON", "0.PUT", "BridgeCl.7"), "BridgeCl:8", o("Uri-Path",
+    "bridge") o("Uri-Query", ""), b("close"))) @ 2
+
+[tick] nz 2
+
+[net]
+
+toLog: path = "bridge" val = "close"
+
+[rcv] by"br"
+ msg m("br", "bctl", c(h("NON", "0.PUT", "BridgeCl.7"), "BridgeCl:8", o("Uri-Path",
+    "bridge") o("Uri-Query", ""), b("close")))
+
+[tick] nz 7
+
+[net]
+
+[rcv] by"bctl"
+ msg m("bctl", "br", c(h("NON", "2.04", "br.1"), "BridgeCl:8", mtO, mtBody))
+
+[devsend] by"bctl"
+ msg m("ga", "bctl", c(h("NON", "0.PUT", "GateOp.9"), "GateOp:10", o("Uri-Path", "gate")
+    o("Uri-Query", ""), b("open"))) @ 2
+
+[tick] nz 2
+
+[net]
+
+toLog: path = "gate" val = "open"
+
+[rcv] by"ga"
+ msg m("ga", "bctl", c(h("NON", "0.PUT", "GateOp.9"), "GateOp:10", o("Uri-Path", "gate")
+    o("Uri-Query", ""), b("open")))
+
+[tick] nz 3
+*****************************
+
+[devsend] by"bs"
+ msg m("bctl", "bs", c(h("NON", "0.PUT", "putN.3"), "putN:4", o("Uri-Path", "boat") o(
+    "Uri-Query", ""), b("here"))) @ 6
+
+[tick] nz 2
+
+[net]
+
+[net]
+
+[rcv] by"bctl"
+ msg m("bctl", "ga", c(h("NON", "2.04", "ga.1"), "GateOp:10", mtO, mtBody))
+
+[tick] nz 4
+
+toLog: path = "boat" val = "here"
+
+[rcv] by"bctl"
+ msg m("bctl", "bs", c(h("NON", "0.PUT", "putN.3"), "putN:4", o("Uri-Path", "boat") o(
+    "Uri-Query", ""), b("here")))
+
+[devsend] by"bctl"
+ msg m("ga", "bctl", c(h("NON", "0.PUT", "GateCL.12"), "GateCL:13", o("Uri-Path", "gate")
+    o("Uri-Query", ""), b("close"))) @ 2
+
+[tick] nz 2
+
+[net]
+
+[net]
+
+toLog: path = "gate" val = "close"
+
+[rcv] by"ga"
+ msg m("ga", "bctl", c(h("NON", "0.PUT", "GateCL.12"), "GateCL:13", o("Uri-Path", "gate")
+    o("Uri-Query", ""), b("close")))
+
+[tick] nz 1
+
+[rcv] by"bs"
+ msg m("bs", "bctl", c(h("NON", "2.04", "bctl.11"), "putN:4", mtO, mtBody))
+
+[tick] nz 4
+
+[net]
+
+[rcv] by"bctl"
+ msg m("bctl", "ga", c(h("NON", "2.04", "ga.2"), "GateCL:13", mtO, mtBody))
+
+[devsend] by"bctl"
+ msg m("br", "bctl", c(h("NON", "0.PUT", "BridgeOp.14"), "BridgeOp:15", o("Uri-Path",
+    "bridge") o("Uri-Query", ""), b("open"))) @ 2
+
+[tick] nz 2
+
+[net]
+
+toLog: path = "bridge" val = "open"
+
+[rcv] by"br"
+ msg m("br", "bctl", c(h("NON", "0.PUT", "BridgeOp.14"), "BridgeOp:15", o("Uri-Path",
+    "bridge") o("Uri-Query", ""), b("open")))
+
+[tick] nz 7
+
+[net]
+
+[rcv] by"bctl"
+ msg m("bctl", "br", c(h("NON", "2.04", "br.2"), "BridgeOp:15", mtO, mtBody))
+
+[devsend] by"bctl"
+ msg m("bs", "bctl", c(h("NON", "0.PUT", "BSPass.16"), "BSPass:17", o("Uri-Path", "boat")
+    o("Uri-Query", ""), b("pass"))) @ 2
+
+[tick] nz 2
+
+[net]
+
+toLog: path = "boat" val = "pass"
+
+[rcv] by"bs"
+ msg m("bs", "bctl", c(h("NON", "0.PUT", "BSPass.16"), "BSPass:17", o("Uri-Path", "boat")
+    o("Uri-Query", ""), b("pass")))
+
+[tick] nz 7
+
+[net]
+
+[rcv] by"bctl"
+ msg m("bctl", "bs", c(h("NON", "2.04", "bs.5"), "BSPass:17", mtO, mtBody))
+
+[devsend] by"bctl"
+ msg m("br", "bctl", c(h("NON", "0.PUT", "BridgeCl.18"), "BridgeCl:19", o("Uri-Path",
+    "bridge") o("Uri-Query", ""), b("close"))) @ 2
+
+[tick] nz 2
+
+[net]
+
+toLog: path = "bridge" val = "close"
+
+[rcv] by"br"
+ msg m("br", "bctl", c(h("NON", "0.PUT", "BridgeCl.18"), "BridgeCl:19", o("Uri-Path",
+    "bridge") o("Uri-Query", ""), b("close")))
+
+[tick] nz 7
+
+[net]
+
+[rcv] by"bctl"
+ msg m("bctl", "br", c(h("NON", "2.04", "br.3"), "BridgeCl:19", mtO, mtBody))
+
+[devsend] by"bctl"
+ msg m("ga", "bctl", c(h("NON", "0.PUT", "GateOp.20"), "GateOp:21", o("Uri-Path", "gate")
+    o("Uri-Query", ""), b("open"))) @ 2
+
+[tick] nz 2
+
+[net]
+
+toLog: path = "gate" val = "open"
+
+[rcv] by"ga"
+ msg m("ga", "bctl", c(h("NON", "0.PUT", "GateOp.20"), "GateOp:21", o("Uri-Path", "gate")
+    o("Uri-Query", ""), b("open")))
+
+[tick] nz 5
+
+[net]
+
+[rcv] by"bctl"
+ msg m("bctl", "ga", c(h("NON", "2.04", "ga.3"), "GateOp:21", mtO, mtBody))
+rewrites: 11057 in 9ms cpu (10ms real) (1150931 rewrites/second)
+result Sys: {
+net(mtDM, mtDM)
+
+["bctl" | w4Ack(mtDM) w4Rsp(mtM) rspRcd(m("bctl", "br", c(h("NON", "2.04", "br.0"), "BridgeOp:4", mtO, mtBody)) m("bctl", "br", c(h("NON", "2.04", "br.1"), "BridgeCl:8", mtO, mtBody)) m("bctl", "br", c(h("NON", "2.04", "br.2"), "BridgeOp:15", mtO, mtBody)) m("bctl", "br", c(h("NON", "2.04", "br.3"), "BridgeCl:19", mtO, mtBody)) m( "bctl", "bs", c(h("NON", "2.01", "bs.2"), "BSPass:6", mtO, mtBody)) m("bctl", "bs", c(h("NON", "2.04", "bs.5"), "BSPass:17", mtO, mtBody)) m("bctl", "ga", c(h("NON", "2.04", "ga.0"), "GateCL:2", mtO, mtBody)) m("bctl", "ga", c(h("NON", "2.04", "ga.1"), "GateOp:10", mtO, mtBody)) m("bctl", "ga", c(h("NON", "2.04", "ga.2"), "GateCL:13", mtO, mtBody)) m("bctl", "ga", c(h("NON", "2.04", "ga.3"), "GateOp:21", mtO, mtBody))) sendReqs(nilAM) sndCtr(0) rspSntD((m("bs", "bctl", c(h("NON", "2.04", "bctl.0"), "putN:1", mtO, mtBody)) @ 0) m("bs", "bctl", c(h("NON", "2.04", "bctl.11"), "putN:4", mtO, mtBody)) @ 0) rsrcs(rb("boat", "here")) ctr(22) config(cb( "ACK_RANDOM_FACTOR", 2) cb("ACK_TIMEOUT", 5) cb("MAX_RETRANSMIT", 1) cb("msgQD", 5) cb("msgSD", 2) cb("ttl", 10) cb("w4AckBd", 1)) aconf(rb("status", "idle"), ar(rsp( "br", "BridgeCl", true, ""), ca(conj(none), send("GateOp", "ga", "NON", "PUT", "gate", "open"))) ar(rsp("br", "BridgeOp", true, ""), ca(conj(none), send("BSPass", "bs", "NON", "PUT", "boat", "pass"))) ar(rsp("bs", "BSPass", true, ""), ca(conj( none), send("BridgeCl", "br", "NON", "PUT", "bridge", "close"))) ar(rsp("ga", "GateCL", true, ""), ca(conj(none), send("BridgeOp", "br", "NON", "PUT", "bridge", "open"))) ar(rsp("ga", "GateOp", true, ""), ca(conj(none), set("status", "idle"))) ar(req("bs", "PUT", "boat", "here"), ca(eq(v("status"), "idle"), set("status", "working") send("GateCL", "ga", "NON", "PUT", "gate", "close"))))]
+
+["br" | w4Ack(mtDM) w4Rsp(mtM) rspRcd(mtM) sendReqs(nilAM) sndCtr(0) rspSntD((m("bctl", "br", c(h("NON", "2.04", "br.0"), "BridgeOp:4", mtO, mtBody)) @ 0) (m("bctl", "br", c(h("NON", "2.04", "br.1"), "BridgeCl:8", mtO, mtBody)) @ 0) (m("bctl", "br", c(h( "NON", "2.04", "br.2"), "BridgeOp:15", mtO, mtBody)) @ 0) m("bctl", "br", c(h("NON", "2.04", "br.3"), "BridgeCl:19", mtO, mtBody)) @ 0) rsrcs(rb("bridge", "close")) ctr( 4) config(cb("ACK_RANDOM_FACTOR", 2) cb("ACK_TIMEOUT", 5) cb("MAX_RETRANSMIT", 1) cb( "msgQD", 5) cb("msgSD", 6) cb("ttl", 10) cb("w4AckBd", 1)) aconf(mtR, none)]
+
+["bs" | w4Ack(mtDM) w4Rsp(mtM) rspRcd(m("bs", "bctl", c(h("NON", "2.04", "bctl.0"), "putN:1", mtO, mtBody)) m("bs", "bctl", c(h("NON", "2.04", "bctl.11"), "putN:4", mtO, mtBody))) sendReqs(nilAM) sndCtr(0) rspSntD((m("bctl", "bs", c(h("NON", "2.01", "bs.2"), "BSPass:6", mtO, mtBody)) @ 0) m("bctl", "bs", c(h("NON", "2.04", "bs.5"), "BSPass:17", mtO, mtBody)) @ 0) rsrcs(mtR) rsrcs(rb("boat", "pass")) ctr(6) config( cb("ACK_RANDOM_FACTOR", 2) cb("ACK_TIMEOUT", 5) cb("MAX_RETRANSMIT", 1) cb("msgQD", 5) cb("msgSD", 6) cb("ttl", 10) cb("w4AckBd", 1)) aconf(mtR, none)]
+
+["ga" | w4Ack(mtDM) w4Rsp(mtM) rspRcd(mtM) sendReqs(nilAM) sndCtr(0) rspSntD((m("bctl", "ga", c(h("NON", "2.04", "ga.0"), "GateCL:2", mtO, mtBody)) @ 0) (m("bctl", "ga", c( h("NON", "2.04", "ga.1"), "GateOp:10", mtO, mtBody)) @ 0) (m("bctl", "ga", c(h("NON", "2.04", "ga.2"), "GateCL:13", mtO, mtBody)) @ 0) m("bctl", "ga", c(h("NON", "2.04", "ga.3"), "GateOp:21", mtO, mtBody)) @ 5) rsrcs(rb("gate", "open")) ctr(4) config(cb( "ACK_RANDOM_FACTOR", 2) cb("ACK_TIMEOUT", 5) cb("MAX_RETRANSMIT", 1) cb("msgQD", 5) cb("msgSD", 4) cb("ttl", 10) cb("w4AckBd", 1)) aconf(mtR, none)]
+}
+
+*************** 1 attack cap ********************
+Maude> rew {brInit ["eve" | kb(mtDM) caps(mcX)]} .
+rewrite in COAP-APP-SYSTEM : {brInit
+["eve" | kb(mtDM) caps(mcX)]} .
+
+[tick] nz 1
+
+[devsend] by"bs"
+ msg m("bctl", "bs", c(h("NON", "0.PUT", "putN.0"), "putN:1", o("Uri-Path", "boat") o(
+    "Uri-Query", ""), b("here"))) @ 6
+
+attack  mcX
+msg (m("bctl", "bs", c(h("NON", "0.PUT", "putN.0"), "putN:1", o("Uri-Path", "boat") o(
+    "Uri-Query", ""), b("here"))) @ 6) m("bctl", "bs", c(h("NON", "0.PUT", "putN.0"),
+    "putN:1", o("Uri-Path", "boat") o("Uri-Query", ""), b("here"))) @@ 6
+
+[tick] nz 6
+
+toLog: path = "boat" val = "here"
+
+[rcv] by"bctl"
+ msg m("bctl", "bs", c(h("NON", "0.PUT", "putN.0"), "putN:1", o("Uri-Path", "boat") o(
+    "Uri-Query", ""), b("here")))
+
+[rcv] by"bctl"
+ msg m("bctl", "bs", c(h("NON", "0.PUT", "putN.0"), "putN:1", o("Uri-Path", "boat") o(
+    "Uri-Query", ""), b("here")))
+
+[devsend] by"bctl"
+ msg m("ga", "bctl", c(h("NON", "0.PUT", "GateCL.1"), "GateCL:2", o("Uri-Path", "gate")
+    o("Uri-Query", ""), b("close"))) @ 2
+
+[tick] nz 2
+
+[net]
+
+[net]
+
+toLog: path = "gate" val = "close"
+
+[rcv] by"ga"
+ msg m("ga", "bctl", c(h("NON", "0.PUT", "GateCL.1"), "GateCL:2", o("Uri-Path", "gate")
+    o("Uri-Query", ""), b("close")))
+
+[tick] nz 1
+
+[rcv] by"bs"
+ msg m("bs", "bctl", c(h("NON", "2.04", "bctl.0"), "putN:1", mtO, mtBody))
+
+[tick] nz 4
+
+[net]
+
+[rcv] by"bctl"
+ msg m("bctl", "ga", c(h("NON", "2.04", "ga.0"), "GateCL:2", mtO, mtBody))
+
+[devsend] by"bctl"
+ msg m("br", "bctl", c(h("NON", "0.PUT", "BridgeOp.3"), "BridgeOp:4", o("Uri-Path",
+    "bridge") o("Uri-Query", ""), b("open"))) @ 2
+
+[tick] nz 2
+
+[net]
+
+toLog: path = "bridge" val = "open"
+
+[rcv] by"br"
+ msg m("br", "bctl", c(h("NON", "0.PUT", "BridgeOp.3"), "BridgeOp:4", o("Uri-Path",
+    "bridge") o("Uri-Query", ""), b("open")))
+
+[tick] nz 7
+
+[net]
+
+[rcv] by"bctl"
+ msg m("bctl", "br", c(h("NON", "2.04", "br.0"), "BridgeOp:4", mtO, mtBody))
+
+[devsend] by"bctl"
+ msg m("bs", "bctl", c(h("NON", "0.PUT", "BSPass.5"), "BSPass:6", o("Uri-Path", "boat")
+    o("Uri-Query", ""), b("pass"))) @ 2
+
+[tick] nz 2
+
+[net]
+
+toLog: path = "boat" val = "pass"
+
+[rcv] by"bs"
+ msg m("bs", "bctl", c(h("NON", "0.PUT", "BSPass.5"), "BSPass:6", o("Uri-Path", "boat")
+    o("Uri-Query", ""), b("pass")))
+
+[tick] nz 7
+
+[net]
+
+[rcv] by"bctl"
+ msg m("bctl", "bs", c(h("NON", "2.01", "bs.2"), "BSPass:6", mtO, mtBody))
+
+[devsend] by"bctl"
+ msg m("br", "bctl", c(h("NON", "0.PUT", "BridgeCl.7"), "BridgeCl:8", o("Uri-Path",
+    "bridge") o("Uri-Query", ""), b("close"))) @ 2
+
+[tick] nz 2
+
+[net]
+
+toLog: path = "bridge" val = "close"
+
+[rcv] by"br"
+ msg m("br", "bctl", c(h("NON", "0.PUT", "BridgeCl.7"), "BridgeCl:8", o("Uri-Path",
+    "bridge") o("Uri-Query", ""), b("close")))
+
+[tick] nz 7
+
+[net]
+
+[rcv] by"bctl"
+ msg m("bctl", "br", c(h("NON", "2.04", "br.1"), "BridgeCl:8", mtO, mtBody))
+
+[devsend] by"bctl"
+ msg m("ga", "bctl", c(h("NON", "0.PUT", "GateOp.9"), "GateOp:10", o("Uri-Path", "gate")
+    o("Uri-Query", ""), b("open"))) @ 2
+
+[tick] nz 2
+
+[net]
+
+toLog: path = "gate" val = "open"
+
+[rcv] by"ga"
+ msg m("ga", "bctl", c(h("NON", "0.PUT", "GateOp.9"), "GateOp:10", o("Uri-Path", "gate")
+    o("Uri-Query", ""), b("open")))
+
+[tick] nz 5
+
+[net]
+
+[rcv] by"bctl"
+ msg m("bctl", "ga", c(h("NON", "2.04", "ga.1"), "GateOp:10", mtO, mtBody))
+rewrites: 5501 in 3ms cpu (4ms real) (1428460 rewrites/second)
+result Sys: {
+net(mtDM, mtDM)
+["bctl" | w4Ack(mtDM) w4Rsp(mtM) rspRcd(m("bctl", "br", c(h("NON", "2.04", "br.0"),
+    "BridgeOp:4", mtO, mtBody)) m("bctl", "br", c(h("NON", "2.04", "br.1"), "BridgeCl:8",
+    mtO, mtBody)) m("bctl", "bs", c(h("NON", "2.01", "bs.2"), "BSPass:6", mtO, mtBody))
+    m("bctl", "ga", c(h("NON", "2.04", "ga.0"), "GateCL:2", mtO, mtBody)) m("bctl", "ga",
+    c(h("NON", "2.04", "ga.1"), "GateOp:10", mtO, mtBody))) sendReqs(nilAM) sndCtr(0)
+    rspSntD(m("bs", "bctl", c(h("NON", "2.04", "bctl.0"), "putN:1", mtO, mtBody)) @ 0)
+    rsrcs(rb("boat", "here")) ctr(11) config(cb("ACK_RANDOM_FACTOR", 2) cb("ACK_TIMEOUT",
+    5) cb("MAX_RETRANSMIT", 1) cb("msgQD", 5) cb("msgSD", 2) cb("ttl", 10) cb("w4AckBd",
+    1)) aconf(rb("status", "idle"), ar(rsp("br", "BridgeCl", true, ""), ca(conj(none),
+    send("GateOp", "ga", "NON", "PUT", "gate", "open"))) ar(rsp("br", "BridgeOp", true,
+    ""), ca(conj(none), send("BSPass", "bs", "NON", "PUT", "boat", "pass"))) ar(rsp("bs",
+    "BSPass", true, ""), ca(conj(none), send("BridgeCl", "br", "NON", "PUT", "bridge",
+    "close"))) ar(rsp("ga", "GateCL", true, ""), ca(conj(none), send("BridgeOp", "br",
+    "NON", "PUT", "bridge", "open"))) ar(rsp("ga", "GateOp", true, ""), ca(conj(none),
+    set("status", "idle"))) ar(req("bs", "PUT", "boat", "here"), ca(eq(v("status"),
+    "idle"), set("status", "working") send("GateCL", "ga", "NON", "PUT", "gate",
+    "close"))))]
+["br" | w4Ack(mtDM) w4Rsp(mtM) rspRcd(mtM) sendReqs(nilAM) sndCtr(0) rspSntD((m("bctl",
+    "br", c(h("NON", "2.04", "br.0"), "BridgeOp:4", mtO, mtBody)) @ 0) m("bctl", "br", c(
+    h("NON", "2.04", "br.1"), "BridgeCl:8", mtO, mtBody)) @ 0) rsrcs(rb("bridge",
+    "close")) ctr(2) config(cb("ACK_RANDOM_FACTOR", 2) cb("ACK_TIMEOUT", 5) cb(
+    "MAX_RETRANSMIT", 1) cb("msgQD", 5) cb("msgSD", 6) cb("ttl", 10) cb("w4AckBd", 1))
+    aconf(mtR, none)]
+["bs" | w4Ack(mtDM) w4Rsp(mtM) rspRcd(m("bs", "bctl", c(h("NON", "2.04", "bctl.0"),
+    "putN:1", mtO, mtBody))) sendReqs(nilAM) sndCtr(0) rspSntD(m("bctl", "bs", c(h("NON",
+    "2.01", "bs.2"), "BSPass:6", mtO, mtBody)) @ 0) rsrcs(mtR) rsrcs(rb("boat", "pass"))
+    ctr(3) config(cb("ACK_RANDOM_FACTOR", 2) cb("ACK_TIMEOUT", 5) cb("MAX_RETRANSMIT", 1)
+    cb("msgQD", 5) cb("msgSD", 6) cb("ttl", 10) cb("w4AckBd", 1)) aconf(mtR, none)]
+["eve" | kb(m("bctl", "bs", c(h("NON", "0.PUT", "putN.0"), "putN:1", o("Uri-Path",
+    "boat") o("Uri-Query", ""), b("here"))) @ 6) caps(mtC) alog(al(m("bctl", "bs", c(h(
+    "NON", "0.PUT", "putN.0"), "putN:1", o("Uri-Path", "boat") o("Uri-Query", ""), b(
+    "here"))) @ 6, mcX))]
+["ga" | w4Ack(mtDM) w4Rsp(mtM) rspRcd(mtM) sendReqs(nilAM) sndCtr(0) rspSntD((m("bctl",
+    "ga", c(h("NON", "2.04", "ga.0"), "GateCL:2", mtO, mtBody)) @ 0) m("bctl", "ga", c(h(
+    "NON", "2.04", "ga.1"), "GateOp:10", mtO, mtBody)) @ 5) rsrcs(rb("gate", "open"))
+    ctr(2) config(cb("ACK_RANDOM_FACTOR", 2) cb("ACK_TIMEOUT", 5) cb("MAX_RETRANSMIT", 1)
+    cb("msgQD", 5) cb("msgSD", 4) cb("ttl", 10) cb("w4AckBd", 1)) aconf(mtR, none)]}
+
+
+*********************** attack search *****************************
+search {brInit2(40) ["eve" | kb(mtDM) caps(mcX)]} =>+ {c:Conf} such that hasV(c:Conf,"ga","gate","open") and hasV(c:Conf,"br","bridge","open") .
+
+Solution 2716 (state 25883)
+states: 25884  rewrites: 4826690 in 1352ms cpu (1500ms real) (3568300 rewrites/second)
+c:Conf -->
+net(mtDM, m("br", "bctl", c(h("NON", "0.PUT", "BridgeCl.26"), "BridgeCl:27", o( "Uri-Path", "bridge") o("Uri-Query", ""), b("close"))) @ 0)
+
+["bctl" | w4Ack(mtDM)
+ w4Rsp(m("br", "bctl", c(h("NON", "0.PUT", "BridgeCl.26"), "BridgeCl:27", o("Uri-Path", "bridge") o("Uri-Query", ""), b("close")))) 
+ 
+rspRcd(
+m( "bctl", "br", c(h("NON", "2.04", "br.0"), "BridgeOp:4", mtO, mtBody)) 
+m("bctl", "br", c(h("NON", "2.04", "br.1"), "BridgeCl:8", mtO, mtBody)) 
+m("bctl", "br", c(h("NON", "2.04", "br.2"), "BridgeOp:10", mtO, mtBody)) 
+m("bctl", "br", c(h("NON", "2.04", "br.3"), "BridgeCl:19", mtO, mtBody)) 
+m("bctl", "br", c(h("NON", "2.04", "br.4"), "BridgeOp:21", mtO, mtBody)) 
+m("bctl", "bs", c(h("NON", "2.01", "bs.2"), "BSPass:6", mtO, mtBody)) 
+m("bctl", "bs", c(h("NON", "2.04", "bs.5"), "BSPass:14", mtO, mtBody))
+m("bctl", "bs", c(h("NON", "2.04", "bs.6"), "BSPass:25", mtO, mtBody)) 
+m("bctl", "ga", c(h("NON", "2.04", "ga.0"), "GateCL:2", mtO, mtBody))
+m("bctl", "ga", c(h( "NON", "2.04", "ga.2"), "GateOp:12", mtO, mtBody))
+m("bctl", "ga", c(h("NON", "2.04", "ga.3"), "GateCL:17", mtO, mtBody)) 
+m("bctl", "ga", c(h("NON", "2.04", "ga.4"), "GateOp:23", mtO, mtBody)))
+sendReqs(nilAM) sndCtr(3)
+
+rspSntD((
+m("bs", "bctl", c(h( "NON", "2.04", "bctl.0"), "putN:1", mtO, mtBody)) @ 0)
+m("bs", "bctl", c(h("NON", "2.04", "bctl.15"), "putN:4", mtO, mtBody)) @ 0)
+
+rsrcs(rb("boat", "here"))
+ctr(28) config(cb("ACK_RANDOM_FACTOR", 2) cb("ACK_TIMEOUT", 5) cb("MAX_RETRANSMIT", 1) cb( "msgQD", 5) cb("msgSD", 2) cb("ttl", 10) cb("w4AckBd", 1))
+aconf(rb("status", "idle"),
+ar(rsp("br", "BridgeCl", true, ""), ca(conj(none), send("GateOp", "ga", "NON", "PUT", "gate", "open"))) ar(rsp("br", "BridgeOp", true, ""), ca(conj(none), send("BSPass", "bs", "NON", "PUT", "boat", "pass"))) ar(rsp("bs", "BSPass", true, ""), ca(conj(none), send("BridgeCl", "br", "NON", "PUT", "bridge", "close"))) ar(rsp( "ga", "GateCL", true, ""), ca(conj(none), send("BridgeOp", "br", "NON", "PUT", "bridge", "open"))) ar(rsp("ga", "GateOp", true, ""), ca(conj(none), set("status", "idle"))) ar(req("bs", "PUT", "boat", "here"), ca(eq(v("status"), "idle"), set( "status", "working") send("GateCL", "ga", "NON", "PUT", "gate", "close"))))
+]
+
+["br" | w4Ack(mtDM) w4Rsp(mtM) rspRcd(mtM) sendReqs(nilAM) sndCtr(0) 
+
+rspSntD((
+m("bctl", "br", c(h("NON", "2.04", "br.0"), "BridgeOp:4", mtO, mtBody)) @ 0) 
+(m("bctl", "br", c(h("NON", "2.04", "br.1"), "BridgeCl:8", mtO, mtBody)) @ 0) 
+(m("bctl", "br", c(h( "NON", "2.04", "br.2"), "BridgeOp:10", mtO, mtBody)) @ 0) 
+(m("bctl", "br", c(h("NON", "2.04", "br.3"), "BridgeCl:19", mtO, mtBody)) @ 0) 
+m("bctl", "br", c(h("NON", "2.04", "br.4"), "BridgeOp:21", mtO, mtBody)) @ 0)
+
+rsrcs(rb("bridge", "open"))
+ctr(5) config( cb("ACK_RANDOM_FACTOR", 2) cb("ACK_TIMEOUT", 5) cb("MAX_RETRANSMIT", 1) cb("msgQD", 5) cb("msgSD", 6) cb("ttl", 10) cb("w4AckBd", 1)) aconf(mtR, none)]
+
+["bs" | w4Ack(mtDM) w4Rsp(mtM) 
+rspRcd(
+m("bs", "bctl", c(h("NON", "2.04", "bctl.0"), "putN:1", mtO, mtBody)) 
+m("bs", "bctl", c(h("NON", "2.04", "bctl.15"), "putN:4", mtO, mtBody))) 
+sendReqs(nilAM) sndCtr(0)
+rspSntD(
+(m("bctl", "bs", c(h("NON", "2.01", "bs.2"), "BSPass:6", mtO, mtBody)) @ 0) 
+(m("bctl", "bs", c(h("NON", "2.04", "bs.5"), "BSPass:14", mtO, mtBody)) @ 0) 
+m("bctl", "bs", c(h("NON", "2.04", "bs.6"), "BSPass:25", mtO, mtBody)) @ 1) 
+rsrcs(mtR) rsrcs(rb("boat", "pass")) 
+ctr(7) config( cb("ACK_RANDOM_FACTOR", 2) cb("ACK_TIMEOUT", 5) cb("MAX_RETRANSMIT", 1) cb("msgQD", 5) cb("msgSD", 6) cb("ttl", 10) cb("w4AckBd", 1)) aconf(mtR, none)]
+
+["eve" | kb(
+m("ga", "bctl", c(h("NON", "0.PUT", "GateCL.1"), "GateCL:2", o("Uri-Path", "gate") o("Uri-Query", ""), b("close"))) @ 0) caps(mtC) alog(al(m("ga", "bctl", c(h( "NON", "0.PUT", "GateCL.1"), "GateCL:2", o("Uri-Path", "gate") o("Uri-Query", ""), b( "close"))) @ 0, mcX))]
+
+["ga" | w4Ack(mtDM) w4Rsp(mtM) rspRcd(mtM) sendReqs(nilAM) sndCtr(0) 
+rspSntD((m("bctl", "ga", c(h("NON", "2.04", "ga.0"), "GateCL:2", mtO, mtBody)) @ 0)
+(m("bctl", "ga", c( h("NON", "2.04", "ga.1"), "GateCL:2", mtO, mtBody)) @ 0) 
+(m("bctl", "ga", c(h("NON", "2.04", "ga.2"), "GateOp:12", mtO, mtBody)) @ 0) 
+(m("bctl", "ga", c(h("NON", "2.04", "ga.3"), "GateCL:17", mtO, mtBody)) @ 0) 
+m("bctl", "ga", c(h("NON", "2.04", "ga.4"), "GateOp:23", mtO, mtBody)) @ 0)
+rsrcs(rb("gate", "open"))
+ ctr(5) config(cb( "ACK_RANDOM_FACTOR", 2) cb("ACK_TIMEOUT", 5) cb("MAX_RETRANSMIT", 1) cb("msgQD", 5) cb("msgSD", 4) cb("ttl", 10) cb("w4AckBd", 1)) aconf(mtR, none)]
