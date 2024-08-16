@@ -2,6 +2,8 @@ These files implement the CoAP messaging
 specification (RFC7252), active and reactive
 attack models, and a generic dialect
 transformation that mitigates reactive attacks.
+Also included is a specification of an application
+layer to support more complex scenarios.
 (The specification and case studies are explained
 in the technical report available at
 https://arxiv.org/abs/2405.13295.)
@@ -9,14 +11,14 @@ https://arxiv.org/abs/2405.13295.)
 This Readme has three parts. The first part
 lists the files and provides instructions for
 repeating/varying the tests and case studies for
-the CoAP messaging specification. The second
-part lists the files and provides instructions
-for repeating/varying the tests and case studies
-for an extension defining a basic application
-layer using CoAP messaging. The third part has
-some implementation notes on representation of
-endpoint state and rules for receiving messages
-(distilled from RFC7252).
+the CoAP messaging specification and dialected
+systems. The second part lists the files and
+provides instructions for repeating/varying the
+tests and case studies for an extension defining
+a basic application layer using CoAP messaging.
+The third part has some implementation notes on
+representation of endpoint state and rules for
+receiving messages (distilled from RFC7252).
 
 *************************************************
 *************************************************
@@ -65,7 +67,7 @@ Test scenario definitions
        and analyses (rew, search) to dialected systems.
 
 You can use the the functions in the test files to define
-and execution your own tests.   
+and execute your own tests.   
 
 -----------
 Test runs and case studies
