@@ -1,0 +1,32 @@
+load base.maude
+***(
+NAT-INF  inc NAT .
+ID iinc NAT STRING .  
+COMFIG 
+ITIN inc ID  NAT-INF .
+MSG inc ID  CONFIG .
+)
+  
+load data
+***( 
+DATA  inc BASE
+)
+load attributes.maude
+***(
+ATTRIBUTES inc DATA   .
+)
+
+load rules-aux
+***(
+RULES-AUX inc ATTRIBUTES
+)
+load rules
+***(
+RULES inc MFG-RULES  CUST-RULES SUPPLIER-RULES
+      inc RULES-AUX
+crl[tick]
+
+)
+load digressions
+load sc-test
+

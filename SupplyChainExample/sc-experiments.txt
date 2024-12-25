@@ -1,0 +1,190 @@
+Experiment set up
+
+There are 2 kinds of product PA, PB and 3
+kinds of part Q0 Q1 Q2.
+
+Product PA requires 1 Q1 and 1 Q2, takes 2
+time units to assemble, and yields 4 units
+of profit.
+
+Product PB requires 2 Q0 and 1 Q2, takes 4
+time units to assemble, and yields 4 units
+of profit.
+
+There are 3 suppliers: su0 supplies Q2,
+su1 supplies Q0 and Q1, and su2 supplies
+su2.
+
+Inital configuration consists of 
+   mfg(q0,q1,a2) -- a manufacturer
+     with initial inventory of
+     qj Qj parts j in {0,1,2}
+   customer(pa,pb) -- a customer with
+    squence of orders to send
+     PA @ 0 PB @ 1 ... 
+
+We used critical parameters cdiff -1, and cdur 3; overhead rate 1/6, and late penalty factor 1/4.
+
+The deadline, tab, was chosent to ensure
+all product orders were handled.
+
+The bound on update time, ta, ranged from
+2 time units to tab - 2.
+The number of updates, nu, ranged from
+1 to 4.  
+
+We considered two families of digression:
+   asmDelay(dA) --- delays completion of an
+                      assmbly task by dA; 
+and 
+   linkDelay(dL)  
+   --- adds dL to the transit time of some
+       link in a package itinerary
+      (delays part delivery by dL)
+      
+The following Table summarizes the
+result returned by isAbNRes and the
+time elapsed (in ms).  Run on a 
+Mac M1 machine with 16Gig memory.
+
+Note: For nu,tab st a? is false, the 
+execution time seems to not increase with nu
+Presumably because it fails  during 
+the same depth of recursion as the least
+nu that fails.  Also in this case,
+the execution time largely independent
+of ta >= 2.
+
+ q0 q1 q2  pa pb  tab  ta nu dA dL a?  ms
+
+ 2  2  1   1  1   10   8  1  2  _  T  110
+ 2  2  1   1  1   10   2  1  3  _  F   68 
+ 2  2  1   1  1   10   8  1  _  2  T  173
+ 2  2  1   1  1   10   8  1  _  3  T  187
+ 2  2  1   1  1   10   8  1  _  4  T  191
+ 2  2  1   1  1   10   8  1  2  2  T  249
+ 2  2  1   1  1   10   2  2  2  2  F  737
+ 2  2  1   1  1   10   2  2  3  2  F  1003
+ 2  2  1   1  1   10   2  2  4  2  F  1043
+ 2  2  1   1  1   10   2  2  2  _  F  88
+ 2  2  1   1  1   10   8  2  _  2  T  935
+ 2  2  1   1  1   10   8  3  _  2  T  4605
+ 2  2  1   1  1   10   8  4  _  2  T  22296
+  
+
+ q0 q1 q2  pa pb  tab  ta nu dA dL a?  ms
+
+ 1  1  1   1  1   15   8  1  2  _  T   59
+ 1  1  1   1  1   15  10  1  2  _  F   88
+ 1  1  1   1  1   15   2  1  3  _  F   28
+ 1  1  1   1  1   15  10  1  _  2  T   86
+ 1  1  1   1  1   15   8  1  _  3  T  108
+ 1  1  1   1  1   15   3  1  _  4  T   86
+ 1  1  1   1  1   15   4  1  _  4  F  114  
+ 1  1  1   1  1   15   8  1  2  2  T  128 
+ 1  1  1   1  1   15  10  1  2  2  F  137
+ 1  1  1   1  1   15   2  2  2  2  F  347
+ 1  1  1   1  1   15   2  2  2  _  F   46
+ 1  1  1   1  1   15   3  2  _  2  T  399
+ 1  1  1   1  1   15   4  2  _  2  F  455
+ 1  1  1   1  1   15   3  3  _  2  T  1800
+ 1  1  1   1  1   15   4  3  _  2  F  2278
+ 1  1  1   1  1   15   3  4  _  2  T  7820
+ 1  1  1   1  1   15   4  4  _  2  F  10759
+
+
+------ 221 21
+
+ q0 q1 q2  pa pb  tab  ta nu dA dL a?  ms
+ 
+ 2  2  1   2  1   20   10  1  2  _  T  180
+ 2  2  1   2  1   20   10  1  _  2  T  353
+ 2  2  1   2  1   20    2  2  2  2  F  1663
+ 2  2  1   2  1   20    2  2  2  _  F  133
+ 2  2  1   2  1   20    8  2  _  2  T  2724
+ 2  2  1   2  1   20    3  3  _  2  T  14131
+ 2  2  1   2  1   20    4  3  _  2  F  15581
+ 2  2  1   2  1   20    3  4  _  2  T  77111
+ 2  2  1   2  1   20    4  4  _  2  F  91521
+               
+------ 111 21
+
+ q0 q1 q2  pa pb  tab  ta nu dA dL a?  ms
+
+ 1  1  1   2  1   20   10  1  2  _  T  123
+ 1  1  1   2  1   20   10  1  _  2  T  235 
+ 1  1  1   2  1   20    2  2  2  2  F  958
+ 1  1  1   2  1   20    2  2  2  _  F  60
+ 1  1  1   2  1   20   10  2  _  2  T  2334
+ 1  1  1   2  1   20   10  3  _  2  T  21791
+ 1  1  1   2  1   20   10  4  _  2  T  198322
+
+
+------ 221 22
+ q0 q1 q2  pa pb  tab  ta nu dA dL a?  ms
+ 
+ 2  2  1   2  2   20   10  1  2  _  T  338
+ 2  2  1   2  2   20   10  1  _  2  T  527
+ 2  2  1   2  2   20    4  2  2  2  F  2753
+ 2  2  1   2  2   20    3  2  _  2  T  4790
+ 2  2  1   2  2   20    4  2  _  2  F  5138
+ 2  2  1   2  2   20    3  3  _  2  T  43018
+ 2  2  1   2  2   20    4  3  _  2  F  48197
+ 2  2  1   2  2   20    3  4  _  2  T  323821
+ 
+
+------ 111 22
+ q0 q1 q2  pa pb  tab  ta nu dA dL a?  ms
+
+ 1  1  1   2  2   20   10  1  2  _  T  175
+ 1  1  1   2  2   20   10  1  _  2  T  429
+ 1  1  1   2  2   20    2  2  2  2  F  1528
+ 1  1  1   2  2   20    2  2  2  _  F  94
+ 1  1  1   2  2   20   10  2  _  2  T  6576
+ 1  1  1   2  2   20   10  3  _  2  T  85240
+ 1  1  1   2  2   20   10  4  _  2  T  938685
+ 
+------- 221 31
+ q0 q1 q2  pa pb  tab  ta nu dA dL a?  ms
+ 2  2  1   3  1   20   10  1  2  _  T  445
+ 2  2  1   3  1   20   10  1  _  2  T  724
+ 2  2  1   3  1   20    2  2  2  2  F  3706
+ 2  2  1   3  1   20   10  2  _  2  T  7502
+ 2  2  1   3  1   20   10  3  _  2  T  87805
+ 2  2  1   3  1   20    6  4  _  2  F  818198
+
+------- 111 31 
+ q0 q1 q2  pa pb  tab  ta nu dA dL a?  ms
+ 1  1  1   3  1   20   10  1  2  _  T  195
+ 1  1  1   3  1   20   10  1  _  2  T  513
+ 1  1  1   3  1   20    2  2  2  2  F  1769
+ 1  1  1   3  1   20    2  2  2  _  F  100
+ 1  1  1   3  1   20   10  2  _  2  T  7709
+ 1  1  1   3  1   20   10  3  _  2  T  98373 
+ 1  1  1   3  1   20   10  4  _  2  T  1121964
+
+
+
+------- 221 32
+ q0 q1 q2  pa pb  tab  ta nu dA dL a?  ms
+ 
+ 2  2  1   3  1   20   10  1  2  _  T  2976
+ 2  2  1   3  1   20   10  1  _  2  T  1453
+ 2  2  1   3  1   20    2  2  2  2  F  14976 
+ 2  2  1   3  1   20   10  2  2  _  F  989
+ 2  2  1   3  1   20   10  2  _  2  T  26863 
+ 2  2  1   3  1   20   10  3  _  2  T  298981
+ 2  2  1   3  1   20    6  4  _  2  ?  > 15min
+
+------- 111 32 
+ q0 q1 q2  pa pb  tab  ta nu dA dL a?  ms
+
+ 1  1  1   3  1   20   10  1  2  _  T  1245  
+ 1  1  1   3  1   20   10  1  _  2  T  1234
+ 1  1  1   3  1   20    2  2  2  2  F  9591
+ 1  1  1   3  1   20    2  2  2  _  F  610
+ 1  1  1   3  1   20   10  2  _  2  T  26597
+ 1  1  1   3  1   20   10  3  _  2  T  309886
+ 1  1  1   3  1   20    6  4  _  2  T  3413248
+
+

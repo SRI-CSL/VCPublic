@@ -1,0 +1,116 @@
+mod DEBUG is
+  inc TEST .
+  inc META-LEVEL .
+  inc MFG-ABRES-SCENARIO  .
+
+  op getConfig : System -> Config .
+  eq getConfig({c:Config}) = c:Config .
+ 
+ op getBool : ConfigBool -> Bool .
+ eq getBool({c:Config,b:Bool}) = b:Bool .
+ 
+ ***(
+ eq iCfg1 =  initC(genOs(1,1),5,genParts(1,1,1),1/6,1/4,0)  crit(false,0,-1,3) .
+)
+ **** op iT11  iSysT1 upTerm({iCfg1})
+ op iT11X : -> Term .
+ eq iT11X =  
+   setStop(setUpDate(iSysT1,'mtD.DigressS,'0.Zero),
+          upTerm(12)) .
+op res3X11 : ->  ResultTriple?     .     
+eq res3X11 =
+metaSearch(modX,iT11X,rPatT,gCond,'!,unbounded,0) .
+op trQ11 : -> Trace? .
+eq trQ11 = metaSearchPath(modX,iT11X,rPatT,gCond, 
+                          '!,unbounded,0) .
+op trQ11trnc : -> Trace .
+eq trQ11trnc = truncateAtTime(trQ11,getTerm(res3X11),6,nil)  .
+
+op modX : -> Module .
+eq modX = ['MFG-ABRES-SCENARIO] .
+
+vars na nb : Nat .
+var cdiff : Int .
+var cdur : Nat .
+
+op iC1s : Nat Nat Int Nat -> Config .
+eq iC1s(na,nb,cdiff,cdur)  =
+  initC(genOs(na,nb),5,genParts(1,1,1),1/6,1/4,0)  crit(false,0,cdiff,cdur)  .   
+
+op iC2s : Nat Nat Int Nat -> Config .
+eq iC2s(na,nb,cdiff,cdur)  =
+  initC(genOs(na,nb),5,genParts(2,2,1),1/6,1/4,0)  crit(false,0,cdiff,cdur) .   
+
+
+op dA : Nat -> Digress .
+op dL : Nat -> Digress .
+eq dA(na) = asmDelay(na) .
+eq dL(na) = linkDelay(na) .
+
+endm
+eof
+
+red isAbNRes(modX, 1, 6,12,digA, iSysT1, rPatT, gCond, uStrat,0) .
+
+11 111 8 12 digA true
+11 111 6 12 digA true
+11 111 4 12 digA true
+11 111 4  8 digA false
+11 111 4  9 digA false
+11 111 4 10 digA true
+
+30-50ms
+
+red isAbNRes(modX, 1, 6,12,digA digL, iSysT1, rPatT, gCond, uStrat,0) .
+
+
+red isAbNRes(modX, 1, 6,12,digA digL, iSysT1, rPatT, gCond, uStrat,0) .
+
+11 111 6 12 digA digL false 1.3ms
+       4 12           false
+       4 16           false
+       
+
+red isAbNRes(modX, 1, 6,12,digA, iSysT2, rPatT, gCond, uStrat,0) .
+
+
+red lenTr(truncateAtTime(trQ,getTerm(res3X),3,nil)) .
+ 19
+
+red getRuleId(getRule(getTrNth(trQ,5))) .
+8 is 'tick
+getRuleId(getRule(getTrNth(trQ, 8))) .
+result Sort: 'tick
+
+red isAbNRes(modX, 1, 6,12,digA, iSysT1, rPatT, gCond, uStrat,0) .
+>>
+red checkAbRes(modX,1,6,12, digA, rPatT, gCond, uStrat, first(tr0X), rest(tr0X)) .
+false
+
+--------------------
+>>  if b := 
+red checkDigs(modX, s 0, 6,12,digA digL,iTX(0), digA digL,rPatT, gCond, uStrat)  .
+true
+
+>>
+ /\ b1 := 
+red checkDigAll(modX, 0, 6, 12, digA, iTXD(0,digA), rPatT, gCond, uStrat,0) .
+true
+
+red checkDigAll(modX, 0, 6, 12, digA, iTXD(6,digA), rPatT, gCond, uStrat,0) .
+true
+
+red checkDigAll(modX, 0, 6, 12, digL, iTXD(6,digL), rPatT, gCond, uStrat,0) .
+true
+ 
+ 
+red metaSrewrite(modX,iT0XD,uStrat,breadthFirst,0) .
+
+red metaSrewrite(modX,iTXD(3,digA),uStrat,breadthFirst,0) .
+
+red
+metaSrewrite(modX,iTXD(6,digL),uStrat,breadthFirst,0
+ ) .
+           
+
+  

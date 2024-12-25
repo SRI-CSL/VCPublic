@@ -1,0 +1,581 @@
+***(
+  mfg
+    orders: 
+      o(id,cuid,prId,adur,misparts,wait,asmId)
+    asm
+      (asmId,prId,dur)
+      (asmId,noPrId,dur)  -- dur > 0 --not working
+   parts  pac(paId,n) -- inventory
+   onOrder paO(suid,paid,n,eta,waiting )
+             --eta infty - waiting confirmation
+   stock (prId,wait)  -- how long in stock
+    
+   partpolicy - (paId,n)  -- keep n of paId ahead
+   profitPolicy(rate)
+      -- oh rate, perpart x time in stock
+   logitem  (time,parts,stock)          
+          update each time parts or stock changes
+           (time,prod,delivered)
+           (time,rushorder)
+   cnt(i)
+   clock(t)
+   profit (rat)
+
+rcv   
+   m(mfgId,cuId,req(i,prId))
+   m(mfgId,cuId,cancel(i))
+   m(mfgId,suId,rsp(i,paId,n,eta))
+   m(suId,mfgId,p(i,paId,n,itin))   --- nilI to rcv
+
+snd   
+   m(cuId,mfgId,rsp(i,prId,eta))
+   m(cuId,mfgId,delivered(,prId))
+   m(suId,mfgId,req(i,paId,n,b))  b ~ urgent?
+)
+
+mod MFG-RULES is
+   inc RULES-AUX .
+
+
+  vars cuId mId  mfgId suId : Oid .
+  vars attrs attrs0 attrs1 : AttrS .
+  vars prId paId asmId : Id .
+  vars  dq  n  dur adur i j t : Nat .
+  var idur : Int .
+  vars delay ni eta  : NatInf .
+  var asms : IdIdNatInfS .
+  var msgs : MsgS .
+  var os : OrderS .
+  vars order order1 : Order .
+  var pspec : ProdSpec .
+
+  op Mfg : -> Cid [ctor] .
+
+crl [mfgRcvOrder]:
+  [mfgId : Mfg | attrs] time(t)
+  m(mfgId,cuId,req(i,prId))
+=>
+  [mfgId : Mfg | attrs1] time(t)
+  msgs
+ if pspec := getProdSpec(prId)
+ /\ {attrs1,msgs} := 
+      rcvOrder(attrs,t,mfgId,cuId,i,pspec)
+[print "mfgRcvOrder mfgId " mfgId " cuId " cuId " id " i " prId " prId  " t " t]
+.
+
+crl [mfgRcvCancel]:
+  [mfgId : Mfg | attrs]
+  m(mfgId,cuId,cancel(i))
+=>
+  [mfgId : Mfg | attrs1]
+ if attrs1 := cancelOrder(attrs,cuId,i)
+[print "mfgRcvCancel  mfgId " mfgId " cuId " cuId " id " i ]
+.
+
+****  need to take care of parts for inventory
+crl [mfgRcvPartRsp]:
+  [mfgId : Mfg | attrs]
+   m(mfgId,suId,rsp(j,paId,n,eta))
+ =>
+  [mfgId : Mfg | attrs1]
+   msgs
+ if {attrs1,msgs} := 
+      rcvPartORsp(attrs,mfgId,suId,j,paId,n,eta)
+[print "mfgRcvPartRsp mfgId " mfgId "  suId " suId " id " j  " paId " paId " eta " eta]
+.
+
+crl [mfgRcvParts]:
+  [mfgId : Mfg | attrs] time(t)
+   m(mfgId,suId,p(j,paId,n,nilI)) 
+ =>
+  [mfgId : Mfg | attrs1] time(t)
+  msgs
+ if {attrs1,msgs} := 
+      rcvParts(attrs,t,mfgId,suId,j,paId,n)
+[print "mfgRcvParts mfgId " mfgId "  suId " suId " id " j  " paId " paId " n " n " t " t]
+.
+
+crl [mfgAsmDone]:
+  [mfgId : Mfg | attrs] time(t)
+  =>
+  [mfgId : Mfg | attrs1] time(t)
+  msgs
+ if attrs0 asm(asms {asmId,prId,0}) := attrs
+ /\ prId =/= noId
+ /\ {attrs1,msgs} :=
+  completeOrder(attrs0 asm(asms {asmId,noId,0}), t,
+                mfgId,asmId,prId)
+  [print "mfgAsmDone mfgId " mfgId " asmId " asmId " prId " prId " msgs " msgs " time " t]
+  .
+  
+crl [mfgOrder2Asm]:
+  [mfgId : Mfg | attrs]
+  =>
+  [mfgId : Mfg | attrs1]
+ if attrs0 asm(asms {asmId,noId,0})
+           orders(os order) := attrs
+ /\ o(i,cuId,prId,adur,mtINN,idur,noId) := order
+ /\ order1 :=
+       o(i,cuId,prId,adur,mtINN,idur,asmId)
+ /\ attrs1 := attrs0 asm(asms {asmId,prId,adur})
+                     orders(os order1) 
+ [print "mfgOrder2Asm mfgId " mfgId " asmId " asmId " prId " prId " cuId " cuId " " i " idur " idur]
+   .
+  
+***(
+crl [mfgPartOrderTimeOut]:
+  [mfgId : Mfg | attrs]
+  =>
+  [mfgId : Mfg | attrs1]
+)
+
+endm  
+
+mod SUPPLIER-RULES is
+**** inc RULES-AUX .
+  inc ATTRIBUTES .
+  
+  vars   mfgId suId : Oid .
+  vars attrs attrs0 attrs1 : AttrS .
+  vars  paId id : Id .
+  vars  i j n delay : Nat .
+  var eta : NatInf .
+  var b : Bool .
+  var msg msg0 msg1 : Msg .
+  var msgs : MsgS .
+  vars itin itin1 : Itin .
+  
+  op Supplier : -> Cid [ctor] .
+
+**** assume only requests for parts this su sells
+**** eventually check
+crl [suRcvPO]:
+  [suId : Supplier | attrs]
+  m(suId,mfgId,req(j,paId,n,b))
+  =>
+  [suId : Supplier | attrs1]
+  msgs
+ if itin := getItin(suId,mfgId,b)
+ /\ delay := getReady(attrs)
+ /\ msg0 := m(mfgId,suId,p(j,paId,n,itin))
+ /\ eta := itinDur(itin) + delay
+****  /\ itin1 := l(suId,mfgId,lh,eta)
+****  /\ msg0 := m(mfgId,suId,p(j,paId,n,itin1))
+ /\ msg1 := m(mfgId,suId,rsp(j,paId,n,eta))
+ /\ attrs1 := 
+    (if delay > 0 
+    then addPending(attrs,msg0)
+    else attrs fi)
+ /\ msgs :=  msg1 
+           (if delay > 0 
+            then mt 
+            else msg0 fi)
+[print "suRcvPO suId " suId " paId " paId " j " j  " n " n " b " b] .
+
+   
+rl [suReleasePendingO]:
+  [suId : Supplier | attrs ready(0) pending(msg msgs)]
+  =>
+  [suId : Supplier | attrs ready(0) pending(mt)]
+  msgs msg
+[print "suReleasePendingO suId " suId  " msgs msg " msgs " " msg]  .
+   
+
+
+endm
+
+mod CUSTOMER-RULES is
+**** inc RULES-AUX .
+  inc ATTRIBUTES .
+  
+  vars  mfgId cuId : Oid .
+  vars attrs attrs0 attrs1 : AttrS .
+  vars  prId id : Id .
+  vars  i j n dur  wait delay : Nat .
+  var  idur : Int .
+  var b : Bool .
+  var msg : Msg .
+  var msgs : MsgS .
+  
+  op Cust : -> Cid [ctor] .
+  
+rl [cuSendO]:
+  [cuId : Cust | attrs 
+                 oQ(mfgId,prId,0) cnt(j)]
+  =>
+ [cuId : Cust | attrs cnt(s j)
+                    w4Q(mfgId,j,prId,0,infty) ] 
+ m(mfgId,cuId,req(j,prId) ) 
+ [print "cuSendO  cuId " cuId " prId " prId "  j " j]  
+ .
+
+rl [cuRcvORsp]:
+  [cuId : Cust | attrs w4Q(mfgId,j,prId,0,infty) ]
+  m(cuId,mfgId,rsp(j,prId,dur))
+  =>
+ [cuId : Cust | attrs  w4Q(mfgId,j,prId,0,dur)]
+ [print "cuRcvORsp  cuId " cuId "  prId " prId "  j " j " dur " dur]  
+ .
+
+
+***** check that wait only counts up when dur : Nat
+
+rl [cuRcvODlv]:
+  [cuId : Cust | attrs w4Q(mfgId,j,prId,wait,dur) ]
+  m(cuId,mfgId,delivered(j,prId))
+  =>
+  [cuId : Cust | attrs rcvd(mfgId,j,prId,wait,dur)]
+ [print "cuRcvODlv  cuId " cuId "  prId " prId "  j " j " wait " wait " dur " dur]  
+  .
+
+crl [cuCancelO]:
+  [cuId : Cust | attrs grace(i)
+                 w4Q(mfgId,j,prId,wait,dur) ]
+=>
+  [cuId : Cust | attrs grace(i)
+                 cancelled(mfgId,j,prId,wait,dur) ]
+  m(mfgId,cuId,cancel(j))
+if wait > dur + i  
+ [print "cuCancelO cuId " cuId "   prId " prId  "  j " j " wait " wait " dur " dur]  
+ .
+endm
+
+mod RULES is
+ inc MFG-RULES .
+ inc CUSTOMER-RULES .
+ inc SUPPLIER-RULES .
+ 
+ sort System .
+ op `{_`} : Config -> System .
+ 
+  
+ vars conf1 conf0 conf conf2 : Config .
+ vars attrs attrs0 attrs1 : AttrS . 
+ vars  z0 z1  src tgt mfgId cuId suId oid : Oid .
+ var cid : Cid .
+ var i j n adur adur1 wait pc t0 t t1 ts 
+      cdur : Nat .
+ var cdiff : Int .
+ vars ni ni0 dur eta : NatInf .
+ vars nz : NzNat .
+ var idur : Int .
+ vars r ohc ohc0 pr penalty : Rat .
+ var ohh : NatRatS .
+ vars os os0 os1 : OrderS .
+ vars order order1 : Order .
+ var asms asms0 asms1 : IdIdNatInfS .
+ vars aId paId prId  id : Id .
+ vars itin itin0 : Itin .
+ vars msg msg0 msg1 : Msg .
+ var mparts : IdNatNatInfS .
+ var msgs : MsgS .
+ var b : Bool .
+ var ltype : LType .
+ var pacnts : IdNatS .
+ 
+ crl[tick]:
+   {conf time(t)} => {conf1}
+   if nz := mte(conf,infty)  
+   /\ {conf0,true} := checkCrit(conf time(t),nz)
+       --- should not inc time
+   /\ notStopped(conf0, nz)  --- time(t)
+   /\ {conf1} := passTime({conf0},nz)  --- incs time
+   /\ oh(r,pc,t0,ohc,ohh) := getCurrentOH(conf1)
+   /\ pr := getCurrentProfit(conf1)
+   /\ conf2 := getCrit(conf1)
+   [print "tick nz " nz " time " t
+   " pc " pc " t0 " t0 " ohc " ohc " profit " pr
+    "\ncritical actor " conf2 ]
+  .      
+
+
+op getCrit : Config -> Config .
+eq getCrit(conf crit(b,t0,cdiff,cdur) ) 
+        = crit(b,t0,cdiff,cdur) .
+eq getCrit(conf)  = mt [owise] .
+
+ op notStopped : Config NzNat -> Bool .
+ eq notStopped(conf stop(ts) time(t),nz)
+    = ts > t + nz .
+ eq notStopped(conf,nz) = true [owise] .
+
+***(
+op isStopped : Config -> Bool .
+eq isStopped(conf [oid : noCid | attrs]) = true .
+eq isStopped(conf) = false [owise] .
+)
+
+op getMfgPartsCnt : Config -> Nat .
+eq getMfgPartsCnt( conf0 [mfgId : cid | attrs parts(pacnts)] ) = countItems(pacnts) .
+**** eq getMfgPartsCnt( [mfgId : cid | attrs ]) = 0 [owise] .
+
+op getCurrentOH : Config -> AttrS .
+eq getCurrentOH(conf0 
+   [mfgId : cid | attrs oh(r,pc,t0,ohc,ohh)])
+    = oh(r,pc,t0,ohc,ohh) .
+**** eq getCurrentOH(conf0) = mtAttr [owise]  .
+ 
+op getCurrentProfit : Config -> Rat .
+eq getCurrentProfit(conf [mfgId : cid | attrs profit(pr,penalty)]) = pr .
+**** eq getCurrentProfit(conf) = 0 [owise] .
+ 
+**** op mte : System -> NatInf .
+ op mte : Config NatInf -> NatInf .
+ op mteMfg : AttrS NatInf -> NatInf .
+ op mteAsm : OrderS IdIdNatInfS NatInf -> NatInf .
+ op mteSup : AttrS NatInf -> NatInf .
+ op mteCus : AttrS NatInf -> NatInf .
+
+ *** eq mte({conf}) = mte(conf,infty) .
+  eq mte(conf,ni) = ni [owise] .
+
+ ***** assume deliverable msgs can be delivered
+
+**** mte(itin) = itin(dur)
+ ceq mte(conf msg,ni) =  mte(conf,min(ni,dur))  
+  if m(tgt,src,p(j,paId,n, 
+       l(z0,z1,ltype,nz) ; itin)) := msg 
+  /\ dur := itinDur( l(z0,z1,ltype,nz) ; itin)         .
+
+ eq mte(conf m(tgt,src,p(j,paId,n,nilI)),ni) = 0 .
+ eq mte(conf m(tgt,src,req(j,id,n,b)),ni) =  0 .
+ eq mte(conf m(tgt,src,rsp(j,id,n,adur)),ni) =  0 .
+ eq mte(conf m(tgt,src,req(j,id)),ni) =  0 .
+ eq mte(conf m(tgt,src,rsp(i,id,adur)),ni) =  0 .
+ eq mte(conf m(tgt,src,delivered(i,id)),ni) =  0 .
+ eq mte(conf m(tgt,src,cancel(i)),ni) =  0 .
+ 
+   ceq mte(conf [ mfgId : Mfg | attrs ], ni)
+    = (if ni0 == 0 
+       then 0
+       else mte(conf,ni0) 
+       fi)
+  if ni0 := mteMfg(attrs,ni) .
+
+
+  ceq mte(conf [ suId : Supplier | attrs ], ni)
+    = (if ni0 == 0 
+       then 0
+       else mte(conf,ni0) 
+       fi)
+  if ni0 := mteSup(attrs,ni) .
+
+  ceq mte(conf [ cuId : Cust | attrs ], ni)
+    = (if ni0 == 0 
+       then 0
+       else mte(conf,ni0) 
+       fi)
+  if ni0 := mteCus(attrs,ni) .
+
+       
+  eq mteMfg(attrs orders(os) asm(asms),ni) =
+      mteAsm(os,asms,ni) .
+  eq mteMfg(attrs,ni) = ni [owise] .
+      
+  eq mteAsm(os o(i,cuId,paId,adur,mtINN,idur,noId),
+           asms {aId, noId, dur} ,
+           ni) = 0 .
+  ceq mteAsm(os,{aId, paId, dur}  asms,ni)
+      = mteAsm(os,asms,min(dur,ni))  
+      if paId =/= noId
+      [owise] .
+
+  eq mteAsm(os, asms,ni) = ni [owise] .
+
+  eq mteSup(ready(0) pending(msg msgs) attrs ,
+            ni) = 0 .
+  eq mteSup(ready(s j) attrs , ni) = min(s j,ni) .
+
+  eq mteSup(attrs , ni) = ni [owise]  .
+
+  eq mteCus(attrs oQ(mfgId,prId,0),ni) = 0 .
+        
+  ceq mteCus(attrs
+           w4Q(mfgId,i,prId,wait,eta) grace(j),ni)
+       = 0            
+    if wait > eta + j .
+
+  eq mteCus(attrs oQ(mfgId,prId,s j),ni) = 
+           mteCus(attrs, min(s j,ni)  ) [owise] .
+
+  eq mteCus(attrs ,ni) = ni [owise] .
+
+ op notStopped : Config NzNat -> Bool .
+ eq notStopped(conf stop(ts) time(t),nz)
+    = ts > t + nz .
+ eq notStopped(conf,nz) = true [owise] .
+
+***(
+  op stopC : Config Config -> Config .
+  eq stopC([oid : cid | attrs] conf,conf1)
+     = stopC(conf,conf1 [oid : noCid | attrs]) .
+  eq stopC(conf,conf1) = conf1 conf [owise] .
+ ) 
+
+  op  checkCrit : Config NzNat -> ConfigBool .
+  ceq checkCrit(conf time(t)
+                crit(false,t0,cdiff,cdur), nz)
+      =  {conf time(t)
+         (if _-_(pr,ohc0) < cdiff 
+          then crit(true,t,cdiff,cdur) 
+          else crit(false,t + nz,cdiff,cdur) fi),          true}
+     if oh(r,pc,t1,ohc,ohh) := getCurrentOH(conf)
+     /\ pr := getCurrentProfit(conf)
+     /\ ohc0 := ohc + (_-_(nz + t,t1) * r * pc)
+    .
+
+  ceq checkCrit(conf  time(t)
+                crit(true,t0,cdiff,cdur),nz)  
+     = 
+     (if _-_(pr, ohc) >= cdiff  --- non crit
+      then {conf time(t) 
+            crit(_-_(pr, ohc0) < cdiff, 
+                 t + nz,cdiff,cdur) ,true}
+      else **** _-_(pr, ohc0) < cdiff   as ohc < ohc0
+        {conf time(t)
+         crit(true,t0,cdiff,cdur),
+           _-_(t + nz,t0)  <= cdur }
+      fi)
+   if oh(r,pc,t1,ohc,ohh) := getCurrentOH(conf)
+   /\ pr := getCurrentProfit(conf)
+   /\ ohc0 := ohc + (_-_(nz + t,t1) * r * pc)
+   .
+
+
+  
+***(
+  ceq checkCrit(conf  time(t)
+                  crit(true,t0,cdiff,cdur),nz)  
+      = (if _-_(pr, ohc0) < cdiff 
+         then (if _-_(t + nz,t0)  > cdur 
+               then {conf time(t)
+                         crit(true,t0,cdiff,cdur),
+               --- system critical, stop
+                      false } 
+               else {conf time(t)
+                     crit(true,t0, 
+                          cdiff,cdur),true}
+               fi)
+          else  {conf time(t) 
+                 crit(false,t + nz,cdiff,cdur), 
+                 true}
+          fi)
+     if oh(r,pc,t1,ohc,ohh) := getCurrentOH(conf)
+     /\ pr := getCurrentProfit(conf)
+     /\ ohc0 := ohc + (_-_(nz + t,t1) * r * pc)
+   .
+)  
+   eq checkCrit(conf,nz) = {conf,true} [owise] .
+   
+----------
+**** if there is a stop(ts) actor and t+nz > ts
+**** then convert Cids to noCid to stop rewriting
+**** op passTimeC : System NzNat -> System .
+  op passTime : System NzNat -> System .
+  op passTime : Config Config Nat NzNat 
+                -> System .
+  op passTime : AttrS AttrS Nat NzNat -> AttrS .
+  op passTime : IdIdNatInfS IdIdNatInfS NzNat 
+                -> IdIdNatInfS .
+----------------------------
+  eq passTime({conf time(t)},nz)  =
+       passTime(conf time(t + nz), mt,t,nz)  .
+     
+  eq passTime(conf,conf1,t,nz) 
+         = {conf conf1} [owise] .
+
+  ceq passTime(conf msg,conf1,t,nz) =
+      passTime(conf,conf1 msg1,t,nz)
+   if m(tgt,src,p(j,paId,n,itin)) := msg
+   /\ itin0 := passTimeItin(itin,nz)
+   /\ msg1 := m(tgt,src,p(j,paId,n, itin0))
+   .
+
+ op passTimeItin : Itin NzNat -> Itin .
+ eq passTimeItin(nilI,nz)  = nilI .
+ eq passTimeItin( l(z0,z1,ltype,dur) ; itin,nz)
+      =
+      (if (dur > nz)
+      then l(z0,z1,ltype,sd(dur,nz)) ; itin
+      else (if (dur == nz)
+            then itin
+            else passTimeItin(itin,sd(nz,dur))
+            fi)
+      fi)
+   .                  
+ 
+ ceq passTime(conf [oid : cid | attrs ],
+              conf1,t,nz)
+   = passTime(conf,conf1 
+              [oid : cid | attrs1],t,nz)
+   if attrs1 := passTime(attrs,mtAttr,t,nz)
+   .
+
+ eq passTime(attrs, attrs0,t,nz)  = attrs attrs0 
+     [owise] .
+
+ eq passTime(attrs ready(adur), attrs0,t, nz)  =
+   passTime(attrs, attrs0
+                   ready(monus(adur,nz)),t,nz) . 
+
+ eq passTime(attrs asm(asms), attrs0,t,nz)
+      =  passTime(attrs, attrs0
+                    asm(passTime(asms, mtIIN,nz)),
+              t,nz) .
+ eq passTime(mtIIN,asms,nz) = asms .
+ceq passTime({aId,prId,adur} asms, asms0,nz)
+   = passTime(asms,asms0 {aId,prId, adur1},nz)
+   if adur1 := (if prId == noId
+                then adur
+                else monus(adur,nz)
+                fi) .
+
+***** Orders
+  op passTimeItin : OrderS NzNat OrderS 
+                    -> OrderS .
+    
+ ceq passTime(attrs orders(os), attrs0,t, nz) 
+     =  passTime(attrs, attrs0 orders(os1),t,nz) 
+   if os1 := passTime(os,nz,mtO)
+  .
+  
+  op passTime : OrderS NzNat OrderS -> OrderS .
+  eq passTime(mtO,nz,os1) = os1 .
+  ceq passTime(os order,nz,os1)
+     =  passTime(os,nz,os1 order1)   
+  if o(i,cuId,paId,adur,mparts,idur,id)
+      := order
+  /\ order1 :=       
+      o(i,cuId,paId,adur,mparts,
+      (if (mparts == mtINN)
+       then idur - nz
+       else idur fi),
+      id) .
+  
+**** customer attrs
+    eq passTime(attrs
+                w4Q(mfgId,i,prId,adur,eta), 
+              attrs0,t,nz)
+    =  passTime(attrs, attrs0
+                w4Q(mfgId,i,prId,adur + nz,eta),
+                  t,nz) .
+
+ eq passTime(attrs oQ(mfgId,prId,adur), 
+             attrs0,t,nz)
+     = passTime(attrs,attrs0 
+                oQ(mfgId,prId,monus(adur,nz)),
+                t,nz) .
+
+**** OH attr                
+ eq passTime(attrs oh(r,pc,t0,ohc,ohh), 
+             attrs0,t,nz)
+   = passTime(attrs,attrs0 
+       oh(r,pc,t + nz, 
+          ohc + (_-_(t + nz,t0) * r * pc),ohh),
+         t,nz) .
+ 
+  
+endm   
+eof  
+
+   

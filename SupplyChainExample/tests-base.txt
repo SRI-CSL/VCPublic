@@ -1,0 +1,271 @@
+load sc-test
+
+**(
+nodes
+mfg
+s0, s1, s2
+
+                     -sea-
+              l- y0  -air- s0
+            /d
+mfg -s- x1 -l-- s1
+             \l  / s       
+mfg -l-  x2 -s- y1,
+     \          \l
+       s - x3 -t- s2   
+
+****     train long/short haul
+ops  air sea tr lh sh : -> LType [ctor] .
+)
+
+
+red findByEnd(TransportG,x1)  .
+red findByEnd(TransportG,y1)  .
+red findByEnd(TransportG,mfg)  .
+red findBySrc(TransportG,x2)  .
+red findBySrc(TransportG,su0)  .
+
+red setDiff( l(su0, y0, air, 1) l(su0, y0, sea, 4),l(su0, y0, air, 1)) .
+red setDiff( l(su0, y1, air, 1) l(su0, y0, sea, 4),l(su0, y0, air, 1)) .
+red setDiff(TransportG, findByEnd(TransportG,mfg) ) .
+
+red links2itins( l(su0, y0, air, 1) l(su0, y0, sea, 4) l(su1, y1, sh, 1)  l(su2, y1, lh, 2), mtI) .
+
+red links2itins(findByEnd(TransportG,y1),mtI) .
+ [l(su1, y1, sh, 1)] [l(su2, y1, lh, 2)]
+ 
+red addLinkEnd(l(su1, y1, sh, 1) , findBySrc(TransportG,y1) ) .
+
+red findItinS(TransportG,su0,y0)  .
+ [l(su0, y0, air, 1)] [l(su0, y0, sea, 4)]
+
+ red findItinS(TransportG,su0,x1)  .
+ [l(su0, y0, air, 1) ; l(y0, x1, lh, 2)] 
+ [l(su0, y0, sea, 4) ; l(y0, x1, lh, 2)]
+ 
+ red findItinS(TransportG,su0,mfg)  .
+ [l(su0, y0, air, 1) ; l(y0, x1, lh, 2) ; l(x1, mfg, sh, 1)] 
+ [l(su0, y0, sea, 4) ; l(y0, x1, lh, 2) ; l(x1, mfg, sh, 1)]
+ 
+ 
+red findItinS(TransportG,su1,mfg)  .
+ [l(su1, x1, lh, 3) ; l(x1, mfg, sh, 1)] [l(su1, y1, sh, 1) ; l(y1, x1,lh, 2) ; l(x1, mfg, sh, 1)] 
+ [l(su1, y1, sh, 1) ; l(y1, x2, sh, 1) ; l(x2, mfg,lh, 2)]
+ 
+red findItinS(TransportG,su2,mfg)  .
+ [l(su2, x3, tr, 3) ; l(x3, mfg, sh, 1)] 
+ [l(su2, y1, lh, 2) ; l(y1, x1,lh, 2) ; l(x1, mfg, sh, 1)] 
+ [l(su2, y1, lh, 2) ; l(y1, x2, sh, 1) ; l(x2, mfg, lh, 2)]
+ 
+red itinDur( l(su2, y1, lh, 2) ; l(y1, x2, sh, 1) ; l(x2, mfg, lh, 2)) .
+  5
+
+red itinDur( l(su2, y1, lh, 2) ; l(y1, x2, sh, 1) ; l(x2, mfg, lh, infty)) .
+  infty
+  
+*******************************************
+24Nov26 testing mte passTime tick  in DEBUG
+
+
+*********** mte
+Msgs
+m(mfg,su0,p(1,Q2,1,nilI)) 
+m(mfg,su0,p(1,Q2,1, l(su1,x1,lh,3))) 
+omsg0
+
+**** m(tgt,src,req(j,id,n,b)
+**** m(tgt,src,rsp(j,id,n,adur))
+**** m(tgt,src,req(j,id)
+**** m(tgt,src,rsp(i,id,adur))
+**** m(tgt,src,delivered(i,id))
+**** m(tgt,src,cancel(i))
+
+
+
+red mte(omsg0,infty)  .
+red mte(m(mfg,su0,p(1,Q2,1, l(su1,x1,lh,3))) ,infty) . 
+
+red mte(m(mfg,su0,p(1,Q2,1,nilI)) , infty) .
+
+
+AttrS
+red mteSup(ready(0) pending(mt), infty) .
+red mteSup(ready(0) pending(m(mfg,su0,p(1,Q2,1, l(su1,x1,lh,3))) ), 1 ) .
+
+red mteSup(ready(1) pending(m(mfg,su0,p(1,Q2,1, l(su1,x1,lh,3))) ), 2 ) .
+
+red mteMfg(attrsX,1) .
+result NzNat: 1
+
+red mteMfg(attrsX1,1) .
+result NzNat: 1
+
+red mteMfg(attrsX1,infty) .
+result NzNat: 2
+
+red mteMfg(attrsX1.0,infty) .
+result Zero: 0
+red mteMfg(attrsX1.0,1) .
+result Zero: 0
+
+red mteCus(oQ(mfg,PA,0),infty) .
+red mteCus(oQ(mfg,PA,3),infty) .
+red mteCus(w4Q(mfg,0,PA,20,10) grace(5),infty) .
+red mteCus(w4Q(mfg,0,PA,10,10) grace(5),infty) .
+red mteCus(oQ(mfg,PA,0) oQ(mfg,PA,3)  w4Q(mfg,0,PA,20,10) grace(5),infty) .
+red mteCus( oQ(mfg,PA,3)  w4Q(mfg,0,PA,20,10) grace(5),infty) .
+red mteCus( oQ(mfg,PA,3)  w4Q(mfg,0,PA,10,10) grace(5),infty) .
+
+red mte([mfg : Mfg | attrsX],infty ) .
+red mte([mfg : Mfg | attrsX1],infty ) .
+red mte([mfg : Mfg | attrsX1] m(mfg,su0,p(1,Q2,1, l(su1,x1,lh,3))) omsg0,infty) .
+
+
+m(mfg,su0,p(1,Q2,1,nilI)) 
+m(mfg,su0,p(1,Q2,1, l(su1,x1,lh,3))) 
+omsg0
+
+
+************************* MfgRules  in DEBUG
+***(
+ rew mfgO omsg0 .
+>>
+ m(su0, mfg, req(1, Q2, 1, false)) 
+ m(su1, mfg, req(0, Q1, 1, false))  
+ m(cust, mfg, rsp(0, PA, 4))
+ [mfg : Mfg | attrsX1]
+**** asm is started
+)
+***mfgRcvCancel
+**** attrs1 := 
+red cancelOrder(attrsX1,cust,0) .
+***(
+ orders(mtO) parts({Q0, 2} {Q1, 1}) asm({asmId(0), PA, 2} {asmId(1), noId, 0} {asmId(2), noId, 0}) stock(mtIN) profit(0) cnt(2) time(0) partPend(pp( su0, 1, Q2, 1, noOid, 0) pp(su1, 0, Q1, 1, noOid, 0)) oh(1/4, 3, 0, 0, mtNR
+ )) 
+
+****mfgRcvPartRsp
+m(mfg,su0,rsp(1,Q2,1,4))
+m(mfgId,suId,rsp(j,paId,n,eta))
+
+**** {attrs1,msgs} := 
+red rcvPartORsp(attrsX1,mfg,su0,0,Q2,1,4) .
+***(
+ {orders(o(0, cust, PA, 2, mtINN, 0, asmId(0))) parts({Q0, 2} {Q1, 1}) asm({asmId(0), PA, 2} {asmId(1), noId, 0} {asmId(2), noId, 0}) stock(mtIN) profit(0) cnt(2) time(0) partPend(pp(su0, 1, Q2, 1, noOid, 0) pp(su1, 0, Q1, 1, noOid, 0)) oh(1/4, 3, 0, 0, mtNR), mt}
+== {attrsX1, mt}
+)
+ 
+****mfgRcvParts
+ m(mfg,su0,p(1,Q2,1,nilI)) 
+ m(mfgId,suId,p(j,paId,n,nilI))  
+*** {attrs1,msgs} := 
+ red rcvParts(attrsX1,mfg,su0,1,Q2,1) .
+ ***(
+ {orders(o(0, cust, PA, 2, mtINN, 0, asmId(0))) parts({Q0, 2} {Q1, 1} {Q2, 1}) asm({asmId(0), PA, 2} {asmId(1), noId, 0} {asmId(2), noId, 0}) stock(mtIN) profit(0) cnt(2) time(0) partPend(pp(su1, 0, Q1, 1, noOid, 0)) oh( 1/4, 4, 0, 0, mtNR), 
+ mt}
+)
+
+
+
+************************* passTime
+MsgS
+
+red passTime(omsg0,mt,1)  .
+red passTime(m(mfg,su0,p(1,Q2,1, l(su1,x1,lh,3))),mt,1) . 
+red passTime(m(mfg,su0,p(1,Q2,1, l(su1,x1,lh,3))),mt,3) . 
+
+red passTime(m(mfg,su0,p(1,Q2,1, l(su1,x1,lh,3))) m(mfg,su0,p(1,Q2,1,nilI)), mt,2) .
+
+red passTime(ready(0) pending(mt), mt,1) .
+
+red passTime(attrsX,mtAttr,1) == attrsX .
+
+red passTime(attrsX1,mtAttr,1) .
+red passTime(attrsX1.0,mtAttr,1) .
+
+red passTime(oQ(mfg,PA,0),mtAttr,1) .
+red passTime(oQ(mfg,PA,3),mtAttr,1) .
+red passTime(w4Q(mfg,0,PA,20,10) grace(5),mtAttr,1) .
+red passTime(oQ(mfg,PA,0) oQ(mfg,PA,3)  w4Q(mfg,0,PA,20,10) grace(5),mtAttr,1) .
+
+red passTime([mfg : Mfg | attrsX],mt,1 ) .
+red passTime([mfg : Mfg | attrsX1],mt,1 ) .
+red passTime([mfg : Mfg | attrsX1] m(mfg,su0,p(1,Q2,1, l(su1,x1,lh,3))) omsg0,mt,1) .
+
+set print attribute on .
+rew {[mfg : Mfg | attrsX1]} .
+
+************************  getItin 
+    
+red findItinS(TransportG,su0,mfg) .
+
+red itinDur(l(su0, y0, air, 1) ; l(y0, x1, lh, 2) ; l(x1, mfg, sh, 1) ) .
+red itinDur(l(su0, y0, sea, 4) ; l(y0, x1, lh, 2) ; l(x1, mfg, sh, 1)) .
+
+red pickItin([l(su0, y0, air, 1) ; l(y0, x1, lh, 2) ; l(x1, mfg, sh, 1)] [l(su0, y0, sea, 4) ; l(y0, x1, lh, 2) ; l(x1, mfg, sh, 1)],true) .
+
+red pickItin([l(su0, y0, air, 1) ; l(y0, x1, lh, 2) ; l(x1, mfg, sh, 1)] [l(su0, y0, sea, 4) ; l(y0, x1, lh, 2) ; l(x1, mfg, sh, 1)],false) .
+
+red getItin(su0,mfg,true) .
+red getItin(su0,mfg,false) .
+red getItin(su1,mfg,true) .
+red getItin(su2,mfg,true) .
+
+********************************
+
+rew su0O(0) m(su0,mfg,req(1,Q2,1,false))  .
+ m(mfg, su0, rsp(1, Q2, 1, 4)) 
+ m(mfg, su0, p(1, Q2, 1, l(su0, y0, air, 1) ; l(y0, x1, lh, 2) ; l(x1, mfg, sh, 1)))
+[su0 : Supplier | ready(0) pending( mt)]
+ 
+rew su0O(2) m(su0,mfg,req(1,Q2,1,false))  .
+m(mfg, su0, rsp(1, Q2, 1, 6)) [su0 : Supplier | ready(2) pending(m( mfg, su0, p(1, Q2, 1, l(su0, y0, air, 1) ; l(y0, x1, lh, 2) ; l(x1, mfg, sh, 1))))]
+
+rew custO .
+m(mfg, cust, req(0, PA)) [cust : Cust | cnt(1) grace(5) oQ(mfg, PB,1) w4Q(mfg, 0, PA, 0, infty)]
+
+rew  [20] {mfgO custO su0O(0) su1O(0) su2O(0)} .
+cuSendO  prId PA  j 0
+mfgRcvOrder cuId cust id 0 prId PA
+cuRcvORsp  prId PA  j 0 dur 4
+suRcvPO suId su0 paId Q2 j 1 n 1 b false
+mfgRcvPartRspl suId su0 id 1 paId Q2
+suRcvPO suId su1 paId Q1 j 0 n 1 b false
+mfgRcvPartRspl suId su1 id 0 paId Q1
+mfgOrder2Asm mfgId mfg asmId asmId(0) prId PA cuId cust 0 dur 0
+tick nz 1
+cuSendO  prId PB  j 1
+mfgRcvOrder cuId cust id 1 prId PB
+cuRcvORsp  prId PB  j 1 dur 8
+suRcvPO suId su1 paId Q0 j 2 n 2 b false
+mfgRcvPartRspl suId su1 id 2 paId Q0
+suRcvPO suId su1 paId Q1 j 3 n 1 b false
+mfgRcvPartRspl suId su1 id 3 paId Q1
+mfgOrder2Asm mfgId mfg asmId asmId(1) prId PB cuId cust 1 dur 0
+tick nz 1
+mfgAsmDone mfgId mfg asmId asmId(0) prId PA msgs m(cust, mfg, delivered(0, PA))
+cuRcvODlv  prId PA  j 0 wait 2 dur 4
+
+cont 10 .
+tick nz 1
+tick nz 1
+mfgRcvPartRspl suId su0 id 1 paId Q2
+mfgRcvPartRspl suId su1 id 0 paId Q1
+tick nz 1
+mfgRcvPartRspl suId su1 id 2 paId Q0
+mfgRcvPartRspl suId su1 id 3 paId Q1
+mfgAsmDone mfgId mfg asmId asmId(1) prId PB msgs m(cust, mfg, delivered(1, PB))
+cuRcvODlv  prId PB  j 1 wait 4 dur 8
+
+ {[mfg : Mfg | orders(mtO)
+  parts({Q0, 2} {Q1, 2} {Q2, 1}) 
+  asm({asmId(0), noId, 0} {asmId(1), noId, 0} 
+      {asmId(2), noId, 0}) 
+  stock(mtIN) profit(12)
+  cnt(4) time(5) partPend(mtPP) 
+  oh(1/4, 5, 5, 5/4, mtNR)] 
+[su0 : Supplier | ready(0) pending(mt)] 
+[su1 : Supplier | ready(0) pending(mt)] 
+[su2 : Supplier | ready(0) pending(mt)] 
+[cust : Cust | cnt(2) grace(5) 
+               rcvd(mfg, 0, PA, 2, 4) 
+               rcvd(mfg, 1, PB, 4, 8)]}

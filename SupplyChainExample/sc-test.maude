@@ -1,0 +1,281 @@
+sload load.maude
+
+mod TEST is
+ inc RULES .
+ inc DIGRESSION-RULES .
+ 
+
+ops mfg su0 su1 su2 cust : -> Oid [ctor] .
+ops  y0 y1 y2 y3 x0 x1 x2  x3 : -> Oid [ctor] .
+
+eq TransportG =
+  (
+  l(su0,y0,sea,4)
+  l(su0,y0,air,1)
+  l(su1,x1,lh,3)
+  l(su1,y1,sh,1)
+  l(su2,y1,lh,2)
+  l(su2,x3,tr,3)
+  l(y0,x1,lh,2)
+  l(y1,x1,lh,2)
+  l(y1,x2,sh,1)
+  l(x1,mfg,sh,1)
+  l(x2,mfg,lh,2)
+  l(x3,mfg,sh,1)
+   )  .
+
+***(
+Two products PA  PB
+3 parts Q0 Q1 Q2
+PA uses  Q1 Q2
+PB uses  Q0 Q0 Q1 
+)
+ops PA PB : -> Id .
+ops Q0 Q1 Q2 : -> Id .
+
+eq PartSuppliers =
+   {Q2,su0}
+   {Q1,su1}
+   {Q0,su1}
+   {Q1,su2} .
+   
+ops paSpec pbSpec : -> ProdSpec . 
+eq paSpec = 
+    ps(PA , 
+    ({Q1,1} {Q2,1}),  ---  parts
+    2, --- atime
+    4   ----  profit
+    ) .
+eq pbSpec = ps(PB, 
+    ({Q0,2} {Q1,1}),
+    4,
+    4) .
+**** 8    
+
+eq ProductSpecs = paSpec pbSpec .
+
+***(
+
+    op orders : OrderS -> Atr [ctor] .
+    op parts : IdNatS -> Atr [ctor] .
+    op asm : IdIdNatInfS -> Atr [ctor] .
+    op stock : IdNatS -> Atr [ctor] .
+    op profit : Rat -> Atr [ctor] .
+    op cnt : Nat -> Atr [ctor] .  --- for generating
+****  op time : Nat -> Atr [ctor] .
+    op partPend : PartPendS -> Atr [ctor] .
+   **** rate pc t0 cumOh  oh/perios
+    op oh : Rat Nat Nat Rat  NatRatS -> Atr [ctor] .
+***(
+ oh(r,pc,t0,ohc,ohh)
+   r -- the rate
+   pc -- current part count
+   t0 -- time of last oh computation
+   ohc -- cumulative oh up to t0
+   ohh -- history -- say weekly or monthly 
+       -- {t,ohc}  mtNR
+    )      
+    
+)
+
+var conf : Config .
+var initOs attrs : AttrS .
+var delay g  n pc t t0 dur j eta na nb n0 n1 n2 : Nat .
+var oid : Oid .
+var id : Id .
+var iniParts : IdNatS .
+var ohr penalty pr r ohc ohc0  : Rat .
+var digs : DigressS .
+var ohh : NatRatS .
+
+**** 1 each product
+op initParts : ->  IdNatS .
+eq initParts =  {Q0,2} {Q1,2} {Q2,1} .
+
+****  init Mfg state
+op mfgO : IdNatS  Rat Rat  -> Actor .
+eq mfgO(iniParts,ohr,penalty) =
+  [mfg : Mfg | orders(mtO)
+               asm({asmId(0),noId,0}
+                   {asmId(1),noId,0}
+                   {asmId(2),noId,0}
+               )
+               parts(iniParts)
+               profit(0,penalty)
+               stock(mtIN)
+               cnt(0)
+               **** time(0)
+               partPend(mtPP)
+               oh(ohr,countItems(iniParts), 
+                  0,0,mtNR)  
+               ] .
+               
+ops omsg0 omsg1 omsg2 omsg3 : -> Msg .
+eq omsg0 = m(mfg,cust,req(0,PA))  .
+eq omsg1 = m(mfg,cust,req(1,PB))  .
+eq omsg2 = m(mfg,cust,req(3,PA))  .
+eq omsg3 = m(mfg,cust,req(3,PB))  .
+ 
+               
+
+op initOrders : -> AttrS  .
+eq initOrders = oQ(mfg,PA,0) oQ(mfg,PB,1) .
+
+
+op custO : AttrS  Nat -> Actor .
+eq custO(initOs,g) =
+  [cust : Cust | cnt(0) grace(g) initOs] .
+
+ops su0O su1O su2O : Nat -> Actor .
+
+eq su0O(delay) = 
+  [su0 : Supplier | ready(delay) pending(mt)] .
+eq su1O(delay) = 
+  [su1 : Supplier | ready(delay) pending(mt)] .
+eq su2O(delay) = 
+  [su2 : Supplier | ready(delay) pending(mt)] .
+
+op initC : AttrS Nat IdNatS Rat Rat Nat
+    -> Config .
+eq initC(initOs,g,iniParts,ohr,penalty,delay) =
+   custO(initOs,g) mfgO(iniParts,ohr,penalty) 
+   su0O(delay) su1O(delay) su2O(delay) 
+   time(0) .
+
+**** generate na orders for PA, nb orders for PB
+**** all with delay 0 (all sent at once)
+op genOrders : Nat Nat -> AttrS .
+op genOrdersX : Nat Nat AttrS -> AttrS .
+eq genOrders(na,nb)    = genOrdersX(na,nb,mtAttr) .
+eq genOrdersX(0,0,attrs) = attrs .
+eq genOrdersX(0,s nb ,attrs) = genOrdersX(0,nb ,attrs oQ(mfg,PB,0)) .
+eq genOrdersX(s na,nb ,attrs) = genOrdersX(na,nb ,attrs oQ(mfg,PA,0)) .
+
+**** generate na orders for PA, nb orders for PB
+**** alternating PA, PB, increasing order delay
+**** by 1 for each new order.
+op genOs : Nat Nat -> AttrS .
+op genOsX : Nat Nat Nat AttrS -> AttrS .
+eq genOs(na,nb) = genOsX(na,nb,0,mtAttr) .
+eq genOsX(0,0,n,attrs) = attrs .
+eq genOsX(s na,s nb,n,attrs) = 
+  genOsX(na,nb,s s n,
+         attrs oQ(mfg,PA,n)  oQ(mfg,PB,s n)) .
+eq genOsX(0,s nb,n,attrs) = genOsX(0,nb,s n,
+          attrs oQ(mfg,PB,n)) .
+eq genOsX(s na,0,n,attrs) = genOsX(na,0,s n,
+          attrs oQ(mfg,PA,n)) .
+
+op genParts : Nat Nat Nat -> IdNatS .
+eq genParts(n0,n1,n2) =
+  (if n0 > 0 then {Q0,n0}  else mtIN fi)
+  (if n1 > 0 then {Q1,n1}  else mtIN fi)
+  (if n2 > 0 then {Q2,n2}  else mtIN fi) 
+  .
+
+***** fix grace 5 rate = penalty = 1/4
+op iCX : Nat Nat Nat Nat Nat -> Config .
+eq iCX(na,nb,n0,n1,n2) = 
+     initC(genOrders(na,nb),5,genParts(n0,n1,n2),1/4,1/4,0) .
+
+op iC0 : -> Config .
+eq iC0 = initC(initOrders,5,initParts,1/4,1/4,0) .
+
+op iC1 : -> Config .
+eq iC1 = initC(initOrders oQ(mfg,PA,1) oQ(mfg,PB, 2),5,initParts,1/4,1/4,0) .
+
+****  initC(genOrders(1,1),5,genParts(2,2,1),1/4,1/4,0) .
+****  initC(genOrders(2,2),5,genParts(2,2,1),1/4,1/4,0) .
+****  initC(genOrders(1,1),5,genParts(1,1,1),1/4,1/4,0)  .
+****  initC(genOrders(2,2),5,genParts(1,1,1),1/4,1/4,0)  .
+
+op iC1 : Nat Nat -> Config .
+eq iC1 = initC(initOrders oQ(mfg,PA,1) oQ(mfg,PB, 2),5,initParts,1/4,1/4,0) .
+
+op iC2 : -> Config .
+eq iC2 = initC(initOrders ,5,{Q0,1}{Q1,1} {Q2,1},1/4,1/4,0) .
+
+op iC3 : -> Config .
+eq iC3 = initC(initOrders oQ(mfg,PA,1) oQ(mfg,PB, 2),5,{Q0,1}{Q1,1} {Q2,1},1/4,1/4,0) .
+
+
+**** initParts {Q0,2} {Q1,2} {Q2,1}
+**** initParts0  {Q0,1} {Q1,1} {Q2,1}
+
+op noProfit : Config Rat -> Bool .
+ceq noProfit(c:Config,r) = pr - ohc < r 
+if pr := getCurrentProfit(c:Config)
+/\ oh(ohr,pc,t0,ohc,ohh) := getCurrentOH(c:Config)
+.
+
+ op netProfit : Config -> Rat .
+ceq netProfit(conf time(t))  = _-_(pr,ohc0)
+ if oh(r,pc,t0,ohc,ohh) := getCurrentOH(conf)
+ /\ pr := getCurrentProfit(conf)
+ /\ ohc0 := (if t == t0 
+             then ohc 
+             else ohc + (_-_(t,t0) * r * pc)
+             fi)
+.             
+
+op lateDelivery : Config -> Nat .
+op lateDelivery : AttrS  Nat -> Nat .
+eq lateDelivery(conf [oid : Cust | attrs])
+  = lateDelivery(attrs,0) .
+eq lateDelivery(conf)  = 0 [owise] .
+
+eq lateDelivery(attrs rcvd(oid,j,id, dur, eta) ,n)
+      = lateDelivery(attrs, n + monus(dur,eta)) .
+eq lateDelivery(attrs,n) = n [owise] .
+ 
+op netPr : System Rat -> Bool .
+eq netPr({c:Config},pr) = netProfit(c:Config) > pr .
+   
+ 
+endm 
+eof 
+
+**** see tests-base for transport graph picture
+**** see sc-runs0.txt for  results of the following
+set print attribute on  .
+red iC0 .
+rew {iC0} .
+red iC1 .
+rew {iC1} .
+red iC2 .
+rew {iC2} .
+red iC3 .
+rew {iC3} .
+
+---- searching for no profit
+search {iC3} =>! {c:Config} .
+2 solutions -- same profit,oh,rcvd
+profit - ohc < 1
+search {iC0} =>+ {c:Config} such that noProfit(c:Config,1) .
+search {iC0} =>! {c:Config} such that noProfit(c:Config,0) .
+--- Early violations
+search {iC0} =>! {c:Config}  such that 
+noProfit(c:Config,4) .
+--- 1solution
+-------- testing crit -----------
+rew {iC0 crit(false,0,-1,2) } .
+rew {iC0 crit(false,0,0,2) } .
+rew {iC0 crit(false,0,1,2) } .
+-------- testing stop -----------
+rew {iC0 stop(6)} .
+rew {iC0 stop(5)} .
+
+*********************************************** 
+
+asmDelay(i,delay)
+asmDelay(delay)
+suDelay(suId,delay)
+suDelay(delay)
+itDelay(delay)
+addOrder(mfgId,prId)
+iC2D()
+
+set print attribute on  .
+rew {iC0 di(asmDelay(4),2)} .
+
+

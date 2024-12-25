@@ -1,0 +1,289 @@
+fmod RULES-AUX is
+  inc ATTRIBUTES .
+  
+**** Mfg rules
+
+  op rcvOrder : AttrS Nat Oid Oid Nat ProdSpec
+               -> AttrSMsgS .
+  op rcvOrderInStock : AttrS Nat Oid Oid Nat
+             ProdSpec -> AttrSMsgS .
+  op rcvOrderAsm : AttrS Nat Oid Oid Nat ProdSpec
+                 -> AttrSMsgS .
+ 
+  vars mparts mparts1 mparts0 : IdNatNatInfS .
+  vars pacnts pacnts0 pacnts1 pacnts2 
+        pacntsP pacntsI : IdNatS .
+  vars attrs attrs00 attrs0 attrs1 attrs2 
+         : AttrS .
+  vars msgs msgs0 msgs1 msgs2 : MsgS .
+  var  msg : Msg .
+  vars mfgId cuId suId : Oid .
+  vars i n  nP nI j adur dur t : Nat .
+  var idur : Int .
+  vars ni ni0 eta eta0 eta1 : NatInf .
+  vars id prId paId  asmId : Id .
+  vars order order1 : Order .
+  var os : OrderS .
+  var pps : PartPendS .
+  var pp0  pp : PartPend  .
+  var profit : Rat .
+  var suppliers : IdOidS .
+  var b : Bool .
+  
+  
+**** take product from stock or assemble it
+  eq rcvOrder(attrs,t,mfgId,cuId,i, 
+               ps(prId,pacnts,adur,profit))
+    =  
+   (if inStock(attrs,prId) 
+   then rcvOrderInStock(attrs,t,mfgId,cuId,i,
+                ps(prId,pacnts,adur,profit))
+   else rcvOrderAsm(attrs,t,mfgId,cuId,i, 
+                ps(prId,pacnts,adur,profit) )
+   fi) .
+
+   ceq rcvOrderInStock(attrs,t,mfgId,cuId,i,
+                  ps(prId,pacnts,adur,profit))
+         =  {attrs1,msg}
+   if attrs1 := 
+     decOH(
+      decStock(
+         updateProfit(attrs,0,prId),
+              prId,1),t,
+        countItems(pacnts) )
+   /\ msg := m(cuId,mfgId,delivered(i,prId)) 
+   .
+
+  ceq rcvOrderAsm(attrs,t,mfgId,cuId,i, 
+                  ps(prId,pacnts,adur,profit)) 
+     =  {attrs2, msgs1 msgs2}                  
+  if pacnts0 := getParts(attrs)
+**** removed from inventory
+  /\ pacntsI := intersectItems(pacnts0,pacnts,mtIN)
+**** need t0 order
+  /\ pacntsP := missItems(pacnts0,pacnts)
+  /\ mparts :=  in2ininf(pacntsP,mtINN)
+  /\ order :=
+       o(i,cuId,prId,adur,mparts,0,noId)
+  /\ {attrs1,msgs1} :=          
+        orderParts(attrs,mfgId,pacntsP,pacntsI) 
+  /\ msgs2 :=  
+       (if pacntsP == mtIN
+        then m(cuId,mfgId,rsp(i,prId,2 * adur)) 
+        else mt
+        fi)
+  /\ attrs2 := 
+        addPartsOrder( 
+          addOrder(
+            removeParts(attrs1,pacntsI),
+            order),
+          msgs1,pacntsP,pacntsI,cuId,i)
+  .
+ 
+ 
+ 
+***********************************************
+
+op orderParts : AttrS Oid IdNatS IdNatS
+                -> AttrSMsgS .
+****                       forCu   forInv     
+eq orderParts(attrs,mfgId,pacntsP,pacntsI) =
+    orderAllParts(attrs,mfgId, 
+                  addItems(pacntsP,pacntsI,mtIN))
+.
+
+op orderAllParts  : AttrS Oid IdNatS -> AttrSMsgS .
+op orderAllPartsX : AttrS Oid IdNatS MsgS
+                     -> AttrSMsgS .
+                     
+eq  orderAllParts(attrs,mfgId,pacnts) 
+       =
+    (if pacnts == mtIN
+     then {attrs,mt}
+     else orderAllPartsX(attrs,mfgId,pacnts,mt)
+      fi) .
+ 
+ ceq  orderAllPartsX(attrs,mfgId,
+                {paId,n} pacnts,msgs) 
+        = 
+       orderAllPartsX(attrs1,mfgId,pacnts,msgs msg)
+   if j := getCnt(attrs) 
+   /\ attrs1 := incCnt(attrs,1)
+   /\ {paId,suId} suppliers := getPartSuppliers(paId)
+   /\ msg := m(suId,mfgId,req(j,paId,n,true))
+   .
+
+   eq orderAllPartsX(attrs,mfgId,mtIN,msgs) 
+      = {attrs,msgs} .
+   
+
+
+op addPartsOrder : AttrS MsgS IdNatS IdNatS
+                  Oid Nat -> AttrS .
+op mkPPs : MsgS IdNatS IdNatS Oid Nat PartPendS -> PartPendS .
+eq addPartsOrder(attrs partPend(pps), 
+                 msgs,pacntsP,pacntsI, cuId,i)
+   = attrs partPend(pps
+      mkPPs(msgs,pacntsP,pacntsI,cuId,i,mtPP)) .
+
+ 
+ceq mkPPs(msg msgs,pacntsP,pacntsI,cuId, i, pps)
+    =  mkPPs(msgs,pacntsP,pacntsI,cuId,i,pps pp0) 
+if m(suId,mfgId,req(j,paId,n,b)) := msg
+/\ nP := itemCnt(pacntsP,paId)
+/\ nI := itemCnt(pacntsI,paId)
+/\ pp0 := pp(suId,j,paId,nP,nI,cuId,i)
+   .
+eq mkPPs(mt,pacntsP,pacntsI, cuId, i, pps) = pps .
+    
+*************************************************   
+op cancelOrder : AttrS Oid Nat -> AttrS .
+***({attrs1,msgs} := cancelOrder(attrs,cuId,i))
+  eq cancelOrder(attrs orders(os 
+   o(i,cuId,prId,adur,mparts,idur,id)), cuId,i)
+   =  orders(os)
+      (if id == noId
+      then returnParts(attrs,prId,mparts )   
+      else attrs
+      fi)
+   .             
+**** return parts should update OH
+op returnParts : AttrS Id IdNatNatInfS -> AttrS .
+ 
+eq cancelOrder(attrs,cuId,i) = attrs [owise] .
+
+*************************************************   
+*************************************************   
+op rcvPartORsp : AttrS Oid Oid Nat Id Nat NatInf
+               -> AttrSMsgS .
+
+ **** filling pending order   
+ceq rcvPartORsp(attrs,mfgId,suId,j,paId,n,eta) =
+      {attrs1,msgs}
+if attrs0 partPend(pps pp) orders(os order) 
+          := attrs
+/\ pp(suId,j,paId,nP,nI,cuId,i) := pp
+/\ o(i,cuId,prId,adur,mparts,idur,id) := order
+/\ mparts1 := updatePartEta(mparts,paId,nP,eta)
+/\ eta1 := partsEta(mparts1,0) + (2 * adur)
+/\ order1 := 
+      o(i,cuId,prId,adur,mparts1,
+      (if eta1 == infty then idur else eta1 fi) 
+      ,id) 
+/\ attrs1 :=  attrs0 partPend(pps pp)
+                     orders(os order1)
+/\ msgs := (if ((eta1 == infty) or (nP == 0))
+            then mt
+            else m(cuId,mfgId,rsp(i,prId,eta1))
+            fi) .
+
+**** filling pending cancelled order or invmaint
+eq rcvPartORsp(attrs,mfgId,suId,j,paId,n,eta) =
+      {attrs,mt}
+ [owise] .
+
+
+-----------------
+op partsEta : IdNatNatInf NatInf -> NatInf .
+eq partsEta(mtINN,ni) = ni .
+eq partsEta({paId,n,ni0} mparts,ni) = 
+     (if ni0 == infty or ni == infty
+      then infty
+      else  partsEta(mparts,max(ni,ni0)) fi) .
+
+op updatePartEta : IdNatNatInfS Id Nat NatInf 
+            ->  IdNatNatInfS .
+eq updatePartEta({paId,n,eta0} mparts,paId,n,eta) 
+    = {paId,n,eta} mparts .
+eq updatePartEta(mparts,paId,n,eta)
+    = mparts [owise] .
+
+*************************************************   
+*************************************************   
+**** fix ordering to replenish what is pulled
+**** as well as ordering for the current order 
+
+***** parts for pending order
+op rcvParts : AttrS Nat Oid Oid Nat Id Nat 
+               -> AttrSMsgS .
+
+op rcvPartsInv : AttrS Nat Id Nat 
+               -> AttrSMsgS .
+op rcvPartsOrder : AttrS Id Nat Oid Nat 
+               -> AttrSMsgS .
+
+ceq rcvParts(attrs,t,mfgId,suId,j,paId,n)  =
+       {attrs2 partPend(pps) ,msgs2}
+  if partPend(pps pp) attrs0 := attrs
+  /\  pp(suId,j,paId,nP,nI,cuId,i) := pp
+  /\ attrs00 := incOH(attrs0,t,n)
+  /\ {attrs1,msgs1} :=
+     (if nP > 0
+      then rcvPartsOrder(attrs00,paId,nP,cuId,i)
+      else {attrs00,mt}
+      fi)
+  /\ {attrs2,msgs2} :=  
+       (if nI > 0 
+        then rcvPartsInv(attrs1,t, paId,nI)
+        else {attrs1,msgs1}
+        fi)
+  .
+   
+**** assumes one parts order per part id.
+  ceq rcvPartsOrder(attrs, paId,nP,cuId,i)  
+    =  {attrs1,mt}
+   if attrs0 orders(os order) := attrs
+   /\ o(i,cuId,prId,adur,mparts,idur,id) 
+         := order
+   /\ {paId,nP,eta} mparts1 := mparts
+   /\ order1 :=
+         o(i,cuId,prId,adur,mparts1,idur,id)
+   /\ attrs1 := attrs0 orders(os order1) .
+
+  eq rcvPartsOrder(attrs, paId,nP,cuId,i)  
+    =  {attrs,mt} [owise] .
+                       
+
+ **** add to parts, update oh,
+ ceq rcvPartsInv(attrs,t,paId,nI)  
+    =  {attrs0,mt}
+if attrs0 := addParts(attrs,{paId,nI})
+.
+
+      
+**********************************************
+**********************************************   
+***** asm({asmId,prId,0} asms)
+ op completeOrder : AttrS Nat Oid Id Id
+                    -> AttrSMsgS .
+ op completeOrderCust :
+        AttrS Nat Int Oid Id Oid Nat
+                        -> AttrSMsgS .
+***(
+ op completeOrderStock : AttrS Nat Id 
+                       -> AttrSMsgS .
+)
+
+ ceq completeOrder(attrs,t,mfgId,asmId,prId) =
+     completeOrderCust(attrs0 orders(os),
+                  t,idur, mfgId, prId,cuId,i)
+ if attrs0 orders(os order) := attrs
+ /\ o(i,cuId,prId,adur,mtINN,idur,asmId) 
+       := order
+ .
+
+**** no corresponding order, cancelled  
+ eq completeOrder(attrs,t,mfgId,asmId,prId) =
+      {addStock(attrs,prId,1), mt} [owise] .
+
+
+  eq  completeOrderCust(attrs,t,idur,
+                        mfgId,prId,cuId,i)
+  =  {decOH(updateProfit(attrs,idur,prId),
+            t,countItems(getProdParts(prId))),
+      m(cuId,mfgId,delivered(i,prId)) } .
+ 
+ 
+ 
+ 
+ endfm

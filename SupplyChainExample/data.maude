@@ -1,0 +1,227 @@
+
+fmod DATA is
+  inc BASE .
+     
+
+  var  pacntseta   : IdNatNatInfS .
+  vars pacnts pacnts0 pacnts1 idnats idnats0 
+       : IdNatS .
+  vars id paId prId : Id .
+  var oid : Oid .
+  vars i j n adur : Nat .
+  var profit : Rat .
+  vars ios ios0 : IdOidS .
+  var prSpecs : ProdSpecS .
+  vars ohc ohc0 : Rat .
+
+  sorts IdNat IdNatS .
+  subsort IdNat < IdNatS .
+  op mtIN : -> IdNatS .
+  op __ : IdNatS IdNatS -> IdNatS 
+          [ctor assoc comm id: mtIN] .
+  op `{_`,_`} : Id Nat -> IdNat [ctor] .
+  
+  sorts IdOid IdOidS .
+  subsort IdOid < IdOidS .
+  op mtIO : -> IdOidS .
+  op __ : IdOidS IdOidS -> IdOidS 
+          [ctor assoc comm id: mtIO] .
+  op `{_`,_`} : Id Oid -> IdOid [ctor] .
+
+  sorts IdNatNatInf IdNatNatInfS .
+  subsort IdNatNatInf < IdNatNatInfS .
+  op mtINN : -> IdNatNatInfS .
+  op __ : IdNatNatInfS IdNatNatInfS -> IdNatNatInfS 
+          [ctor assoc comm id: mtINN] .
+  op `{_`,_`,_`} : Id Nat NatInf 
+                   -> IdNatNatInf [ctor] .
+
+   sorts IdIdNatInf IdIdNatInfS .
+   subsort IdIdNatInf < IdIdNatInfS .
+   op mtIIN : -> IdIdNatInfS .
+   op __ : IdIdNatInfS IdIdNatInfS -> IdIdNatInfS 
+           [ctor assoc comm id: mtIIN] .
+   op `{_`,_`,_`} : Id Id NatInf 
+                     -> IdIdNatInf [ctor] .
+   sorts NatRat NatRatS .
+   subsort NatRat < NatRatS .
+   op mtNR : -> NatRatS [ctor] .
+   op __ : NatRatS NatRatS -> NatRatS 
+           [ctor assoc comm id: mtNR] .
+   op `{_`,_`} : Nat Rat -> NatRatS [ctor] .
+ 
+
+  sorts Order OrderS .
+  subsort Order < OrderS .
+  op mtO : -> OrderS .
+  op __ : OrderS OrderS -> OrderS 
+          [ctor assoc comm id: mtO] .
+***     iid  cuId prId adur mparts  eta  asmId
+  op o : Nat Oid Id Nat IdNatNatInfS Int Id 
+          -> Order [ctor] .
+ ****  o(idi,cuId,prId,adur,mparts,0,noId)
+
+  sorts PartPend PartPendS .
+  subsort PartPend < PartPendS .
+  op mtPP : -> PartPendS .
+  op __ : PartPendS PartPendS -> PartPendS 
+          [ctor assoc comm id: mtPP] .
+****     suId mix paId num cuId cix
+  op pp :  Oid Nat Id  Nat Nat Oid Nat 
+          -> PartPend [ctor] .
+ ****  pp(suId,j,paId,np,ni,cuId,i)
+
+
+**** Product specification
+sorts ProdSpec ProdSpecS .
+subsort ProdSpec < ProdSpecS .
+op mtPS : -> ProdSpecS [ctor] .
+op __ : ProdSpecS ProdSpecS -> ProdSpecS 
+         [ctor assoc comm id: mtPS] .
+****    prId parts adur profit
+op ps : Id IdNatS Nat Rat -> ProdSpec .
+**** ps(prId,pacnts,adur,profit)
+ 
+ 
+  op getParts : ProdSpec  -> IdNatS .
+  eq getParts(ps(prId,pacnts,adur,profit))
+        = pacnts .
+  
+  op getProdParts : Id -> IdNatS .
+  eq getProdParts(prId) = 
+      getParts(getProdSpec(prId)) .
+  op getProdProfit : Id -> Rat .
+  ceq getProdProfit(prId) = profit
+      if ps(prId,pacnts,adur,profit)  := 
+         getProdSpec(prId) .
+  
+  op ProductSpecs : -> ProdSpecS .  --- global
+  op getProdSpec : Id -> [ProdSpec] .
+  ceq getProdSpec(prId) =  
+              ps(prId,pacnts,adur,profit)
+  if  ps(prId,pacnts,adur,profit) prSpecs 
+     := ProductSpecs .
+
+op PartSuppliers : ->  IdOidS .  ---- global
+op getPartSuppliers : Id -> IdOidS .
+op getPartSuppliers : IdOidS Id IdOidS -> IdOidS .
+eq getPartSuppliers(id) = 
+      getPartSuppliers(PartSuppliers,id,mtIO) .
+eq getPartSuppliers({id,oid} ios,id,ios0)
+       = getPartSuppliers(ios,id, ios0 {id,oid} ) .
+eq getPartSuppliers(ios,id,ios0)= ios0  [owise] .
+
+
+***********************************************
+********** IdNats fns
+
+op itemCnt : IdNatS Id -> Nat .
+eq itemCnt(idnats {id,n},id) = n .
+eq itemCnt(idnats ,id) = 0 [owise] .
+ 
+op countItems : IdNatS -> Nat .
+op countItemsX : IdNatS Nat -> Nat .
+eq countItems(idnats) = countItemsX(idnats,0) .
+eq countItemsX({id,j} idnats, n) =
+       countItemsX(idnats, n + j)  .
+eq countItemsX(mtIN, n) = n .
+
+  op subsumes : IdNatS IdNatS -> Bool .
+  eq subsumes({id,i} idnats, {id,j} idnats0) =
+    (if i >= j 
+    then subsumes(idnats, idnats0)
+    else false
+    fi) .
+  eq subsumes(idnats, {id,j} idnats0) = false 
+    [owise] .
+
+
+****             supply  require   toOrder
+  op needItems : IdNatS IdNatS -> IdNatNatInfS .
+  op needItemsX : IdNatS IdNatS IdNatNatInfS
+                  -> IdNatNatInfS .
+  eq needItems(pacnts, pacnts0)
+      = needItemsX(pacnts, pacnts0,mtINN) .
+
+  eq needItemsX({paId,i} pacnts, {paId,j} pacnts0,
+                pacntseta)
+      = needItemsX(pacnts,pacnts0,
+        pacntseta (if (i < j)
+                 then {paId,sd(j,i),infty}
+                 else mtINN fi) ) .
+  eq needItemsX(pacnts, {paId,i} pacnts0, pacntseta)
+    =  needItemsX(pacnts,pacnts0,
+                  pacntseta {paId,i,infty})
+      [owise] .
+  eq needItemsX(pacnts, mtIN,pacntseta) = pacntseta .
+
+**********************************************
+
+****             hav     need   toOrder
+  op missItems : IdNatS IdNatS -> IdNatS .
+  op missItemsX : IdNatS IdNatS IdNatS
+                  -> IdNatS .
+  eq missItems(pacnts, pacnts0)
+      = missItemsX(pacnts, pacnts0,mtIN) .
+
+  eq missItemsX({paId,i} pacnts, {paId,j} pacnts0,
+                pacnts1)
+      = missItemsX(pacnts,pacnts0,
+        pacnts1 (if (i < j)
+                 then {paId,sd(j,i)}
+                 else mtIN fi) ) .
+  eq missItemsX(pacnts, {paId,i} pacnts0, pacnts1)
+    =  missItemsX(pacnts,pacnts0,
+                  pacnts1 {paId,i})
+      [owise] .
+  eq missItemsX(pacnts, mtIN,pacnts1) = pacnts1 .
+
+ op in2ininf : IdNatS IdNatNatInfS  
+               -> IdNatNatInfS .
+ eq in2ininf(mtIN,pacntseta) = pacntseta  .
+ eq in2ininf({paId,j} pacnts,pacntseta) =
+      in2ininf(pacnts,pacntseta {paId,j,infty}) .
+      
+**********************************************
+  op addItems : IdNatS IdNatS IdNatS 
+     -> IdNatS .
+  op removeItems : IdNatS IdNatS IdNatS
+     -> IdNatS .
+  eq addItems({paId,i} pacnts, 
+              {paId,j} pacnts0,pacnts1) 
+   = addItems(pacnts, pacnts0, 
+              pacnts1 {paId,i + j}) .
+  eq addItems(pacnts, {paId,j} pacnts0,pacnts1) 
+    = addItems(pacnts, pacnts0, pacnts1 {paId,j}) 
+      [owise] .
+  eq addItems(pacnts, mtIN,pacnts1) 
+     = pacnts pacnts1 .
+     
+  eq removeItems({paId,i} pacnts, 
+                 {paId,j} pacnts0,pacnts1) 
+     = removeItems(pacnts,pacnts0, pacnts1 
+                   (if (i > j)
+                   then {paId, sd(i,j)}
+                   else mtIN fi)   ) .       
+  eq removeItems(pacnts,pacnts0,pacnts1)  =
+       pacnts pacnts1 [owise] .
+ 
+
+  op intersectItems : IdNatS IdNatS IdNatS
+     -> IdNatS .
+
+  eq intersectItems({paId,i} pacnts, 
+                    {paId,j} pacnts0,pacnts1) 
+     = intersectItems(pacnts,pacnts0, pacnts1 
+                   (if (i >= j)
+                   then {paId, j}
+                   else {paId, i} fi)  
+                    ) .       
+  eq intersectItems(pacnts,pacnts0,pacnts1)  
+        = pacnts1 [owise] .
+     
+     
+     
+endfm
+
+ eof

@@ -1,0 +1,206 @@
+fmod ATTRIBUTES is
+ inc DATA .
+
+  vars attrs attrs0 attrs1 : AttrS .
+  var msgs msgs0 : MsgS .
+  vars n nP nI i j adur delay : Nat .
+  vars pc t0 t : Nat .
+  var idur : Int .
+  vars prId paId id : Id .
+  vars suId mfgId oid : Oid .
+  vars x x0 x1 r penalty ohc ohc0 : Rat .
+  var pns pacnts pacnts0 : IdNatS .
+  var ohh : NatRatS .
+  var os : OrderS .
+  var order : Order .
+  var pps : PartPendS .
+  
+
+  sorts AttrX  AttrS .
+  subsort AttrX < AttrS .
+  op mtAttr : -> AttrS [ctor] .
+  op __ : AttrS AttrS -> AttrS 
+            [ctor assoc comm id: mtAttr] .
+
+  sort AttrSMsgS .
+  op `{_`,_`} : AttrS MsgS -> AttrSMsgS [ctor] .
+ 
+ op amS2aS : AttrSMsgS -> AttrS .
+ op amS2mS : AttrSMsgS -> MsgS .
+ eq amS2aS({attrs,msgs}) = attrs .
+ eq amS2mS({attrs,msgs}) = msgs .
+ 
+ 
+ op [_:_|_]  : Oid Cid AttrS -> Actor [ctor] .
+ op time : Nat -> Actor [ctor] .
+ op stop : Nat -> Actor [ctor] .
+ op crit : Bool Nat Int Nat -> Actor [ctor] .
+ 
+ **** mfg attrs
+ op orders : OrderS -> AttrX [ctor] .
+ op parts : IdNatS -> AttrX [ctor] .
+ op asm : IdIdNatInfS -> AttrX [ctor] .
+ op stock : IdNatS -> AttrX [ctor] .
+ op profit : Rat Rat -> AttrX [ctor] .
+ op cnt : Nat -> AttrX [ctor] .  --- for generating
+**** op time : Nat -> AttrX [ctor] .
+ op partPend : PartPendS -> AttrX [ctor] .
+**** rate pc t0 cumOh  oh/perios
+ op oh : Rat Nat Nat Rat  NatRatS -> AttrX [ctor] .
+***(
+  oh(r,pc,t0,ohc,ohh)
+    r -- the rate
+    pc -- current part count
+    t0 -- time of last oh computation
+    ohc -- cumulative oh up to t0
+    ohh -- history -- say weekly or monthly 
+)      
+
+ 
+**** supplier attrs
+ op ready : Nat -> AttrX .
+ op pending : MsgS -> AttrX .
+ 
+**** cust attrs  -- may have mulitple occs 
+op oQ : Oid Id Nat  -> AttrX .  
+***( oQ(mfgId,prId,delay)
+     delay counts down, sent with delay 0
+)
+op w4Q :  Oid Nat Id  Nat NatInf
+        -> AttrX [ctor] .
+***( 
+   w4Q(mfgId,i,prId,eta,wtime)
+   i cust  local Id -- should be unique, 
+   eta is is infty until mfg responds with eta
+   wtime is actual time elapsed, may trigger reorder
+    )
+op rcvd : Oid Nat Id Nat NatInf
+         -> AttrX [ctor] .
+***( 
+   rcvd(mId,i,prId,xtime,dtime)  
+    mId mfgId
+    i cust id
+    xtime,dtime
+      expected actual delivery 
+ )
+ op cancelled : Oid Nat Id Nat NatInf
+          -> AttrX [ctor] .
+ op grace : Nat -> AttrX . 
+     --- how long to wait before cancelling
+**** op cnt : Nat -> AttrX .
+
+*******************************************
+  op getCnt : AttrS -> [Nat] .
+  eq getCnt(attrs cnt(j)) = j .
+  
+  op incCnt : AttrS Nat -> AttrS .
+  eq incCnt(attrs cnt(j),i) = attrs cnt(j + i) .
+  
+***(
+  op getTime : AttrS -> [Nat] .
+  eq getTime(attrs time(j)) = j .
+  
+  op getTime : AttrS Nat -> AttrS .
+  eq getTime(attrs time(j),i) = attrs time(j + i) .
+)  
+
+  op inStock : AttrS Id -> Bool .
+  eq inStock(attrs stock({prId,s n} pns),prId) 
+      = true .
+  eq inStock(attrs ,prId) = false [owise] .
+  
+  op addStock : AttrS Id Nat -> AttrS .
+  eq addStock(attrs stock({prId,n} pns),prId,i) 
+     = attrs stock({prId,n + i} pns) .
+  eq addStock(attrs stock(pns),prId,i) 
+     = attrs stock({prId,i} pns) [owise] .
+
+  op decStock : AttrS Id Nat -> AttrS .
+  eq decStock(attrs stock({prId,n} pns),prId,i) 
+     = attrs 
+       (if (n > i)
+       then stock({prId,sd(n,i)} pns) 
+       else stock(pns)
+       fi) .
+  eq decStock(attrs stock(pns),prId,i) 
+     = attrs stock(pns) [owise] .
+     
+  op getProfit : AttrS -> [Rat] .
+  op getProfitPenalty : AttrS -> [Rat] .
+  op updateProfit : AttrS Int Id -> [AttrS] .
+  
+  eq getProfit(attrs profit(x,penalty)) = x .
+  eq getProfitPenalty(attrs profit(x,penalty))
+       = penalty .
+  ceq updateProfit(attrs profit(x,penalty), 
+                  idur,prId) 
+      = attrs profit(x1,penalty)
+  if  x0 := getProdProfit(prId)
+  /\  x1 :=
+      (if idur >= 0 
+       then x + x0
+       else x + x0 + (idur * penalty)
+       fi)
+    .
+
+**** x + (x0  + idur * penalty)
+  op getParts : AttrS -> IdNatS .
+  eq getParts(parts(pacnts) attrs) = pacnts .
+****             inInvtory  needed
+
+  op addParts : AttrS IdNatS -> [AttrS] .
+  op removeParts : AttrS IdNatS -> [AttrS] .
+  eq addParts(attrs parts(pacnts), pacnts0) =
+       attrs parts(addItems(pacnts,pacnts0,mtIN)) .
+  eq removeParts(attrs parts(pacnts), pacnts0) =
+    attrs parts(removeItems(pacnts,pacnts0,mtIN)) . 
+
+  op addOrder : AttrS Order -> AttrS .
+  eq addOrder(attrs orders(os),order) =
+        attrs orders(os order) .
+  eq addOrder(attrs,order) = attrs orders(order) 
+     [owise] .
+
+
+**** add j parts to inventory oh
+ op incOH : AttrS Nat Nat -> AttrS .
+ ceq incOH(attrs,t,j) = attrs1
+ if attrs0  oh(r,pc,t0,ohc,ohh) := attrs
+ /\ ohc0 := ohc + (r * pc * sd(t,t0))
+ /\ attrs1 := attrs0 oh(r,pc + j,t,ohc0,ohh)
+   .
+
+**** remove j parts from inventory oh
+ op decOH : AttrS Nat Nat -> AttrS .
+ ceq decOH(attrs,t,j) = attrs1
+ if attrs0 oh(r,pc,t0,ohc,ohh) := attrs
+ /\ ohc0 := ohc + (r * pc * sd(t,t0))
+ /\ attrs1 := attrs0 oh(r,sd(pc,j),t,ohc0,ohh)
+  .
+  
+op   getPending : AttrS -> MsgS .
+eq getPending(attrs pending(msgs)) = msgs .
+eq getPending(attrs) = mt [owise] .
+
+op addPending : AttrS MsgS -> AttrS .
+eq addPending(attrs pending(msgs0), msgs) =
+     attrs pending(msgs0 msgs) .
+
+op getReady : AttrS -> Nat .
+eq getReady(attrs ready(delay)) = delay .
+eq getReady(attrs) = 0 [owise] .
+
+op removePP : AttrS Oid Nat Id Nat -> AttrS .
+ceq removePP(attrs,suId,j,paId,n)
+    = attrs0 partPend(pps)
+if attrs0 
+   partPend(pp(suId,j,paId,nP,nI,oid,i) pps) 
+   := attrs
+ .    
+
+eq removePP(attrs,suId,j,paId,n) = attrs [owise] .
+
+
+ endfm
+ 
+

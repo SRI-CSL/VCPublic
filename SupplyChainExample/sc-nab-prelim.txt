@@ -1,0 +1,135 @@
+
+-----------------------------------------   
+Scenario parameters:
+initParts     111 221  TODO 000
+orderStream   11 21 22 32 33 43 44
+OH rate 1/4 ?
+late penalty 1/4
+crit 0,3?
+
+NAB parameters
+DigS(da,di)  = digA(da) digL(dl)  da = dl = 4?
+nu   1,2,3,
+tab   tab time2complete + 2 , t2c  t2c - 2,4
+ta    tab - max(da,dl) 
+    
+-----------------------------------------   
+search for goal state, no updates
+
+***    111 11s pr<2     1     9   8  35/4
+***    221 11s pr>2     1     5   8  21/4
+
+***    111 22s pr<2     1    11  16  57/4 
+
+***    111 31s pr>2     1      9  16 43/4
+***    221 31s pr>2     1      9  16 49/4
+
+***    111 32s pr>2     1      11  20 53/4   
+***    221 32s pr>2     1      11  20 63/4 
+
+search for goal state, with updates
+       111 32s pr>2 ad4  5      12  20 16
+       221 32s pr>2 it4  2      12  20 16
+
+       111 32s pr>2 it4  5      12  20 15 ...\
+
+       221 31s pr>2 it4  1       9  16 45/4 
+
+       111 31s pr>2 ad4  1        9 31/2 51/4  
+       111 31s pr>2 it4  1        9 16 39/4
+
+       221 44s pr>2 ad4  21      15 63/2 113/4  
+       221 44s pr>2 it4  20
+
+
+red isAbNRes(modX, 1, 6,12,digA, iSysT1, rPatT, gCond, uStrat,0) .
+
+11 111 8 12 digA true
+11 111 6 12 digA true
+11 111 4 12 digA true
+11 111 4  8 digA false
+11 111 4  9 digA false
+11 111 4 10 digA true
+
+30-50ms
+
+red isAbNRes(modX, 2, 6,12,digA, iSysT1, rPatT, gCond, uStrat,0) .
+11 111 6 12 digA 2 false  45ms
+       4           false
+       4 16        false
+
+red isAbNRes(modX, 1, 6,12,digA digL, iSysT1, rPatT, gCond, uStrat,0) .
+11 111 6 12 digL false  100 ms
+       4         false
+       2         true
+
+
+red isAbNRes(modX, 1, 6,12,digA digL, iSysT1, rPatT, gCond, uStrat,0) .
+11 111 6 12 digA digL false 1.3ms
+       4 12           false
+       4 16           false
+
+red iC2s(1,1,-1) .
+red isAbNRes(modX, 1, 4,12,digA, upTerm({iC2s(1,1,-1)}), rPatT, gCond, uStrat,0) .
+ta: 4 false, 2 false  100 ms
+
+
+red iC1s(2,1,-1) .
+red isAbNRes(modX, 1, 5,12,digA, upTerm({iC1s(2,1,-1)}), rPatT, gCond, uStrat,0) .
+A ta 5  true  ta 5,6,7,8,9
+L ta 6  true  25ms
+AL 1    true
+AL 2    6,20  false 1.3s
+A 2     6,20  false
+A 2     5,20  true    .7s
+AL 2    5,20 true  4.3s
+
+
+red iC2s(2,1,-1) .
+search {iC2s(2,1,-1) stop(20) di(digA,1)} =>! {c:Config di(ds:DigressS,0)} such that netPr({c:Config},0) .
+3 solns
+
+search {iC2s(2,1,-1) stop(20) di(digA,1)} =>! {c:Config di(ds:DigressS,0)} such that not(netPr({c:Config},0)) .
+6 solns all critical
+
+search {iC2s(2,1,-1) stop(20) di(digL,1)} =>! {c:Config di(ds:DigressS,0)} such that netPr({c:Config},0) .
+2 solns
+
+search {iC2s(2,1,-1) stop(20) di(digL,1)} =>! {c:Config di(ds:DigressS,0)} such that not(netPr({c:Config},0)) .
+
+
+red isAbNRes(modX, 1, 6,12,digA digL, upTerm({iC2s(2,1,-1)}), rPatT, gCond, uStrat,0) .
+AL 1  6 12  false
+      6 20  true
+     18 20  true .4ms
+AL 2 10 20  false  1.9s
+     10 30  false
+     8,6,4  20  false  1.8s
+
+red iC1s(2,2,-1) .
+red isAbNRes(modX, 1, 6,20,digA digL, upTerm({iC1s(2,2,-1)}), rPatT, gCond, uStrat,0) .
+111 22
+AL 1 6 20  true  .55 s  also ta 8 10 16 true
+   2 10 20 false 1.2s
+     10 30 false
+      6 30 false 
+      4 30 true  9s
+  
+red iC2s(2,2,-1) .
+red isAbNRes(modX, 1, 6,30,digA digL, upTerm({iC2s(2,2,-1)}), rPatT, gCond, uStrat,0) .
+221 22
+al 1 6 30 true .9s
+     8,10 30 false .9s
+   2 6,30 false 3.5s
+     3,4 30 false       
+      
+red iC1s(3,2,-1) .
+red isAbNRes(modX, 1, 6,30,digA digL, upTerm({iC1s(3,2,-1)}), rPatT, gCond, uStrat,0) .
+ 111 32
+al 1 6, 30   true 1.8s 
+     10,16 30 true
+   2 6 30   true  41s
+     16 30  true  44s    
+   3  6 30    > 20min no result
+A  3  6 30 false  282s
+L           true x 276s

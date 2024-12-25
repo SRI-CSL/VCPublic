@@ -1,0 +1,1038 @@
+24dec07
+**************************************************
+Maude> set print attribute on .
+
+Maude> red iC0 .
+result ActorS: time(0) 
+[mfg : Mfg | orders(mtO) 
+parts({Q0, 2} {Q1, 2} {Q2, 1}) 
+asm( {asmId(0), noId, 0} {asmId(1), noId, 0} {asmId(2), noId, 0}) stock(mtIN) cnt(0) partPend(mtPP) 
+profit(0, 1/4) oh(1/4, 5, 0, 0, mtNR)] 
+[su0 : Supplier | ready(0) pending(mt)] 
+[su1 : Supplier | ready(0) pending(mt)] 
+[su2 : Supplier | ready(0) pending(mt)] 
+[cust : Cust | cnt(0) grace(5) 
+               oQ(mfg, PA, 0) oQ(mfg, PB, 1)]
+
+Maude> rew {iC0} .
+rewrite in TEST : {iC0} .
+cuSendO  cuId cust prId PA  j 0
+mfgRcvOrder mfgId mfg cuId cust id 0 prId PA t 0
+cuRcvORsp  cuId cust  prId PA  j 0 dur 4
+suRcvPO suId su0 paId Q2 j 1 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su0 id 1 paId Q2 eta 4
+suRcvPO suId su1 paId Q1 j 0 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 0 paId Q1 eta 4
+mfgOrder2Asm mfgId mfg asmId asmId(0) prId PA cuId cust 0 idur 4
+tick nz 1 time 1 pc 5 t0 1 ohc 5/4 profit 0 nparts 3
+cuSendO  cuId cust prId PB  j 1
+mfgRcvOrder mfgId mfg cuId cust id 1 prId PB t 1
+cuRcvORsp  cuId cust  prId PB  j 1 dur 8
+suRcvPO suId su1 paId Q0 j 2 n 2 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 2 paId Q0 eta 4
+suRcvPO suId su1 paId Q1 j 3 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 3 paId Q1 eta 4
+mfgOrder2Asm mfgId mfg asmId asmId(1) prId PB cuId cust 1 idur 8
+tick nz 1 time 2 pc 5 t0 2 ohc 5/2 profit 0 nparts 0
+mfgAsmDone mfgId mfg asmId asmId(0) prId PA msgs m(cust, mfg, delivered(0, PA))     time 2
+cuRcvODlv  cuId cust  prId PA  j 0 wait 2 dur 4
+tick nz 2 time 4 pc 3 t0 4 ohc 4 profit 4 nparts 0
+mfgRcvPartRspl mfgId mfg  suId su0 id 1 paId Q2 t 4
+mfgRcvPartRspl mfgId mfg  suId su1 id 0 paId Q1 t 4
+tick nz 1 time 5 pc 5 t0 5 ohc 21/4 profit 4 nparts 2
+mfgAsmDone mfgId mfg asmId asmId(1) prId PB msgs m(cust, mfg, delivered(1, PB))   time 5
+cuRcvODlv  cuId cust  prId PB  j 1 wait 4 dur 8
+mfgRcvPartRspl mfgId mfg  suId su1 id 2 paId Q0 t 5
+mfgRcvPartRspl mfgId mfg  suId su1 id 3 paId Q1 t 5
+
+rewrites: 2913 in 4ms cpu (8ms real) (653725 rewrites/second)
+result System: {time(5) [mfg : Mfg | orders(mtO) parts({Q0, 2} {Q1, 2} {Q2, 1}) asm({asmId(0), noId, 0} {asmId(1), noId, 0} {asmId(2), noId, 0}) stock(mtIN) cnt(4) partPend(mtPP) profit(8, 1/4) oh(1/4, 5, 5, 21/4, mtNR)] [su0 : Supplier | ready(0) pending(mt)] [su1 : Supplier | ready(0) pending(mt)] [su2 : Supplier | ready(0) pending(mt)] [cust : Cust | cnt(2) grace(5) rcvd(mfg, 0, PA, 2, 4) rcvd(mfg, 1, PB, 4, 8)]}
+
+****************************************************
+Maude> red iC1 .
+result ActorS: time(0) 
+[mfg : Mfg | orders(mtO) parts({Q0, 2} {Q1, 2} {Q2, 1}) asm( {asmId(0), noId, 0} {asmId(1), noId, 0} {asmId(2), noId, 0}) stock(mtIN) cnt(0) partPend(mtPP) profit(0, 1/4) oh(1/4, 5, 0, 0, mtNR)] 
+[su0 : Supplier | ready(0) pending(mt)] 
+[su1 : Supplier | ready(0) pending(mt)] 
+[su2 : Supplier | ready(0) pending(mt)] 
+[cust : Cust | cnt(0) grace(5) 
+oQ(mfg, PA, 0) oQ(mfg, PA, 1) 
+oQ(mfg, PB, 1) oQ(mfg, PB, 2)]
+
+
+Maude> rew {iC1} .
+rewrite in TEST : {iC1} .
+cuSendO  cuId cust prId PA  j 0
+mfgRcvOrder mfgId mfg cuId cust id 0 prId PA t 0
+cuRcvORsp  cuId cust  prId PA  j 0 dur 4
+suRcvPO suId su0 paId Q2 j 1 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su0 id 1 paId Q2 eta 4
+suRcvPO suId su1 paId Q1 j 0 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 0 paId Q1 eta 4
+mfgOrder2Asm mfgId mfg asmId asmId(0) prId PA cuId cust 0 idur 4
+tick nz 1 time 1 pc 5 t0 1 ohc 5/4 profit 0 nparts 3
+cuSendO  cuId cust prId PA  j 1
+mfgRcvOrder mfgId mfg cuId cust id 1 prId PA t 1
+suRcvPO suId su0 paId Q2 j 3 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su0 id 3 paId Q2 eta 4
+cuRcvORsp  cuId cust  prId PA  j 1 dur 8
+suRcvPO suId su1 paId Q1 j 2 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 2 paId Q1 eta 4
+cuSendO  cuId cust prId PB  j 2
+mfgRcvOrder mfgId mfg cuId cust id 2 prId PB t 1
+suRcvPO suId su1 paId Q0 j 4 n 2 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 4 paId Q0 eta 4
+suRcvPO suId su1 paId Q1 j 5 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 5 paId Q1 eta 4
+cuRcvORsp  cuId cust  prId PB  j 2 dur 12
+tick nz 1 time 2 pc 5 t0 2 ohc 5/2 profit 0 nparts 0
+mfgAsmDone mfgId mfg asmId asmId(0) prId PA msgs m(cust, mfg, delivered(0, PA))  time 2
+cuRcvODlv  cuId cust  prId PA  j 0 wait 2 dur 4
+cuSendO  cuId cust prId PB  j 3
+mfgRcvOrder mfgId mfg cuId cust id 3 prId PB t 2
+suRcvPO suId su1 paId Q0 j 6 n 2 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 6 paId Q0 eta 4
+suRcvPO suId su1 paId Q1 j 7 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 7 paId Q1 eta 4
+cuRcvORsp  cuId cust  prId PB  j 3 dur 12
+tick nz 2 time 4 pc 3 t0 4 ohc 4 profit 4 nparts 0
+mfgRcvPartRspl mfgId mfg  suId su0 id 1 paId Q2 t 4
+mfgRcvPartRspl mfgId mfg  suId su1 id 0 paId Q1 t 4
+tick nz 1 time 5 pc 5 t0 5 ohc 21/4 profit 4 nparts 2
+mfgRcvPartRspl mfgId mfg  suId su0 id 3 paId Q2 t 5
+mfgRcvPartRspl mfgId mfg  suId su1 id 2 paId Q1 t 5
+mfgRcvPartRspl mfgId mfg  suId su1 id 4 paId Q0 t 5
+mfgRcvPartRspl mfgId mfg  suId su1 id 5 paId Q1 t 5
+mfgOrder2Asm mfgId mfg asmId asmId(0) prId PA cuId cust 1 idur 8
+mfgOrder2Asm mfgId mfg asmId asmId(1) prId PB cuId cust 2 idur 12
+tick nz 1 time 6 pc 10 t0 6 ohc 31/4 profit 4 nparts 5
+mfgRcvPartRspl mfgId mfg  suId su1 id 6 paId Q0 t 6
+mfgRcvPartRspl mfgId mfg  suId su1 id 7 paId Q1 t 6
+mfgOrder2Asm mfgId mfg asmId asmId(2) prId PB cuId cust 3 idur 12
+tick nz 1 time 7 pc 13 t0 7 ohc 11 profit 4 nparts 5
+mfgAsmDone mfgId mfg asmId asmId(0) prId PA msgs m(cust, mfg, delivered(1, PA))  time 7
+cuRcvODlv  cuId cust  prId PA  j 1 wait 6 dur 8
+tick nz 2 time 9 pc 11 t0 9 ohc 33/2 profit 8 nparts 5
+mfgAsmDone mfgId mfg asmId asmId(1) prId PB msgs m(cust, mfg, delivered(2, PB))  time 9
+cuRcvODlv  cuId cust  prId PB  j 2 wait 8 dur 12
+tick nz 1 time 10 pc 8 t0 10 ohc 37/2 profit 12 nparts 5
+mfgAsmDone mfgId mfg asmId asmId(2) prId PB msgs m(cust, mfg, delivered(3, PB))  time 10
+cuRcvODlv  cuId cust  prId PB  j 3 wait 8 dur 12
+rewrites: 6428 in 7ms cpu (9ms real) (852632 rewrites/second)
+result System: {time(10) [mfg : Mfg | orders(mtO) parts({Q0, 2} {Q1, 2} {Q2, 1}) asm({asmId(0), noId, 0} {asmId(1), noId, 0} {asmId(2), noId, 0}) stock(mtIN) cnt(8) partPend(mtPP) profit(16, 1/4) oh(1/4, 5, 10, 37/2, mtNR)] [su0 : Supplier | ready(0) pending(mt)] [su1 : Supplier | ready(0) pending(mt)] [su2 : Supplier | ready(0) pending(mt)] [cust : Cust | cnt(4) grace(5) rcvd(mfg, 0, PA, 2, 4) rcvd(mfg, 1, PA, 6, 8) rcvd(mfg, 2, PB, 8, 12) rcvd(mfg, 3, PB, 8, 12)]}
+
+**************************************************
+Maude> red iC2 .
+result ActorS: time(0)
+[mfg : Mfg | orders(mtO) parts({Q0, 1} {Q1, 1} {Q2, 1}) asm( {asmId(0), noId, 0} {asmId(1), noId, 0} {asmId(2), noId, 0}) stock(mtIN) cnt(0) partPend(mtPP) profit(0, 1/4) oh(1/4, 3, 0, 0, mtNR)] 
+[su0 : Supplier | ready( 0) pending(mt)] 
+[su1 : Supplier | ready(0) pending(mt)] 
+[su2 : Supplier | ready(0) pending(mt)] 
+[cust : Cust | cnt(0) grace(5) oQ(mfg, PA, 0) oQ(mfg, PB, 1)]
+
+cuSendO  cuId cust prId PA  j 0
+mfgRcvOrder mfgId mfg cuId cust id 0 prId PA t 0
+cuRcvORsp  cuId cust  prId PA  j 0 dur 4
+suRcvPO suId su0 paId Q2 j 1 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su0 id 1 paId Q2 eta 4
+suRcvPO suId su1 paId Q1 j 0 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 0 paId Q1 eta 4
+mfgOrder2Asm mfgId mfg asmId asmId(0) prId PA cuId cust 0 idur 4
+tick nz 1 time 1 pc 3 t0 1 ohc 3/4 profit 0 nparts 1
+cuSendO  cuId cust prId PB  j 1
+mfgRcvOrder mfgId mfg cuId cust id 1 prId PB t 1
+suRcvPO suId su1 paId Q0 j 2 n 2 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 2 paId Q0 eta 4
+suRcvPO suId su1 paId Q1 j 3 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 3 paId Q1 eta 4
+cuRcvORsp  cuId cust  prId PB  j 1 dur 12
+tick nz 1 time 2 pc 3 t0 2 ohc 3/2 profit 0 nparts 0
+mfgAsmDone mfgId mfg asmId asmId(0) prId PA msgs m(cust, mfg, delivered(0, PA))    time 2
+cuRcvODlv  cuId cust  prId PA  j 0 wait 2 dur 4
+tick nz 2 time 4 pc 1 t0 4 ohc 2 profit 4 nparts 0
+mfgRcvPartRspl mfgId mfg  suId su0 id 1 paId Q2 t 4
+mfgRcvPartRspl mfgId mfg  suId su1 id 0 paId Q1 t 4
+tick nz 1 time 5 pc 3 t0 5 ohc 11/4 profit 4 nparts 2
+mfgRcvPartRspl mfgId mfg  suId su1 id 2 paId Q0 t 5
+mfgRcvPartRspl mfgId mfg  suId su1 id 3 paId Q1 t 5
+mfgOrder2Asm mfgId mfg asmId asmId(0) prId PB cuId cust 1 idur 12
+tick nz 4 time 9 pc 6 t0 9 ohc 35/4 profit 4 nparts 3
+mfgAsmDone mfgId mfg asmId asmId(0) prId PB msgs m(cust, mfg, delivered(1, PB))    time 9
+cuRcvODlv  cuId cust  prId PB  j 1 wait 8 dur 12
+
+result System: {time(9) [mfg : Mfg | orders(mtO) parts({Q0, 1} {Q1, 1} {Q2, 1}) asm({asmId(0), noId, 0} {asmId(1), noId, 0} {asmId(2), noId, 0}) stock(mtIN) cnt(4) partPend(mtPP) profit(8, 1/4) oh(1/4, 3, 9, 35/4, mtNR)] [su0 : Supplier | ready(0) pending(mt)] [su1 : Supplier | ready(0) pending(mt)] [su2 : Supplier | ready(0) pending(mt)] [cust : Cust | cnt(2) grace(5) rcvd(mfg, 0, PA, 2, 4) rcvd(mfg, 1, PB, 8, 12)]}
+***************************************************
+
+Maude> red iC3 .
+result ActorS: time(0) 
+[mfg : Mfg | orders(mtO) parts({Q0, 1} {Q1, 1} {Q2, 1}) asm( {asmId(0), noId, 0} {asmId(1), noId, 0} {asmId(2), noId, 0}) stock(mtIN) cnt(0) partPend(mtPP) profit(0, 1/4) oh(1/4, 3, 0, 0, mtNR)] 
+[su0 : Supplier | ready( 0) pending(mt)] 
+[su1 : Supplier | ready(0) pending(mt)] 
+[su2 : Supplier | ready(0) pending(mt)] 
+[cust : Cust | cnt(0) grace(5) oQ(mfg, PA, 0) oQ(mfg, PA, 1) oQ(mfg, PB, 1) oQ(mfg, PB, 2)]
+
+Maude> rew {iC3} .
+rewrite in TEST : {iC3} .
+cuSendO  cuId cust prId PA  j 0
+mfgRcvOrder mfgId mfg cuId cust id 0 prId PA t 0
+cuRcvORsp  cuId cust  prId PA  j 0 dur 4
+suRcvPO suId su0 paId Q2 j 1 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su0 id 1 paId Q2 eta 4
+suRcvPO suId su1 paId Q1 j 0 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 0 paId Q1 eta 4
+mfgOrder2Asm mfgId mfg asmId asmId(0) prId PA cuId cust 0 idur 4
+tick nz 1 time 1 pc 3 t0 1 ohc 3/4 profit 0 nparts 1
+cuSendO  cuId cust prId PA  j 1
+mfgRcvOrder mfgId mfg cuId cust id 1 prId PA t 1
+suRcvPO suId su0 paId Q2 j 3 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su0 id 3 paId Q2 eta 4
+suRcvPO suId su1 paId Q1 j 2 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 2 paId Q1 eta 4
+cuRcvORsp  cuId cust  prId PA  j 1 dur 8
+cuSendO  cuId cust prId PB  j 2
+mfgRcvOrder mfgId mfg cuId cust id 2 prId PB t 1
+suRcvPO suId su1 paId Q0 j 4 n 2 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 4 paId Q0 eta 4
+suRcvPO suId su1 paId Q1 j 5 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 5 paId Q1 eta 4
+cuRcvORsp  cuId cust  prId PB  j 2 dur 12
+tick nz 1 time 2 pc 3 t0 2 ohc 3/2 profit 0 nparts 0
+mfgAsmDone mfgId mfg asmId asmId(0) prId PA msgs m(cust, mfg, delivered(0, PA))     time 2
+cuRcvODlv  cuId cust  prId PA  j 0 wait 2 dur 4
+cuSendO  cuId cust prId PB  j 3
+mfgRcvOrder mfgId mfg cuId cust id 3 prId PB t 2
+suRcvPO suId su1 paId Q0 j 6 n 2 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 6 paId Q0 eta 4
+suRcvPO suId su1 paId Q1 j 7 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 7 paId Q1 eta 4
+cuRcvORsp  cuId cust  prId PB  j 3 dur 12
+tick nz 2 time 4 pc 1 t0 4 ohc 2 profit 4 nparts 0
+mfgRcvPartRspl mfgId mfg  suId su0 id 1 paId Q2 t 4
+mfgRcvPartRspl mfgId mfg  suId su1 id 0 paId Q1 t 4
+tick nz 1 time 5 pc 3 t0 5 ohc 11/4 profit 4 nparts 2
+mfgRcvPartRspl mfgId mfg  suId su0 id 3 paId Q2 t 5
+mfgRcvPartRspl mfgId mfg  suId su1 id 2 paId Q1 t 5
+mfgRcvPartRspl mfgId mfg  suId su1 id 4 paId Q0 t 5
+mfgRcvPartRspl mfgId mfg  suId su1 id 5 paId Q1 t 5
+mfgOrder2Asm mfgId mfg asmId asmId(0) prId PA cuId cust 1 idur 8
+mfgOrder2Asm mfgId mfg asmId asmId(1) prId PB cuId cust 2 idur 12
+tick nz 1 time 6 pc 8 t0 6 ohc 19/4 profit 4 nparts 3
+mfgRcvPartRspl mfgId mfg  suId su1 id 6 paId Q0 t 6
+mfgRcvPartRspl mfgId mfg  suId su1 id 7 paId Q1 t 6
+mfgOrder2Asm mfgId mfg asmId asmId(2) prId PB cuId cust 3 idur 12
+tick nz 1 time 7 pc 11 t0 7 ohc 15/2 profit 4 nparts 3
+mfgAsmDone mfgId mfg asmId asmId(0) prId PA msgs m(cust, mfg, delivered(1, PA))     time 7
+cuRcvODlv  cuId cust  prId PA  j 1 wait 6 dur 8
+tick nz 2 time 9 pc 9 t0 9 ohc 12 profit 8 nparts 3
+mfgAsmDone mfgId mfg asmId asmId(1) prId PB msgs m(cust, mfg, delivered(2, PB))   time 9
+cuRcvODlv  cuId cust  prId PB  j 2 wait 8 dur 12
+tick nz 1 time 10 pc 6 t0 10 ohc 27/2 profit 12 nparts 3
+mfgAsmDone mfgId mfg asmId asmId(2) prId PB msgs m(cust, mfg, delivered(3, PB))   time 10
+cuRcvODlv  cuId cust  prId PB  j 3 wait 8 dur 12
+
+result System: {time(10) 
+[mfg : Mfg | orders(mtO) parts({Q0, 1} {Q1, 1} {Q2, 1}) asm({asmId(0), noId, 0} {asmId(1), noId, 0} {asmId(2), noId, 0}) stock(mtIN) cnt(8) partPend(mtPP) profit(16, 1/4) oh(1/4, 3, 10, 27/2, mtNR)] 
+[su0 : Supplier | ready(0) pending(mt)] 
+[su1 : Supplier | ready(0) pending(mt)] 
+[su2 : Supplier | ready(0) pending(mt)] 
+[cust : Cust | cnt(4) grace(5) rcvd(mfg, 0, PA, 2, 4) rcvd(mfg, 1, PA, 6, 8) rcvd(mfg, 2, PB, 8, 12) rcvd(mfg, 3, PB, 8, 12)]}
+
+***************************************************
+search {iC3} =>! {c:Config} .
+2 solutions -- same profit,oh,rcvd
+
+profit - ohc < 1
+search {iC0} =>+ {c:Config} such that noProfit(c:Config,1) .
+
+search {iC0} =>! {c:Config} such that noProfit(c:Config,0) .
+
+Early violations
+
+search {iC0} =>! {c:Config}  such that 
+noProfit(c:Config,4) .
+
+Solution 1 (state 285) -- only solution
+c:Config --> time(5) [mfg : Mfg | orders(mtO) parts({Q0, 2} {Q1, 2} {Q2, 1}) asm({ asmId(0), noId, 0} {asmId(1), noId, 0} {asmId(2), noId, 0}) stock(mtIN) cnt(4) partPend(mtPP) profit(8, 1/4) oh(1/4, 5, 5, 21/4, mtNR)] [su0 : Supplier | ready(0) pending(mt)] [su1 : Supplier | ready(0) pending(mt)] [su2 : Supplier | ready(0) pending(mt)] [cust : Cust | cnt(2) grace(5) rcvd(mfg, 0, PA, 2, 4) rcvd(mfg, 1, PB, 4, 8)]
+
+no solution for n < 4
+
+****************  testing crit *****************
+
+rew {iC0 crit(false,0,-1,2) } .
+result System: {time(5) [mfg : Mfg | orders(mtO) parts({Q0, 2} {Q1, 2} {Q2, 1}) asm({asmId(0), noId, 0} {asmId(1), noId, 0} {asmId(2), noId, 0}) stock(mtIN) cnt(4) partPend(mtPP) profit(8, 1/4) oh(1/4, 5, 5, 21/4, mtNR)] [su0 : Supplier | ready(0) pending(mt)] [su1 : Supplier | ready(0) pending(mt)] [su2 : Supplier | ready(0) pending(mt)] [cust : Cust | cnt(2) grace(5) rcvd(mfg, 0, PA, 2, 4) rcvd(mfg, 1, PB, 4, 8)] crit(false, 0, -1, 2)}
+    
+rew {iC0 crit(false,0,0,2) }
+result System: {time(5) [mfg : Mfg | orders(mtO) parts({Q0, 2} {Q1, 2} {Q2, 1}) asm({asmId(0), noId, 0} {asmId(1), noId, 0} {asmId(2), noId, 0}) stock(mtIN) cnt(4) partPend(mtPP) profit(8, 1/4) oh(1/4, 5, 5, 21/4, mtNR)] [su0 : Supplier | ready(0) pending(mt)] [su1 : Supplier | ready(0) pending(mt)] [su2 : Supplier | ready(0) pending(mt)] [cust : Cust | cnt(2) grace(5) rcvd(mfg, 0, PA, 2, 4) rcvd(mfg, 1, PB, 4, 8)] crit(true, 4, 0, 2)}
+
+rew {iC0 crit(false,0,1,2) } .
+result System: {time(2) m(mfg, su0, p(1, Q2, 1, l(y0, x1, lh, 1) ; l(x1, mfg, sh, 1))) m(mfg, su1, p(0, Q1, 1, l(su1, x1, lh, 1) ; l(x1, mfg, sh, 1))) m(mfg, su1, p(2, Q0, 2, l(su1, x1, lh, 2) ; l(x1, mfg, sh, 1))) m(mfg, su1, p(3, Q1, 1, l(su1, x1, lh, 2) ; l(x1, mfg, sh, 1))) [mfg : Mfg | orders(o(1, cust, PB, 4, mtINN, 7, asmId(1))) parts(mtIN) asm({asmId(0), noId, 0} {asmId(1), PB, 3} { asmId(2), noId, 0}) stock(mtIN) cnt(4) partPend(pp(su0, 1, Q2, 0, 1, cust, 0) pp(su1, 0, Q1, 0, 1, cust, 0) pp(su1, 2, Q0, 0, 2, cust, 1) pp(su1, 3, Q1, 0, 1, cust, 1)) profit(4, 1/4) oh(1/4, 3, 2, 5/2, mtNR)] [su0 : Supplier | ready( 0) pending(mt)] [su1 : Supplier | ready(0) pending(mt)] [su2 : Supplier | ready(0) pending(mt)] [cust : Cust | cnt(2) grace(5) w4Q(mfg, 1, PB, 1, 8) rcvd(mfg, 0, PA, 2, 4)] crit(true, 0, 1, 2)}
+
+***************************************************
+rew {iC0 stop(6)} .
+ System: {time(5) stop(6) [mfg : Mfg | orders(mtO) parts({Q0, 2} {Q1, 2} {Q2, 1}) asm({asmId(0), noId, 0} {asmId(1), noId, 0} {asmId(2), noId, 0}) stock( mtIN) cnt(4) partPend(mtPP) profit(8, 1/4) oh(1/4, 5, 5, 21/4, mtNR)] [su0 : Supplier | ready(0) pending(mt)] [su1 : Supplier | ready(0) pending(mt)] [su2 : Supplier | ready(0) pending(mt)] [cust : Cust | cnt(2) grace(5) rcvd(mfg, 0, PA, 2, 4) rcvd(mfg, 1, PB, 4, 8)]}
+
+rew {iC0 stop(5)} .
+System: {time(4) stop(5) m(mfg, su1, p(2, Q0, 2, l(x1, mfg, sh, 1))) m(mfg, su1, p(3, Q1, 1, l(x1, mfg, sh, 1))) [mfg : Mfg | orders(o(1, cust, PB, 4, mtINN, 5, asmId(1))) parts({Q1, 1} {Q2, 1}) asm({asmId(0), noId, 0} {asmId(1), PB, 1} {asmId(2), noId, 0}) stock(mtIN) cnt(4) partPend(pp(su1, 2, Q0, 0, 2, cust, 1) pp(su1, 3, Q1, 0, 1, cust, 1)) profit(4, 1/4) oh(1/4, 5, 4, 4, mtNR)] [su0 : Supplier | ready(0) pending(mt)] [su1 : Supplier | ready(0) pending(mt)] [su2 : Supplier | ready(0) pending(mt)] [cust : Cust | cnt(2) grace(5) w4Q(mfg, 1, PB, 3, 8) rcvd(mfg, 0, PA, 2, 4)]}
+
+***************************************************
+***************************************************
+****** send all orders at once
+set print attribute on .
+
+***************************************************
+rew  {initC(genOrders(1,1),5,genParts(2,2,1),1/4,1/4,0)}  .
+
+cuSendO  cuId cust prId PA  j 0
+mfgRcvOrder mfgId mfg cuId cust id 0 prId PA t 0
+cuRcvORsp  cuId cust  prId PA  j 0 dur 4
+suRcvPO suId su0 paId Q2 j 1 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su0 id 1 paId Q2 eta 4
+suRcvPO suId su1 paId Q1 j 0 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 0 paId Q1 eta 4
+mfgOrder2Asm mfgId mfg asmId asmId(0) prId PA cuId cust 0 idur 4
+cuSendO  cuId cust prId PB  j 1
+mfgRcvOrder mfgId mfg cuId cust id 1 prId PB t 0
+cuRcvORsp  cuId cust  prId PB  j 1 dur 8
+suRcvPO suId su1 paId Q0 j 2 n 2 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 2 paId Q0 eta 4
+suRcvPO suId su1 paId Q1 j 3 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 3 paId Q1 eta 4
+mfgOrder2Asm mfgId mfg asmId asmId(1) prId PB cuId cust 1 idur 8
+tick nz 2 time 0 pc 5 t0 2 ohc 5/2 profit 0
+critical actor mt
+mfgAsmDone mfgId mfg asmId asmId(0) prId PA msgs m(cust, mfg, delivered(0, PA))
+    time 2
+cuRcvODlv  cuId cust  prId PA  j 0 wait 2 dur 4
+tick nz 2 time 2 pc 3 t0 4 ohc 4 profit 4
+critical actor mt
+mfgRcvParts mfgId mfg  suId su0 id 1 paId Q2 n 1 t 4
+mfgAsmDone mfgId mfg asmId asmId(1) prId PB msgs m(cust, mfg, delivered(1, PB))
+    time 4
+cuRcvODlv  cuId cust  prId PB  j 1 wait 4 dur 8
+mfgRcvParts mfgId mfg  suId su1 id 0 paId Q1 n 1 t 4
+mfgRcvParts mfgId mfg  suId su1 id 2 paId Q0 n 2 t 4
+mfgRcvParts mfgId mfg  suId su1 id 3 paId Q1 n 1 t 4
+rewrites: 2669 in 4ms cpu (4ms real) (655612 rewrites/second)
+result System: {time(4) [mfg : Mfg | orders(mtO) parts({Q0, 2} {Q1, 2} {Q2, 1}) asm({asmId(0), noId, 0} {asmId(1), noId, 0} {asmId(2), noId, 0}) stock(mtIN) cnt(4) partPend(mtPP) profit(8, 1/4) oh(1/4, 5, 4, 4, mtNR)] [su0 : Supplier | ready(0) pending(mt)] [su1 : Supplier | ready(0) pending(mt)] [su2 : Supplier | ready(0) pending(mt)] [cust : Cust | cnt(2) grace(5) rcvd(mfg, 0, PA, 2, 4) rcvd(mfg, 1, PB, 4, 8)]}
+
+***************************************************
+rew  {initC(genOrders(2,2),5,genParts(2,2,1),1/4,1/4,0)}  .
+
+cuSendO  cuId cust prId PA  j 0
+mfgRcvOrder mfgId mfg cuId cust id 0 prId PA t 0
+cuRcvORsp  cuId cust  prId PA  j 0 dur 4
+suRcvPO suId su0 paId Q2 j 1 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su0 id 1 paId Q2 eta 4
+suRcvPO suId su1 paId Q1 j 0 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 0 paId Q1 eta 4
+mfgOrder2Asm mfgId mfg asmId asmId(0) prId PA cuId cust 0 idur 4
+cuSendO  cuId cust prId PA  j 1
+mfgRcvOrder mfgId mfg cuId cust id 1 prId PA t 0
+suRcvPO suId su0 paId Q2 j 3 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su0 id 3 paId Q2 eta 4
+cuRcvORsp  cuId cust  prId PA  j 1 dur 8
+suRcvPO suId su1 paId Q1 j 2 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 2 paId Q1 eta 4
+cuSendO  cuId cust prId PB  j 2
+mfgRcvOrder mfgId mfg cuId cust id 2 prId PB t 0
+suRcvPO suId su1 paId Q0 j 4 n 2 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 4 paId Q0 eta 4
+suRcvPO suId su1 paId Q1 j 5 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 5 paId Q1 eta 4
+cuRcvORsp  cuId cust  prId PB  j 2 dur 12
+cuSendO  cuId cust prId PB  j 3
+mfgRcvOrder mfgId mfg cuId cust id 3 prId PB t 0
+suRcvPO suId su1 paId Q0 j 6 n 2 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 6 paId Q0 eta 4
+suRcvPO suId su1 paId Q1 j 7 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 7 paId Q1 eta 4
+cuRcvORsp  cuId cust  prId PB  j 3 dur 12
+tick nz 2 time 0 pc 5 t0 2 ohc 5/2 profit 0
+critical actor mt
+mfgAsmDone mfgId mfg asmId asmId(0) prId PA msgs m(cust, mfg, delivered(0, PA))
+    time 2
+cuRcvODlv  cuId cust  prId PA  j 0 wait 2 dur 4
+tick nz 2 time 2 pc 3 t0 4 ohc 4 profit 4
+critical actor mt
+mfgRcvParts mfgId mfg  suId su0 id 1 paId Q2 n 1 t 4
+mfgRcvParts mfgId mfg  suId su0 id 3 paId Q2 n 1 t 4
+mfgRcvParts mfgId mfg  suId su1 id 0 paId Q1 n 1 t 4
+mfgRcvParts mfgId mfg  suId su1 id 2 paId Q1 n 1 t 4
+mfgRcvParts mfgId mfg  suId su1 id 4 paId Q0 n 2 t 4
+mfgRcvParts mfgId mfg  suId su1 id 5 paId Q1 n 1 t 4
+mfgRcvParts mfgId mfg  suId su1 id 6 paId Q0 n 2 t 4
+mfgRcvParts mfgId mfg  suId su1 id 7 paId Q1 n 1 t 4
+mfgOrder2Asm mfgId mfg asmId asmId(0) prId PA cuId cust 1 idur 8
+mfgOrder2Asm mfgId mfg asmId asmId(1) prId PB cuId cust 2 idur 12
+mfgOrder2Asm mfgId mfg asmId asmId(2) prId PB cuId cust 3 idur 12
+tick nz 2 time 4 pc 13 t0 6 ohc 21/2 profit 4
+critical actor mt
+mfgAsmDone mfgId mfg asmId asmId(0) prId PA msgs m(cust, mfg, delivered(1, PA))
+    time 6
+cuRcvODlv  cuId cust  prId PA  j 1 wait 6 dur 8
+tick nz 2 time 6 pc 11 t0 8 ohc 16 profit 8
+critical actor mt
+mfgAsmDone mfgId mfg asmId asmId(1) prId PB msgs m(cust, mfg, delivered(2, PB))
+    time 8
+cuRcvODlv  cuId cust  prId PB  j 2 wait 8 dur 12
+mfgAsmDone mfgId mfg asmId asmId(2) prId PB msgs m(cust, mfg, delivered(3, PB))
+    time 8
+cuRcvODlv  cuId cust  prId PB  j 3 wait 8 dur 12
+rewrites: 5840 in 8ms cpu (8ms real) (711500 rewrites/second)
+result System: {time(8) [mfg : Mfg | orders(mtO) parts({Q0, 2} {Q1, 2} {Q2, 1}) asm({asmId(0), noId, 0} {asmId(1), noId, 0} {asmId(2), noId, 0}) stock(mtIN) cnt(8) partPend(mtPP) profit(16, 1/4) oh(1/4, 5, 8, 16, mtNR)] [su0 : Supplier | ready(0) pending(mt)] [su1 : Supplier | ready(0) pending(mt)] [su2 : Supplier | ready(0) pending(mt)] [cust : Cust | cnt(4) grace(5) rcvd(mfg, 0, PA, 2, 4) rcvd(mfg, 1, PA, 6, 8) rcvd(mfg, 2, PB, 8, 12) rcvd(mfg, 3, PB, 8, 12)]}
+
+***************************************************
+rew  {initC(genOrders(1,1),5,genParts(1,1,1),1/4,1/4,0)}  .
+
+cuSendO  cuId cust prId PA  j 0
+mfgRcvOrder mfgId mfg cuId cust id 0 prId PA t 0
+cuRcvORsp  cuId cust  prId PA  j 0 dur 4
+suRcvPO suId su0 paId Q2 j 1 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su0 id 1 paId Q2 eta 4
+suRcvPO suId su1 paId Q1 j 0 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 0 paId Q1 eta 4
+mfgOrder2Asm mfgId mfg asmId asmId(0) prId PA cuId cust 0 idur 4
+cuSendO  cuId cust prId PB  j 1
+mfgRcvOrder mfgId mfg cuId cust id 1 prId PB t 0
+suRcvPO suId su1 paId Q0 j 2 n 2 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 2 paId Q0 eta 4
+suRcvPO suId su1 paId Q1 j 3 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 3 paId Q1 eta 4
+cuRcvORsp  cuId cust  prId PB  j 1 dur 12
+tick nz 2 time 0 pc 3 t0 2 ohc 3/2 profit 0
+critical actor mt
+mfgAsmDone mfgId mfg asmId asmId(0) prId PA msgs m(cust, mfg, delivered(0, PA))
+    time 2
+cuRcvODlv  cuId cust  prId PA  j 0 wait 2 dur 4
+tick nz 2 time 2 pc 1 t0 4 ohc 2 profit 4
+critical actor mt
+mfgRcvParts mfgId mfg  suId su0 id 1 paId Q2 n 1 t 4
+mfgRcvParts mfgId mfg  suId su1 id 0 paId Q1 n 1 t 4
+mfgRcvParts mfgId mfg  suId su1 id 2 paId Q0 n 2 t 4
+mfgRcvParts mfgId mfg  suId su1 id 3 paId Q1 n 1 t 4
+mfgOrder2Asm mfgId mfg asmId asmId(0) prId PB cuId cust 1 idur 12
+tick nz 4 time 4 pc 6 t0 8 ohc 8 profit 4
+critical actor mt
+mfgAsmDone mfgId mfg asmId asmId(0) prId PB msgs m(cust, mfg, delivered(1, PB))
+    time 8
+cuRcvODlv  cuId cust  prId PB  j 1 wait 8 dur 12
+rewrites: 2765 in 4ms cpu (4ms real) (667713 rewrites/second)
+result System: {time(8) [mfg : Mfg | orders(mtO) parts({Q0, 1} {Q1, 1} {Q2, 1}) asm({asmId(0), noId, 0} {asmId(1), noId, 0} {asmId(2), noId, 0}) stock(mtIN) cnt(4) partPend(mtPP) profit(8, 1/4) oh(1/4, 3, 8, 8, mtNR)] [su0 : Supplier | ready(0) pending(mt)] [su1 : Supplier | ready(0) pending(mt)] [su2 : Supplier | ready(0) pending(mt)] [cust : Cust | cnt(2) grace(5) rcvd(mfg, 0, PA, 2, 4) rcvd(mfg, 1, PB, 8, 12)]}
+
+
+***************************************************
+rew  {initC(genOrders(2,2),5,genParts(1,1,1),1/4,1/4,0)}  .
+
+cuSendO  cuId cust prId PA  j 0
+mfgRcvOrder mfgId mfg cuId cust id 0 prId PA t 0
+cuRcvORsp  cuId cust  prId PA  j 0 dur 4
+suRcvPO suId su0 paId Q2 j 1 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su0 id 1 paId Q2 eta 4
+suRcvPO suId su1 paId Q1 j 0 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 0 paId Q1 eta 4
+mfgOrder2Asm mfgId mfg asmId asmId(0) prId PA cuId cust 0 idur 4
+cuSendO  cuId cust prId PA  j 1
+mfgRcvOrder mfgId mfg cuId cust id 1 prId PA t 0
+suRcvPO suId su0 paId Q2 j 3 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su0 id 3 paId Q2 eta 4
+suRcvPO suId su1 paId Q1 j 2 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 2 paId Q1 eta 4
+cuRcvORsp  cuId cust  prId PA  j 1 dur 8
+cuSendO  cuId cust prId PB  j 2
+mfgRcvOrder mfgId mfg cuId cust id 2 prId PB t 0
+suRcvPO suId su1 paId Q0 j 4 n 2 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 4 paId Q0 eta 4
+suRcvPO suId su1 paId Q1 j 5 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 5 paId Q1 eta 4
+cuRcvORsp  cuId cust  prId PB  j 2 dur 12
+cuSendO  cuId cust prId PB  j 3
+mfgRcvOrder mfgId mfg cuId cust id 3 prId PB t 0
+suRcvPO suId su1 paId Q0 j 6 n 2 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 6 paId Q0 eta 4
+suRcvPO suId su1 paId Q1 j 7 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 7 paId Q1 eta 4
+cuRcvORsp  cuId cust  prId PB  j 3 dur 12
+tick nz 2 time 0 pc 3 t0 2 ohc 3/2 profit 0
+critical actor mt
+mfgAsmDone mfgId mfg asmId asmId(0) prId PA msgs m(cust, mfg, delivered(0, PA))
+    time 2
+cuRcvODlv  cuId cust  prId PA  j 0 wait 2 dur 4
+tick nz 2 time 2 pc 1 t0 4 ohc 2 profit 4
+critical actor mt
+mfgRcvParts mfgId mfg  suId su0 id 1 paId Q2 n 1 t 4
+mfgRcvParts mfgId mfg  suId su0 id 3 paId Q2 n 1 t 4
+mfgRcvParts mfgId mfg  suId su1 id 0 paId Q1 n 1 t 4
+mfgRcvParts mfgId mfg  suId su1 id 2 paId Q1 n 1 t 4
+mfgRcvParts mfgId mfg  suId su1 id 4 paId Q0 n 2 t 4
+mfgRcvParts mfgId mfg  suId su1 id 5 paId Q1 n 1 t 4
+mfgRcvParts mfgId mfg  suId su1 id 6 paId Q0 n 2 t 4
+mfgRcvParts mfgId mfg  suId su1 id 7 paId Q1 n 1 t 4
+mfgOrder2Asm mfgId mfg asmId asmId(0) prId PA cuId cust 1 idur 8
+mfgOrder2Asm mfgId mfg asmId asmId(1) prId PB cuId cust 2 idur 12
+mfgOrder2Asm mfgId mfg asmId asmId(2) prId PB cuId cust 3 idur 12
+tick nz 2 time 4 pc 11 t0 6 ohc 15/2 profit 4
+critical actor mt
+mfgAsmDone mfgId mfg asmId asmId(0) prId PA msgs m(cust, mfg, delivered(1, PA))
+    time 6
+cuRcvODlv  cuId cust  prId PA  j 1 wait 6 dur 8
+tick nz 2 time 6 pc 9 t0 8 ohc 12 profit 8
+critical actor mt
+mfgAsmDone mfgId mfg asmId asmId(1) prId PB msgs m(cust, mfg, delivered(2, PB))
+    time 8
+cuRcvODlv  cuId cust  prId PB  j 2 wait 8 dur 12
+mfgAsmDone mfgId mfg asmId asmId(2) prId PB msgs m(cust, mfg, delivered(3, PB))
+    time 8
+cuRcvODlv  cuId cust  prId PB  j 3 wait 8 dur 12
+rewrites: 5864 in 7ms cpu (7ms real) (811513 rewrites/second)
+result System: {time(8) [mfg : Mfg | orders(mtO) parts({Q0, 1} {Q1, 1} {Q2, 1}) asm({asmId(0), noId, 0} {asmId(1), noId, 0} {asmId(2), noId, 0}) stock(mtIN) cnt(8) partPend(mtPP) profit(16, 1/4) oh(1/4, 3, 8, 12, mtNR)] [su0 : Supplier | ready(0) pending(mt)] [su1 : Supplier | ready(0) pending(mt)] [su2 : Supplier | ready(0) pending(mt)] [cust : Cust | cnt(4) grace(5) rcvd(mfg, 0, PA, 2, 4) rcvd(mfg, 1, PA, 6, 8) rcvd(mfg, 2, PB, 8, 12) rcvd(mfg, 3, PB, 8, 12)]}
+
+***************************************************
+********* sequencing orders
+***************************************************
+set print attribute on . 
+rew {initC(genOs(2,2),5,genParts(2,2,1),1/4,1/4,0)} .
+
+cuSendO  cuId cust prId PA  j 0
+mfgRcvOrder mfgId mfg cuId cust id 0 prId PA t 0
+cuRcvORsp  cuId cust  prId PA  j 0 dur 4
+suRcvPO suId su0 paId Q2 j 1 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su0 id 1 paId Q2 eta 4
+suRcvPO suId su1 paId Q1 j 0 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 0 paId Q1 eta 4
+mfgOrder2Asm mfgId mfg asmId asmId(0) prId PA cuId cust 0 idur 4
+tick nz 1 time 0 pc 5 t0 1 ohc 5/4 profit 0
+critical actor mt
+cuSendO  cuId cust prId PB  j 1
+mfgRcvOrder mfgId mfg cuId cust id 1 prId PB t 1
+cuRcvORsp  cuId cust  prId PB  j 1 dur 8
+suRcvPO suId su1 paId Q0 j 2 n 2 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 2 paId Q0 eta 4
+suRcvPO suId su1 paId Q1 j 3 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 3 paId Q1 eta 4
+mfgOrder2Asm mfgId mfg asmId asmId(1) prId PB cuId cust 1 idur 8
+tick nz 1 time 1 pc 5 t0 2 ohc 5/2 profit 0
+critical actor mt
+mfgAsmDone mfgId mfg asmId asmId(0) prId PA msgs m(cust, mfg, delivered(0, PA))
+    time 2
+cuRcvODlv  cuId cust  prId PA  j 0 wait 2 dur 4
+cuSendO  cuId cust prId PA  j 2
+mfgRcvOrder mfgId mfg cuId cust id 2 prId PA t 2
+suRcvPO suId su0 paId Q2 j 5 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su0 id 5 paId Q2 eta 4
+suRcvPO suId su1 paId Q1 j 4 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 4 paId Q1 eta 4
+cuRcvORsp  cuId cust  prId PA  j 2 dur 8
+tick nz 1 time 2 pc 3 t0 3 ohc 13/4 profit 4
+critical actor mt
+cuSendO  cuId cust prId PB  j 3
+mfgRcvOrder mfgId mfg cuId cust id 3 prId PB t 3
+suRcvPO suId su1 paId Q0 j 6 n 2 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 6 paId Q0 eta 4
+suRcvPO suId su1 paId Q1 j 7 n 1 b true
+mfgRcvPartRsp mfgId mfg  suId su1 id 7 paId Q1 eta 4
+cuRcvORsp  cuId cust  prId PB  j 3 dur 12
+tick nz 1 time 3 pc 3 t0 4 ohc 4 profit 4
+critical actor mt
+mfgRcvParts mfgId mfg  suId su0 id 1 paId Q2 n 1 t 4
+mfgRcvParts mfgId mfg  suId su1 id 0 paId Q1 n 1 t 4
+tick nz 1 time 4 pc 5 t0 5 ohc 21/4 profit 4
+critical actor mt
+mfgAsmDone mfgId mfg asmId asmId(1) prId PB msgs m(cust, mfg, delivered(1, PB))
+    time 5
+cuRcvODlv  cuId cust  prId PB  j 1 wait 4 dur 8
+mfgRcvParts mfgId mfg  suId su1 id 2 paId Q0 n 2 t 5
+mfgRcvParts mfgId mfg  suId su1 id 3 paId Q1 n 1 t 5
+tick nz 1 time 5 pc 5 t0 6 ohc 13/2 profit 8
+critical actor mt
+mfgRcvParts mfgId mfg  suId su0 id 5 paId Q2 n 1 t 6
+mfgRcvParts mfgId mfg  suId su1 id 4 paId Q1 n 1 t 6
+mfgOrder2Asm mfgId mfg asmId asmId(0) prId PA cuId cust 2 idur 8
+tick nz 1 time 6 pc 7 t0 7 ohc 33/4 profit 8
+critical actor mt
+mfgRcvParts mfgId mfg  suId su1 id 6 paId Q0 n 2 t 7
+mfgRcvParts mfgId mfg  suId su1 id 7 paId Q1 n 1 t 7
+mfgOrder2Asm mfgId mfg asmId asmId(1) prId PB cuId cust 3 idur 12
+tick nz 1 time 7 pc 10 t0 8 ohc 43/4 profit 8
+critical actor mt
+mfgAsmDone mfgId mfg asmId asmId(0) prId PA msgs m(cust, mfg, delivered(2, PA))
+    time 8
+cuRcvODlv  cuId cust  prId PA  j 2 wait 6 dur 8
+tick nz 3 time 8 pc 8 t0 11 ohc 67/4 profit 12
+critical actor mt
+mfgAsmDone mfgId mfg asmId asmId(1) prId PB msgs m(cust, mfg, delivered(3, PB))
+    time 11
+cuRcvODlv  cuId cust  prId PB  j 3 wait 8 dur 12
+rewrites: 6596 in 172ms cpu (174ms real) (38133 rewrites/second)
+result System: {time(11) [mfg : Mfg | orders(mtO) parts({Q0, 2} {Q1, 2} {Q2, 1}) asm({asmId(0), noId, 0} {asmId(1), noId, 0} {asmId(2), noId, 0}) stock(mtIN) cnt(8) partPend(mtPP) profit(16, 1/4) oh(1/4, 5, 11, 67/4, mtNR)] [su0 : Supplier | ready(0) pending(mt)] [su1 : Supplier | ready(0) pending(mt)] [su2 : Supplier | ready(0) pending(mt)] [cust : Cust | cnt(4) grace(5) rcvd(mfg, 0, PA, 2, 4) rcvd(mfg, 1, PB, 4, 8) rcvd(mfg, 2, PA, 6, 8) rcvd(mfg, 3, PB, 8, 12)]}
+11 16  16 3/4
+*********
+ 
+rew {initC(genOs(2,2),5,genParts(1,1,1),1/4,1/4,0)} .
+
+**************************************************
+
+*************************************************
+search {iC0 } =>! {c:Config} such that netProfit(c:Config) > 2 .
+**** one solution
+
+search {iC0 } =>! {c:Config} such that netProfit(c:Config) < 2 .
+**** no solution
+
+search {iC0 di(asmDelay(2),2)} =>! {c:Config} such that netProfit(c:Config) > 2 .
+**** onsoln delay not applied
+
+
+search {iC0 di(asmDelay(2),2)} =>! {c:Config} such that netProfit(c:Config) < 2 .
+**** two solns PA delayed or BP delayed  
+
+search {iC0 di(asmDelay(2),2)} =>! {c:Config} such that netProfit(c:Config) < 1 .
+**** one soln delay PB
+
+search {iC0 di(asmDelay(2) asmDelay(2) ,2)} =>! {c:Config} such that netProfit(c:Config) < 1 .
+**** four soluntions  PA 2x,  PA PB,  PB 1x, PB 2x
+
+
+search {iC0 di(asmDelay(2) asmDelay(2) ,2)} =>! {c:Config} such that netProfit(c:Config) < 1 .
+**** 5 solutions
+
+******************************
+search {iC1 } =>! {c:Config} such that netProfit(c:Config) > 2 .
+****  no solution  >2 or > 1    4 orders
+
+search {iC2 } =>! {c:Config} such that netProfit(c:Config) > 2 .
+**** no solution  >2 or > 1  smaller starting inventory
+
+search {iC3 } =>! {c:Config} such that netProfit(c:Config) > 2 .
+**** 2 solns  small inventory,4 orders 
+
+search {iC2 } =>! {c:Config} such that lateDelivery(c:Config) > 0 .
+no solution
+
+search {iC3 } =>! {c:Config}  such that lateDelivery(c:Config) > 0 .
+
+
+search  initC(genOrders(1,1),5,genParts(2,2,1),1/4,1/4,0) =>! {c:Config} such that netProfit(c:Config) > 2 .
+
+search  initC(genOrders(2,2),5,genParts(2,2,1),1/4,1/4,0) =>! {c:Config} such that netProfit(c:Config) > 2 .
+
+search  initC(genOrders(1,1),5,genParts(1,1,1),1/4,1/4,0) =>! {c:Config} such that netProfit(c:Config) > 2 .
+
+search  initC(genOrders(2,2),5,genParts(1,1,1),1/4,1/4,0) =>! {c:Config} such that netProfit(c:Config) > 2 .
+
+
+******************************** search pr >2 <2 <0  late > 2
+time pr oh  
+
+----------------------------11 221
+search  {initC(genOrders(1,1),5,genParts(2,2,1),1/4,1/4,0)}  =>! {c:Config} such that netProfit(c:Config) > 2 .
+**** 2 solns -- 4 8 4
+
+search { initC(genOrders(1,1),5,genParts(2,2,1),1/4,1/4,0)}  =>! {c:Config} such that netProfit(c:Config) < 2 .
+**** no soln
+
+search  {initC(genOrders(1,1),5,genParts(2,2,1),1/4,1/4,0)}  =>! {c:Config} such that lateDelivery(c:Config) > 0 .
+**** no soln
+
+----------- 11 111
+search  {initC(genOrders(1,1),5,genParts(1,1,1),1/4,1/4,0)}  =>! {c:Config} such that netProfit(c:Config) > 2 .
+**** no soln 25812ms
+
+search { initC(genOrders(1,1),5,genParts(1,1,1),1/4,1/4,0)}  =>! {c:Config} such that netProfit(c:Config) < 2 .
+**** 4 soln 29sec
+
+search  {initC(genOrders(1,1),5,genParts(1,1,1),1/4,1/4,0)}  =>! {c:Config} such that lateDelivery(c:Config) > 0 .
+**** no soln 34s
+
+
+---------------------------------------  22 221
+search  {initC(genOrders(2,2),5,genParts(2,2,1),1/4,1/4,0)}  =>! {c:Config} such that netProfit(c:Config) > 2 .
+ ***** explodes
+
+ search  {initC(genOrders(2,2),5,genParts(2,2,1),1/4,1/4,0)}  =>! {c:Config} such that netProfit(c:Config) < 2 .
+ ***** explodes
+****** interrupting stops at pickItin????
+ 
+ search  {initC(genOrders(2,1),5,genParts(2,2,1),1/4,1/4,0)}  =>! {c:Config} such that netProfit(c:Config) > 2 .
+ **** explodes
+ 
+
+ ---------------------------------------
+ search  {initC(genOrders(2,2),5,genParts(1,1,1),1/4,1/4,0)}  =>! {c:Config} such that netProfit(c:Config) > 2 .
+
+ 
+****  initC(genOrders(1,1),5,genParts(1,1,1),1/4,1/4,0) 
+****  initC(genOrders(2,2),5,genParts(1,1,1),1/4,1/4,0) 
+
+
+----------------------------------------------------
+-------- sequential orders
+----------------------------------------------------
+---------------------  22 221 -------------------
+--- rew   221   22s    11   16   16 3/4   
+
+search  {initC(genOs(2,2),5,genParts(2,2,1),1/4,1/4,0)}  =>! {c:Config} such that netProfit(c:Config) > 2 .
+*** no soln 2.5s
+
+ search  {initC(genOs(2,2),5,genParts(2,2,1),1/4,1/4,0)}  =>! {c:Config} such that netProfit(c:Config) < 2 .
+**** 1 soln as for rew  2.5s
+ 
+ search  {initC(genOs(2,2),5,genParts(2,2,1),1/4,1/4,0)}  =>! {c:Config} such that lateDelivery(c:Config) > 0 .
+*** no soln 2.5s
+
+-----------  22s 111
+search  {initC(genOs(2,2),5,genParts(1,1,1),1/4,1/4,0)}  =>! {c:Config} such that netProfit(c:Config) > 2 .
+*** no soln 1.5s
+
+search  {initC(genOs(2,2),5,genParts(1,1,1),1/4,1/4,0)}  =>! {c:Config} such that netProfit(c:Config) < 2 .
+ **** 1 soln as for rew  1.2s
+ 
+ search  {initC(genOs(2,2),5,genParts(1,1,1),1/4,1/4,0)}  =>! {c:Config} such that lateDelivery(c:Config) < 0 .
+ *** no soln 1.3s 
+
+ ----------------11s 221-----------------------
+ search  {initC(genOs(1,1),5,genParts(2,2,1),1/4,1/4,0)}  =>! {c:Config} such that netProfit(c:Config) > 2 .
+**** 1 soln 1.5s 5 8 21/4
+
+ search  {initC(genOs(1,1),5,genParts(2,2,1),1/4,1/4,0)}  =>! {c:Config} such that netProfit(c:Config) < 2 .
+**** no soln  1.6s
+
+ search  {initC(genOs(1,1),5,genParts(2,2,1),1/4,1/4,0)}  =>! {c:Config} such that lateDelivery(c:Config) > 0 .
+ **** no soln  1.6s
+ 
+ ----------------11s 111-----------------------
+ search  {initC(genOs(1,1),5,genParts(1,1,1),1/4,1/4,0)}  =>! {c:Config} such that netProfit(c:Config) > 2 .
+**** no soln
+
+ search  {initC(genOs(1,1),5,genParts(1,1,1),1/4,1/4,0)}  =>! {c:Config} such that netProfit(c:Config) < 2 .
+
+
+ search  {initC(genOs(1,1),5,genParts(1,1,1),1/4,1/4,0)}  =>! {c:Config} such that lateDelivery(c:Config) > 0 .
+
+ 
+ ----------------31s 111-----------------------
+ 
+ search  {initC(genOs(3,1),5,genParts(1,1,1),1/4,1/4,0)}  =>! {c:Config} such that netProfit(c:Config) > 2 .
+**** 1 soln 9 16 43/4
+
+<2 no soln
+ld > 0  no soln
+
+
+ search  {initC(genOs(3,1),5,genParts(2,2,1),1/4,1/4,0)}  =>! {c:Config} such that netProfit(c:Config) > 2 .
+**** 1 soln 9 16 49/4
+
+
+ search  {initC(genOs(1,3),5,genParts(1,1,1),1/4,1/4,0)}  =>! {c:Config} such that netProfit(c:Config) > 2 .
+**** no soln
+
+ search  {initC(genOs(1,3),5,genParts(2,2,1),1/4,1/4,0)}  =>! {c:Config} such that netProfit(c:Config) > 2 .
+**** no soln
+
+ search  {initC(genOs(3,2),5,genParts(2,2,1),1/4,1/4,0)}  =>! {c:Config} such that netProfit(c:Config) > 2 .
+**** 2 soln 11 20 63/4  11 20 71/4
+
+ search  {initC(genOs(3,2),5,genParts(1,1,1),1/4,1/4,0)}  =>! {c:Config} such that netProfit(c:Config) > 2 .
+**** 2 solns  11 20 53/4   11 20 61/4
+
+**************  adding disruptions *************
+***    111 22s pr<2     1    11  16  57/4 
+***    111 11s pr<2     1      9   8  35/4
+
+***    221 11s pr>2     1     5   8  21/4
+***    111 31s pr>2     1      9  16 43/4
+***    221 31s pr>2     1      9  16 49/4
+***    111 32s pr>2     1      11  20 53/4   
+                        1      11  20 61/4
+***    221 32s pr>2     1      11  20 63/4 
+                        1      11  20 71/4
+
+-------------------- 32 221 11 20 63/4 or 71/4
+di( asmDelay(4),1)
+di(suDelay(4),1)
+di(itDelay(4),1)
+
+search {initC(genOs(3,2),5,genParts(2,2,1),1/4,1/4,0) di( asmDelay(4),1)} =>! {c:Config} such that netProfit(c:Config) > 2 .
+**** 2 solns 40s 5k states   11 20 71/4 or 63/4
+
+<2
+10 solutions  47sec   11  20 (21,ld2 2) (83/4,0) 
+                      14 20 (47/2,2)
+                      15 20 (103/4,0)
+                      12 20 (19,2)
+                      11 39/2 (71/4,2)
+                      11 20   (75/4,0)
+                      11 39/2 (79/4,2)
+                      15 20   (75/4,0)
+                      11 39/2 (71/4,2)
+                      
+lateDelivery > 0  6 solns                      
+ 
+ 
+ search {initC(genOs(3,2),5,genParts(2,2,1),1/4,1/4,0) di( asmDelay(4),1)} =>! {c:Config di(mtD,0)} such that netProfit(c:Config) > 2 .
+                      
+-------------- su delay
+ search  {initC(genOs(3,2),5,genParts(2,2,1),1/4,1/4,0) di( suDelay(4),1)}  =>! {c:Config} such that netProfit(c:Config) > 2 .
+
+12 solutions
+<2 12 solns
+ld > 0 no solns
+
+-------------- it delay
+ search  {initC(genOs(3,2),5,genParts(2,2,1),1/4,1/4,0) di(linkDelay(4),1)}  =>! {c:Config} such that netProfit(c:Config) > 2 .
+4 solns
+<2 2 solns
+ld > 0  3 solns
+
+ search  {initC(genOs(3,2),5,genParts(2,2,1),1/4,1/4,0) di(linkDelay(4),1)}  =>! {c:Config di(mtD,0)} such that netProfit(c:Config) > 2 .
+2 solns
+<2  2 solnx
+
+
+-------------------- 32 111  11 20 53/4 or 61/4  
+di(asmDelay(4),1)
+di(suDelay(4),1)
+di(itDelay(4),1)
+ search  {initC(genOs(3,2),5,genParts(1,1,1),1/4,1/4,0) di(asmDelay(4),1)} =>! {c:Config} such that netProfit(c:Config) > 2 .
+
+7 solns
+  11 20 53/4
+  11 39/2 61/4
+  13 20 71/4
+  11 20 71/4
+  11 20 61/4
+  11 39/2 69/4
+  12 39/2 67/4
+  12 20   16
+<2  5 solns
+  15 20 77/4
+  13 20 79/4
+  14 20 39/2
+  15 20 85/4
+  12 20 37/2
+ld > 0   6 solns
+  
+ search  {initC(genOs(3,2),5,genParts(1,1,1),1/4,1/4,0) di(suDelay(4),1)} =>! {c:Config} such that netProfit(c:Config) > 2 .
+27 solns
+<2 2 solns,  <0 no solns
+ld>0 no soln
+
+ search  {initC(genOs(3,2),5,genParts(1,1,1),1/4,1/4,0) di(linkDelay(4),1)} =>! {c:Config} such that netProfit(c:Config) > 2 .
+7 solns
+<2  1 soln  14 20 38/2
+ld>0 3 soln  only PA late
+
+
+ search  {initC(genOs(3,2),5,genParts(1,1,1),1/4,1/4,0) di(asmDelay(4),1)} =>! {c:Config di(mtD,0)} such that netProfit(c:Config) > 2 .
+5 solns
+<2 5 solns
+
+ search  {initC(genOs(3,2),5,genParts(1,1,1),1/4,1/4,0) di(linkDelay(4),1)} =>! {c:Config di(mtD,0)} such that netProfit(c:Config) > 2 .
+ 5 solns
+ <2 1 soln
+ 
+ 
+
+--------------------  31 221   9  16 49/4
+di(asmDelay(4),1)
+di(suDelay(4),1)
+di(linkDelay(4),1)
+
+search  {initC(genOs(3,1),5,genParts(2,2,1),1/4,1/4,0) di(asmDelay(4),1)}  =>! {c:Config} such that netProfit(c:Config) > 2 .
+1 soln  9 16 49/4
+<2 4 solns  times 9 9 12 13 profit 31/2 16 16 16
+   oh 57/4 61/4 18 77/4
+ld>0  3 solns  only PA
+
+ search  {initC(genOs(3,1),5,genParts(2,2,1),1/4,1/4,0) di(suDelay(4),1)} =>! {c:Config} such that netProfit(c:Config) > 2 .
+
+ search  {initC(genOs(3,1),5,genParts(2,2,1),1/4,1/4,0) di(linkDelay(4),1)}  =>! {c:Config} such that netProfit(c:Config) > 2 .
+2 solns
+<2 2 solns
+ld>0 2 solns only PA
+
+-------------------------
+search  {initC(genOs(3,1),5,genParts(2,2,1),1/4,1/4,0) di(asmDelay(4),1)}  =>! {c:Config di(mtD,0)} such that netProfit(c:Config) > 2 .
+no soln
+<2 4 soln
+
+ search  {initC(genOs(3,1),5,genParts(2,2,1),1/4,1/4,0) di(linkDelay(4),1)}  =>! {c:Config di(mtD,0)} such that netProfit(c:Config) > 2 .
+1 soln
+<2 2 soln
+-------------------- 31 111  9  16 43/4
+di( asmDelay(4),1)
+di(suDelay(4),1)
+di(itDelay(4),1)
+ search  {initC(genOs(3,1),5,genParts(1,1,1),1/4,1/4,0) di(asmDelay(4),1)}  =>! {c:Config} such that netProfit(c:Config) > 2 .
+2 solns  
+<2 3 solns
+ld>0 3 solns
+
+
+ search  {initC(genOs(3,1),5,genParts(1,1,1),1/4,1/4,0) di(linkDelay(4),1)}  =>! {c:Config} such that netProfit(c:Config) > 2 .
+2 soln
+<2  1 soln
+ld>0 2 solns PA
+
+ search  {initC(genOs(3,1),5,genParts(1,1,1),1/4,1/4,0) di(asmDelay(4),1)}  =>! {c:Config di(mtD,0)} such that netProfit(c:Config) > 2 .
+1 soln
+<2  3 solns
+
+ search  {initC(genOs(3,1),5,genParts(1,1,1),1/4,1/4,0) di(linkDelay(4),1)}  =>! {c:Config di(mtD,0)} such that netProfit(c:Config) > 2 .
+ 1 soln
+ <2 1 soln
+ 
+
+-------------------- > 3,2 
+
+search {initC(genOs(3,3),5,genParts(2,2,1),1/4,1/4,0)} =>! {c:Config} such that netProfit(c:Config) > 2 .
+3 solns .5s
+4,3 221 6 solns 1s
+4,3 111 2 solns
+
+44 221 6 solns 1.2s
+44 111 2 solns  .6s
+-------------------- 4,3  4,4 221,111
+di( asmDelay(4),1)
+dilinktDelay(4),1)
+
+search {initC(genOs(4,4),5,genParts(2,2,1),1/4,1/4,0) di(asmDelay(4),1)} =>! {c:Config} such that netProfit(c:Config) > 2 .
+27 solns  7s
+<2 39 solns  6s
+
+search {initC(genOs(4,4),5,genParts(2,2,1),1/4,1/4,0) di(linkDelay(4),1)} =>! {c:Config di(mtD,0)} such that netProfit(c:Config) > 2 .
+20 solns
+<2 13 solns
+
+
+search {initC(genOs(4,4),5,genParts(2,2,1),1/4,1/4,0) di(asmDelay(4),1)} =>! {c:Config di(mtD,0)} such that netProfit(c:Config) > 2 .
+21 solns
+<2 30 solns 27s
+
+
+
+
+
+-----------
+test crit, stop
+-------- testing crit -----------
+          t0 cdiff cdur
+crit(false,0,-1,2) 
+
+search {initC(genOs(4,4),5,genParts(2,2,1),1/4,1/4,0) crit(false,0,-1,2)} =>! {c:Config crit(true,tc:Nat,-1,2)} .
+no soln
+
+search {initC(genOs(4,4),5,genParts(2,2,1),1/4,1/4,0) crit(false,0,0,2)} =>! {c:Config crit(true,tc:Nat,0,2)} .
+24 solns
+
+search {initC(genOs(4,4),5,genParts(2,2,1),1/4,1/4,0) crit(false,0,0,3)} =>! {c:Config crit(true,tc:Nat,0,3)} .
+12 solns
+
+search {initC(genOs(4,4),5,genParts(2,2,1),1/4,1/4,0) crit(false,0,1,3)} =>! {c:Config crit(true,tc:Nat,1,3)} .
+3 solutions
+
+
+---------------------------------
+search {initC(genOs(4,4),5,genParts(1,1,1),1/4,1/4,0) crit(false,0,-1,2)} =>! {c:Config crit(true,tc:Nat,-1,2)} .
+no soln
+
+search {initC(genOs(4,4),5,genParts(1,1,1),1/4,1/4,0) crit(false,0,0,2)} =>! {c:Config crit(true,tc:Nat,0,2)} .
+36 solns
+
+search {initC(genOs(4,4),5,genParts(1,1,1),1/4,1/4,0) crit(false,0,0,3)} =>! {c:Config crit(true,tc:Nat,0,3)} .
+36 sol 
+
+
+search {initC(genOs(4,4),5,genParts(1,1,1),1/4,1/4,0) crit(false,0,1,3)} =>! {c:Config crit(true,tc:Nat,1,3)} .
+36 soln  pr 8 ohc 9 t 8
+
+
+-------- testing stop -----------
+rew {iC0 stop(6)} .
+rew {iC0 stop(5)} .
+
+search {initC(genOs(4,4),5,genParts(2,2,1),1/4,1/4,0) stop(9)} =>! {c:Config} .
+63 solns
+
+
+search {initC(genOs(4,4),5,genParts(2,2,1),1/4,1/4,0) crit(false,0,-1,2)} =>! {c:Config} such that netProfit(c:Config) > 2 .
+6 solns
+
+search {initC(genOs(4,4),5,genParts(2,2,1),1/4,1/4,0) crit(false,0,0,2)} =>! {c:Config} such that netProfit(c:Config) > 2 .
+4 solns
+
+search {initC(genOs(4,4),5,genParts(2,2,1),1/4,1/4,0) crit(false,0,1,2)} =>! {c:Config} such that netProfit(c:Config) > 2 .
+no  soln
+
+---------------------fewer orders
+-------------111 11
+ search  {initC(genOs(1,1),5,genParts(1,1,1),1/4,1/4,0) di(asmDelay(4),1)}  =>! {c:Config di(mtD,0)} such that netProfit(c:Config) > 0 .
+no soln
+
+ search  {initC(genOs(1,1),5,genParts(1,1,1),1/4,1/4,0) di(linkDelay(4),1)}  =>! {c:Config di(mtD,0)} such that netProfit(c:Config) > 0 .
+1 soln 9 8 31/4  
+
+--------------221 11
+ search  {initC(genOs(1,1),5,genParts(2,2,1),1/4,1/4,0) di(asmDelay(4),1)}  =>! {c:Config di(mtD,0)} such that netProfit(c:Config) > 0 .
+no soln
+
+ search  {initC(genOs(1,1),5,genParts(2,2,1),1/4,1/4,0) di(linkDelay(4),1)}  =>! {c:Config di(mtD,0)} such that netProfit(c:Config) > 0 .
+no soln
+--------------------- ohr 1/6
+------------------- 11 221
+----- asm
+ search  {initC(genOs(1,1),5,genParts(2,2,1),1/6,1/4,0) di(asmDelay(4),1)}  =>! {c:Config di(mtD,0)} such that netProfit(c:Config) > 0 .
+*** 1 soln 6 15/2 17/3
+---------
+ search  {initC(genOs(1,1),5,genParts(2,2,1),1/6,1/4,0) di(asmDelay(4),1) crit(false,0,0,3)}  =>! {c:Config di(mtD,0)} such that netProfit(c:Config) > 0 .
+*** no soln cdur 3,4,5  1 soln cdur 6
+*** 1soln cdiff -1 cdur 2,3
+
+ search  {initC(genOs(1,1),5,genParts(2,2,1),1/6,1/4,0) di(asmDelay(4),1) crit(false,0,-1,3) stop(12)}  =>! {c:Config di(mtD,0)} such that netProfit(c:Config) > 0 .
+
+----------------------link
+ search  {initC(genOs(1,1),5,genParts(2,2,1),1/6,1/4,0) di(linkDelay(4),1)}  =>! {c:Config di(mtD,0)} such that netProfit(c:Config) > 0 .
+2 soln 9 8 11/2; 8 8 16/3
+
+------------
+ search  {initC(genOs(1,1),5,genParts(2,2,1),1/6,1/4,0) crit(false,0,0,3) di(linkDelay(4),1)}  =>! {c:Config di(mtD,0)} such that netProfit(c:Config) > 0 .
+2 soln cdiff 0 cdur 2,3 ; cdiff 1, cdur 2
+
+
+--------- 11 111
+---------- asm
+ search  {initC(genOs(1,1),5,genParts(1,1,1),1/6,1/4,0) di(asmDelay(4),1)}  =>! {c:Config di(mtD,0)} such that netProfit(c:Config) > 0 .
+1 soln 9 15/2 43/6
+
+------
+ search  {initC(genOs(1,1),5,genParts(1,1,1),1/6,1/4,0) di(asmDelay(4),1) crit(false,0,0,3)}  =>! {c:Config di(mtD,0)} such that netProfit(c:Config) > 0 .
+no soln
+1 soln for cdur === 9  cdiff -1, cdur 3
+
+
+---------------------link
+ search  {initC(genOs(1,1),5,genParts(1,1,1),1/6,1/4,0) di(linkDelay(4),1)}  =>! {c:Config di(mtD,0)} such that netProfit(c:Config) > 0 .
+1 soln 9 8 31/6
+
+ search  {initC(genOs(1,1),5,genParts(1,1,1),1/6,1/4,0) di(linkDelay(4),1) crit(false,0,0,3)}  =>! {c:Config di(mtD,0)} such that netProfit(c:Config) > 0 .
+no soln
+1 soln cdur == 4   -1,2
+
+----------------------- 2 digs ---------------
+-------- 221 11 
+ search  {initC(genOs(1,1),5,genParts(2,2,1),1/6,1/4,0) di(asmDelay(4) linkDelay(4),2)}  =>! {c:Config di(mtD,0)} such that netProfit(c:Config) > 0 .
+3 solns 
+  8 15/2 20/3 ld 2, 9 15/2 41/6 ld 2 ; 9 8 15/2 _
+
+ search  {initC(genOs(1,1),5,genParts(2,2,1),1/6,1/4,0) di(asmDelay(4) linkDelay(4),2) crit(false,0,0,3)}  =>! {c:Config di(mtD,0)} such that netProfit(c:Config) > 0 .
+1 soln 9 8 15/2  also cdur 2, cdiff 1: cdur 3
+
+------------- 111 11  
+ search  {initC(genOs(1,1),5,genParts(1,1,1),1/6,1/4,0) di(asmDelay(4) linkDelay(4),2)}  =>! {c:Config di(mtD,0)} such that netProfit(c:Config) > 0 .
+  9 15/2 13/2 ld 2
+  
+ search  {initC(genOs(1,1),5,genParts(1,1,1),1/6,1/4,0) di(asmDelay(4) linkDelay(4),2) crit(false,0,0,3)}  =>! {c:Config di(mtD,0)} such that netProfit(c:Config) > 0 .
+no soln cdur 3-8  one soln cdur 9, cdiff -1,cdur 2
+
+
+  
+

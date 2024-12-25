@@ -1,0 +1,107 @@
+fmod DIGRESSION is
+   inc CONFIG .
+   inc ID .
+   inc NAT-INF .
+   
+
+  sorts Digress DigressS  MtDigress .
+  subsorts MtDigress Digress < DigressS .
+  op mtD : -> MtDigress [ctor] .
+  op __ : DigressS DigressS -> DigressS 
+          [ctor assoc comm id: mtD] .
+  op __ : MtDigress MtDigress -> MtDigress 
+          [ctor assoc comm id: mtD] .
+
+  op asmDelay : Nat NatInf -> Digress [ctor] .
+             ---   add ni to dur of asmId()
+  op asmDelay : NatInf -> Digress [ctor] .
+           ---   add ni to dur of any active asmId()
+
+  op suDelay : Oid Nat -> Digress [ctor] .
+  op suDelay : Nat -> Digress [ctor] .
+
+  op addOrder : Oid Id  -> Digress [ctor] . 
+                  --- insert immedieat order
+
+  op linkDelay : Id Id Nat -> Digress [ctor] .
+  op linkDelay : Nat -> Digress [ctor] .
+
+  sort DigressC .
+  subsort DigressC < Config .
+  
+****  op di : DigressS -> DigressC [ctor] .
+  op di : DigressS Nat -> DigressC [ctor] .
+endfm
+
+mod  DIGRESSION-RULES is
+  inc DIGRESSION .
+  inc RULES .
+
+
+  vars i j n delay dur : Nat .
+  vars mfgId suId cuId tgt src : Oid .
+  vars attrs : AttrS .
+  vars prId paId : Id .
+  var digs : DigressS .
+  var asms : IdIdNatInfS .
+  vars conf conf1 : Config .
+  vars msg msg1 : Msg .
+  vars itin itin0 itin1 itin2 : Itin .
+  var ltype : LType .
+
+
+crl [applyDig]:
+  {conf di(digs,s n)} => {conf1 }
+  if conf1 := applyDig(conf di(digs,s n)) .
+  
+ op applyDig : Config -> [Config] .
+ceq applyDig(conf di(asmDelay(i,delay) digs, s n) 
+             [mfgId : Mfg | attrs
+                asm({asmId(i),prId,dur} asms) ])
+    = conf di(digs, n) 
+      [mfgId : Mfg | attrs 
+             asm({asmId(i),prId,dur + delay} asms)]
+  if prId =/= noId 
+[print "asmDelay  prId " prId " dur " dur  " i " i " delay " delay] .
+
+ceq applyDig(conf di(asmDelay(delay) digs, s n) 
+             [mfgId : Mfg | attrs
+                asm({asmId(i),prId,dur} asms) ])
+    = conf di(digs, n) 
+      [mfgId : Mfg | attrs 
+             asm({asmId(i),prId,dur + delay} asms)]
+  if prId =/= noId 
+[print "asmDelay  prId " prId " dur " dur " delay " delay] .
+
+eq applyDig(conf di(suDelay(suId,delay) digs, s n) 
+             [suId : Supplier | attrs ready(dur) ])
+   = conf di(digs, n) 
+      [suId : Supplier | attrs ready(dur + delay) ] 
+  [print "suDelay  suId " suId " dur " dur " delay " delay] .
+  
+eq applyDig(conf di(suDelay(delay) digs, s n) 
+             [suId : Supplier | attrs ready(dur) ])
+   = conf di(digs, n) 
+      [suId : Supplier | attrs ready(dur + delay) ] 
+  [print "suDelayAny  suId " suId " dur " dur " delay " delay] .
+  
+ceq applyDig(conf di(linkDelay(delay) digs, s n)  msg)
+    = conf di(digs, n)  msg1
+  if  m(mfgId,suId,p(j,paId,i,itin)) := msg
+***  /\ (itin0 ; l(tgt,src,ltype,dur) ; itin1) := itin
+***  /\ itin2  := (itin0 ; l(tgt,src,ltype,dur + delay) ; itin1)
+  /\ l(tgt,src,ltype,dur) ; itin1 := itin
+  /\ itin2  := l(tgt,src,ltype,dur + delay) ; itin1
+  /\ msg1 :=  m(mfgId,suId,p(j,paId,i,itin2))
+[print "linkDelay  msg " msg  " ltgt " tgt " lsrc " src  " delay " delay] .
+
+
+eq applyDig(conf di(addOrder(mfgId,prId) digs, s n) 
+                 [cuId : Cust | attrs ] )
+   = conf di(digs, n) 
+         [cuId : Cust | attrs oQ(mfgId,prId,0)]
+  [print "addOrder cuId " cuId " prId " prId ] .
+
+ 
+endm
+eof

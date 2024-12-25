@@ -1,0 +1,297 @@
+fmod NAT-INF is
+  inc NAT .
+
+var n  n0 n1 : Nat .
+sort NatInf .
+subsort Nat < NatInf .
+op infty : -> NatInf .
+op min : NatInf NatInf -> NatInf [ditto] .
+eq min(infty,n) = n .
+eq min(infty,infty) = infty .
+
+**** op _+_ : NatInf Nat -> NatInf [ditto] .
+op _+_ : NatInf NatInf -> NatInf [ditto] .
+eq  infty + n = infty .  
+eq  infty + infty = infty .  
+
+****  op _<_ : Nat Nat -> Bool
+op _<_ : NatInf NatInf -> Bool [ditto] .
+eq  infty  < n = false .  
+eq  infty  < infty = false .  
+eq  n  < infty = true .  
+
+****  op _<=_ : Nat Nat -> Bool
+op _<=_ : NatInf NatInf -> Bool [ditto] .
+eq  infty  <=  n = false .  
+eq  infty  <= infty = true .  
+eq  n  <= infty = true .  
+
+****  op _>_ : Nat Nat -> Bool
+op _>_ : NatInf NatInf -> Bool [ditto] .
+eq  infty  > n = true .  
+eq  infty  > infty = false .  
+eq  n  > infty = false .  
+
+****  op _>=_ : Nat Nat -> Bool
+op _>=_ : NatInf NatInf -> Bool [ditto] .
+eq  infty  >= n = true .  
+eq  infty  >= infty = true .  
+eq  n  >= infty = false .  
+ 
+
+
+
+op monus : NatInf NatInf -> NatInf .
+eq monus(n,n0) =
+    (if n0 > n
+     then 0
+     else sd(n,n0) fi) .
+
+eq monus(infty,n0) = infty .
+eq monus(n,infty) = 0 .
+
+endfm
+
+fmod ID is
+  inc NAT .
+  inc STRING .  
+
+  sort Oid . 
+  op oid : Nat -> Oid [ctor] .
+  op oid : String -> Oid [ctor] .
+  op noOid : -> Oid [ctor] .
+
+  sort Cid .
+  sort Id .
+  op noCid : -> Cid .
+  
+  op noId : -> Id [ctor] .
+  op prId : Nat -> Id [ctor] .
+  op paId : Nat -> Id [ctor] .
+  op asmId : Nat -> Id [ctor] .
+
+endfm
+
+fmod CONFIG is
+
+  sorts Msg Actor .
+  sorts MtC MsgS ActorS Config  .
+  subsort Actor < ActorS .
+  subsort Msg < MsgS .
+  subsort MsgS ActorS < Config .
+  subsort MtC < MsgS ActorS .
+  op mt : -> MtC .    
+  op __ : MtC MtC -> MtC [ctor assoc comm id: mt] .
+  op __ : MsgS MsgS -> MsgS [ditto] .
+  op __ : ActorS ActorS -> ActorS [ditto] .
+  op __ : Config Config -> Config [ditto] .
+  op __ : MsgS Config -> Config [ditto] .
+  op __ : ActorS Config -> Config [ditto] .
+   
+  sort ConfigBool .
+  op `{_`,_`} : Config Bool -> ConfigBool [ctor] .
+   
+endfm
+
+fmod ITIN is
+  inc ID .
+  inc NAT-INF .
+  
+
+vars tgt src oid suId mfgId : Oid .
+var ltype : LType .
+vars link link0 link1 : Link .
+var links links0 xlinks xlinks0 xlinks1 : LinkS .
+var itin  itin0 itin1 : Itin .
+vars itins found found1 cand newcand newcand1 
+      itins0 itins1 : ItinS .
+vars dur eta eta0 eta1 : NatInf .
+var n : Nat .
+var b : Bool .
+
+sort LType .
+****     train long/short haul
+ops  air sea tr lh sh : -> LType [ctor] .
+
+sort Link  .
+sort Itin .
+subsort Link < Itin .
+
+op nilI : -> Itin [ctor] .
+op _;_ : Itin Itin -> Itin [ctor assoc id: nilI] .
+
+op l : Oid Oid LType NatInf -> Link [ctor] .
+
+op start : Itin -> Oid .
+eq start(l(src,tgt,ltype,dur) ; itin ) = src .
+
+op end : Itin -> Oid .
+eq end( itin ; l(src,tgt,ltype,dur)) = tgt .
+
+**** a valid itin  itin0 ; link0 ; link1 ; itin1
+****   start(link1)  = end(link0)
+
+sort LinkS .  subsort Link < LinkS .
+op mtL : -> LinkS [ctor] .
+op __ : LinkS LinkS -> LinkS [ctor assoc comm id: mtL] .
+
+sort  ItinS . 
+op mtI : -> ItinS [ctor] .
+op `[_`]  : Itin -> ItinS [ctor] .
+op __ : ItinS ItinS -> ItinS [ctor assoc comm id: mtI] .
+
+op TransportG : -> LinkS .
+
+
+op itinDur : Itin -> NatInf .
+op itinDur$ : Itin  NatInf -> NatInf .
+eq itinDur(itin) = itinDur$(itin,0) .
+eq itinDur$(nilI,n) = n .
+eq itinDur$(nilI,infty) = infty .
+eq itinDur$(l(src,tgt,ltype,dur) ; itin,n)
+         = itinDur$(itin,n + dur)  .
+         
+         
+op findBySrc : LinkS Oid -> LinkS .
+op findBySrc$ : LinkS Oid LinkS -> LinkS .
+eq findBySrc(links,oid) = findBySrc$(links,oid,mtL) .
+eq findBySrc$(mtL,oid,links) = links .
+eq findBySrc$(link links,oid,links0) = 
+      findBySrc$(links,oid, 
+      links0 (if start(link) == oid then link else mtL fi)) .
+
+
+op findByEnd : LinkS Oid -> LinkS .
+op findByEnd$ : LinkS Oid LinkS -> LinkS .
+eq findByEnd(links,oid) = findByEnd$(links,oid,mtL) .
+eq findByEnd$(mtL,oid,links) = links .
+eq findByEnd$(link links,oid,links0) = 
+      findByEnd$(links,oid, 
+      links0 (if end(link) == oid then link else mtL fi))  .
+
+op setDiff : LinkS LinkS -> LinkS .
+eq setDiff(link links,link links0) = setDiff(links,links0) .
+eq setDiff(links, links0) =  links [owise] .
+
+
+op addLinkEnd : Itin LinkS -> ItinS .
+op addLinkEnd$ : Itin LinkS ItinS -> ItinS .
+eq addLinkEnd(itin, links) = 
+              addLinkEnd$(itin,links,mtI) .
+eq addLinkEnd$(itin, link links, itins) =
+    addLinkEnd$(itin,links, itins [itin ; link]) .
+eq addLinkEnd$(itin, mtL, itins) = itins .
+
+op links2itins : LinkS ItinS -> ItinS .
+eq links2itins(mtL, itins) = itins .
+eq links2itins(link links, itins) =
+     links2itins(links,itins [link]) .
+
+op findItinS : LinkS Oid Oid -> ItinS .
+op findItinS$ : LinkS Oid Oid ItinS ItinS ItinS 
+                -> ItinS .
+ceq findItinS(links,src,tgt) 
+         = findItinS$(links,src,tgt,cand,mtI,found) 
+if xlinks := findBySrc(links,src)
+/\  xlinks0 := findByEnd(xlinks,tgt)
+/\  xlinks1 := setDiff(xlinks,xlinks0)
+/\ cand := links2itins(xlinks1,mtI)
+/\ found := links2itins(xlinks0,mtI)
+.
+
+eq findItinS$(links,src,tgt,mtI,mtI,found)  = found .
+
+eq findItinS$(links,src,tgt,mtI, 
+              [itin] newcand,found)  =
+    findItinS$(links,src,tgt, 
+               [itin] newcand,mtI,found)  .
+
+ceq findItinS$(links,src,tgt,[itin] cand,newcand,found)  =         
+     findItinS$(links,src,tgt,cand,newcand1,found1) 
+if xlinks := findBySrc(links,end(itin))
+/\  xlinks0 := findByEnd(xlinks,tgt)
+/\  xlinks1 := setDiff(xlinks,xlinks0)
+/\  found1 := found addLinkEnd(itin,xlinks0)
+/\  newcand1 := newcand addLinkEnd(itin,xlinks1)
+.
+
+op getItin : Oid Oid Bool -> Itin .
+eq getItin(suId,mfgId,b) =  
+   pickItin(findItinS(TransportG,suId,mfgId),b)
+ .
+
+op pickItin : ItinS Bool  -> Itin .
+op pickItinDur : ItinS Itin NatInf -> Itin .
+
+ceq pickItin(itins,b) = 
+   (if b
+    then pickItinDur(itins0,itin,itinDur(itin))
+    else itin
+    fi)
+if [itin] itins0 := itins .
+
+ceq pickItinDur([itin0] itins,itin,eta) 
+     = pickItinDur(itins, itin1, eta1) 
+if eta1 := min(eta,itinDur(itin0))
+/\ itin1 := (if eta1 < eta then itin0 else itin fi)
+.
+ 
+eq pickItinDur(mtI,itin,eta)  = itin .
+ 
+
+endfm
+
+fmod MSG is
+ inc ID .
+ inc CONFIG .
+ inc ITIN .
+ 
+ vars src tgt : Oid .
+ 
+ **** sort Msg .
+ sort Content .  --- msg content
+ op m : Oid Oid Content -> Msg [ctor] .
+
+ op getTgt : Msg -> Oid .
+ eq getTgt(m(tgt,src,c:Content)) = tgt .
+
+ op getSrc : Msg -> Oid .
+ eq getSrc(m(tgt,src,c:Content)) = src .
+  
+  ***** mfg-supplier msgs
+  ****     j  paId num  urgent?
+  op req : Nat Id Nat Bool -> Content [ctor] .
+**** m(suId,mfgId,req(j,paId,n,true)
+
+****  idx part,num, d --- shipped delivery time d
+****    ..... num=0 unavailable  until d
+  op rsp : Nat Id Nat Nat -> Content [ctor] .
+**** m(mfgId,suId,rsp(j,paId,n,eta))
+
+*****    Parcels
+*****  id     cnt
+op p : Nat Id Nat Itin -> Content .
+
+  ***** mfg-customer msgs
+  op  req : Nat Id   -> Content [ctor] . 
+  --- req(ix,prId)  -- n is cust id, 
+  op  rsp : Nat Id Nat  -> Content [ctor] . 
+  --- rsp(ix,prId,eta)
+
+  op delivered : Nat Id -> Content [ctor] .
+  op  cancel : Nat -> Content [ctor] .
+  **** op cancelled : Nat -> Content [ctor] .
+  
+endfm 
+
+fmod BASE is
+  inc NAT-INF .
+  inc CONVERSION .
+  inc ID .
+  inc CONFIG .
+  inc ITIN .
+  inc MSG .
+endfm
+
+eof
+ 

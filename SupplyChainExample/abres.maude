@@ -1,0 +1,296 @@
+
+
+
+
+mod ABRES is
+  inc META-LEVEL .
+  inc  DIGRESSION .
+  
+var mod : Module .
+**** var sys : Sys .
+vars lhs rhs iniT initT1 iniT0 iniT1 rpatT mpatT
+     resT trm trm0 trm1 diT diT1 nT nT1 : Term .
+var cond scond : Condition .
+var res3? : ResultTriple? . *** {result,type,subst}
+var tr? : Trace? .
+vars tr tr0 restTrace : Trace .
+var tstep : TraceStep .
+var res2? : ResultPair? .
+vars ustrat strat curStrat : Strategy .
+var n nupd ta tab ticks t : Nat .
+var rid : Qid .
+vars ty0 ty1 : Type .
+vars confTL tcl tl tl1 : TermList .
+var subst : Substitution .
+vars rule0 rule1 rule : Rule .
+var mattrs : AttrSet .
+var dig : Digress .
+var digs digsAll : DigressS .
+var b : Bool .
+
+
+op getRuleId : Rule -> Qid .
+eq getRuleId(rl lhs => rhs [label(rid) mattrs ] .) = rid .
+eq getRuleId(crl lhs => rhs if cond [label(rid) mattrs ] .) = rid .
+
+***(
+  op {_,_,_} : Term Type Rule -> TraceStep [ctor] .
+  op nil : -> Trace [ctor] .
+  op __ : Trace Trace -> Trace [ctor assoc id: nil format (d n d)] .
+)
+
+op first : Trace -> [TraceStep] .
+eq first(tstep tr) = tstep .
+
+op rest : Trace -> [Trace] .
+eq rest(tstep tr) = tr .
+
+op lenTr : Trace -> Nat .
+op lenTrX : Trace Nat -> Nat .
+eq lenTr(tr) = lenTrX(tr,0) .
+eq lenTrX(nil,n) =  n .
+eq lenTrX(tstep tr,n) = lenTrX(tr,s n) .
+
+op getTrNth : Trace Nat -> Trace .
+eq getTrNth(tstep tr, 0) = tstep .
+eq getTrNth(tstep tr, s n) = getTrNth(tr,n) .
+
+
+op setUpDate : Term Term Term -> Term .
+eq setUpDate('`{_`}['__[tl,'di[diT,nT],tl1]],diT1,nT1) =
+      '`{_`}['__[tl,'di[diT1,nT1],tl1]] .
+eq setUpDate('`{_`}['__[tl]],diT1,nT1) = 
+             '`{_`}['__[tl,'di[diT1,nT1]]] [owise] .
+
+op setStop : Term Term  -> Term .
+eq setStop('`{_`}['__[tl,'stop[nT],tl1]],nT1) =
+      '`{_`}['__[tl,'stop[nT1],tl1]] .
+eq setStop('`{_`}['__[tl]],nT1) = 
+             '`{_`}['__[tl,'stop[nT1]]] [owise] .
+
+op getTimeM : Term -> Nat .
+eq getTimeM('`{_`}['__[tl,'time[nT],tl1]]) =
+     downTerm(nT,0) .
+eq getTimeM(trm) = 0 [owise] .
+
+op truncateAtTime : Trace Term Nat Trace -> Trace .
+eq truncateAtTime(nil,trm1,ta,tr0) = tr0 .
+ceq truncateAtTime({trm0,ty0,rule0} 
+                  {trm1,ty1, rule1} tr,
+                  trm,ta,tr0)
+    = (if ((rid == 'tick) and (t > ta))
+      then tr0
+      else truncateAtTime({trm1,ty1, rule1} tr,
+                  trm,ta,tr0 {trm0,ty0,rule0} )
+      fi)                  
+ if  rid := getRuleId(rule0)
+ /\  t := getTimeM(trm1)
+.
+
+ceq truncateAtTime({trm0,ty0,rule0},trm,ta,tr0)
+= (if ((rid == 'tick) and (t > ta))
+   then tr0
+   else tr0 {trm0,ty0,rule0}
+   fi)
+ if  rid := getRuleId(rule0)
+ /\  t := getTimeM(trm)
+.
+
+
+****    res params  nupd ta  tab
+op isAbNRes : Module Nat Nat Nat DigressS 
+****            iniT  rpatT goalC   
+               Term Term  Condition 
+****           ustrat    soln           
+               Strategy Nat -> Bool .
+
+ceq isAbNRes(mod,nupd, ta,tab, digs,
+             iniT, rpatT, cond, ustrat,n) =
+   (if not(tr? :: Trace)  --- no more candidates
+    then false
+    else (if (nupd == 0)
+      then true
+      else (if tr0 == nil
+            then true   ----  no more time to disrupt
+            else (if checkAbRes(mod,nupd,ta,tab, 
+                          digs,rpatT,cond,
+                          ustrat,
+                          first(tr0),
+                          rest(tr0) )
+             then true  
+             else isAbNRes(mod,nupd,ta,tab, digs, 
+                      iniT,rpatT, cond,ustrat,s n)
+   fi) fi) fi) fi)
+if iniT0 := setStop(
+             setUpDate(iniT,'mtD.DigressS,'0.Zero),
+                upTerm(tab))
+/\ res3? := metaSearch(mod,iniT0,rpatT,cond,
+                       '!,unbounded,n)
+/\ tr? := metaSearchPath(mod,iniT0,rpatT,cond,
+                         '!, unbounded,n)
+/\ tr0 := 
+  (if tr? :: Trace
+   then truncateAtTime(tr?,getTerm(res3?),ta,nil) 
+   else nil fi)
+.
+   
+**** nupd > 0 do nupd-1 check for each state of trace
+**** return false if it fails for some prefix , 
+**** return true if all succeed
+op checkAbRes : Module Nat Nat Nat DigressS 
+               Term  Condition Strategy
+                TraceStep Trace
+        -> Bool .
+ceq checkAbRes(mod,nupd, ta,tab,digsAll, 
+             rpatT,cond, ustrat,
+              {trm0,ty0,rule0},restTrace) =
+  (if not(b)
+   then b
+   else (if (restTrace == nil)
+     then true ---- all checked
+     else checkAbRes(mod,nupd,ta,tab,digsAll,
+                     rpatT, cond, ustrat, 
+                     first(restTrace), 
+                     rest(restTrace))
+     fi) fi)  
+  if b := checkDigs(mod,nupd, ta,tab,digsAll,
+                   trm0,digsAll,rpatT, cond, ustrat) 
+  .
+
+**** for each dig in digs, try update and if applies, then
+**** check nupd res for result
+op checkDigs : Module Nat Nat Nat DigressS Term
+               DigressS Term Condition Strategy  
+                 -> Bool .
+eq checkDigs(mod,s nupd,ta,tab, digsAll, 
+             iniT, mtD, rpatT, cond,ustrat) 
+      = true .
+ceq checkDigs(mod,s nupd,ta,tab, digsAll,
+              iniT,dig digs, rpatT,cond,ustrat)
+  = 
+  (if b
+   then checkDigs(mod,s nupd,ta,tab, digsAll,
+                  iniT,digs,rpatT,cond,ustrat) 
+   else false                  
+   fi)
+if iniT1 := 
+       setUpDate(iniT,upTerm(dig),upTerm(1)) 
+/\ b := checkDigAll(mod, nupd, ta, tab, digsAll,
+                   iniT1,rpatT,cond,ustrat,0)
+. 
+
+
+op checkDigAll : Module Nat Nat Nat DigressS 
+                 Term Term Condition Strategy Nat 
+                 -> Bool .
+ceq checkDigAll(mod, nupd, ta, tab, digsAll,
+                iniT1,rpatT,cond,ustrat,n)
+  = 
+  (if (res2? :: ResultPair)
+  then (if b   --- another branch checked
+        then checkDigAll(mod,nupd,ta,tab,digsAll, 
+                        iniT1,rpatT,cond,ustrat,s n) 
+                   --- next branch
+         else false  fi)  ---- check fails
+  else true --- all dig applications checked
+  fi)                     
+  if res2? := metaSrewrite(mod,iniT1,ustrat, 
+                           breadthFirst,n) 
+  /\ b := 
+       (if (res2? :: ResultPair) --- dig applies
+        then isAbNRes(mod,nupd,ta,tab, digsAll, 
+                    getTerm(res2?), rpatT, cond, 
+                    ustrat,0)
+        else true fi) --- all branches checked
+  .
+
+endm  
+
+mod MFG-ABRES-SCENARIO is
+  inc TEST .
+****  inc  DIGRESSION-RULES ,
+  inc ABRES .
+***(
+op iCfg : -> Config .
+eq iCfg = initC(genOs(3,3),5, 
+   genParts(1,1,1), 1/4,1/4,0) crit(false,0,0,3)
+  .
+) 
+***(
+op iSysT : -> Term .
+eq iSysT = upTerm({initC(genOs(3,3),5, 
+   genParts(1,1,1), 1/4,1/4,0) crit(false,0,0,3)}) .
+)
+
+op iCfg1 : -> Config .
+eq iCfg1 =  initC(genOs(1,1),5,genParts(1,1,1),1/6,1/4,0)  crit(false,0,-1,3) .
+   
+op iCfg2 : -> Config .
+eq iCfg2 =  initC(genOs(1,1),5,genParts(2,2,1),1/6,1/4,0)  crit(false,0,-1,3) .
+   
+op iSysT1 : -> Term .
+eq iSysT1 = upTerm({iCfg1}) .
+op iSysT2 : -> Term .
+eq iSysT2 = upTerm({iCfg2}) .
+
+**** isAbNRes parameters for SC case study
+
+op gCond : -> Condition .  ---- goal
+eq gCond = 'netPr['sys:System,upTerm(0)] = 'true.Bool .
+op rPatT : -> Term .      --- search pattern
+eq rPatT = 'sys:System .
+op uStrat : -> Strategy .  --- update strategy
+eq uStrat = 'applyDig[none]{empty} .
+ 
+op modX : -> Module .     ---- the module parameter
+eq modX = ['MFG-ABRES-SCENARIO] .
+
+****** initial update constructors
+ops digA digL : -> DigressS .
+eq digA = asmDelay(4)  .
+eq digL = linkDelay(4)  .
+ 
+vars na nb : Nat .
+var cdiff : Int .
+var cdur : Nat .
+var r : Rat .
+
+****** parameterized update constructors
+op dA : Nat -> Digress .
+op dL : Nat -> Digress .
+eq dA(na) = asmDelay(na) .
+eq dL(na) = linkDelay(na) .
+
+****** configuration constructors
+**** na,nb number of orders for PA,PB
+**** cdiff,cdur --- criticallity parameters
+
+**** iC1s -- initial inventory 1 of each part
+op iC1s : Nat Nat Int Nat -> Config .
+eq iC1s(na,nb,cdiff,cdur)  =
+  initC(genOs(na,nb),5,genParts(1,1,1),1/6,1/4,0)  crit(false,0,cdiff,cdur)  .   
+
+**** iC2s -- initial inventory 2 of Q0 Q1, 1 of Q2
+op iC2s : Nat Nat Int Nat -> Config .
+eq iC2s(na,nb,cdiff,cdur)  =
+  initC(genOs(na,nb),5,genParts(2,2,1),1/6,1/4,0)  crit(false,0,cdiff,cdur) .   
+
+op iC1xs : Nat Nat Int Nat Rat -> Config .
+eq iC1xs(na,nb,cdiff,cdur,r)  =
+  initC(genOs(na,nb),5,genParts(1,1,1),1/6,r,0)  crit(false,0,cdiff,cdur)  .   
+
+op iC2xs : Nat Nat Int Nat Rat -> Config .
+eq iC2xs(na,nb,cdiff,cdur,r)  =
+  initC(genOs(na,nb),5,genParts(2,2,1),1/6,r,0)  crit(false,0,cdiff,cdur) .   
+
+ 
+endm
+eof
+
+red netPr({iCfg},2) .
+
+search [1] {iCfg1 stop(12)} =>! sys:System such that netPr(sys:System,2).
+
+
+red isAbNRes(['MFG-ABRES-SCENARIO], 1, 6,12,digA, iSysT1, rPatT,gCond,uStrat,0) .
+
